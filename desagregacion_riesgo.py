@@ -47,13 +47,17 @@ DATA_PATH = "dataprueba1606VF.csv"          # <-- pon aquí tu archivo
 RD_COL    = "rd"                            # columna de tasa de default (no existe en este caso)
 SCORE_COL = "puntaje_mod"                   # *** proxy de riesgo: a MAYOR score, MENOR riesgo ***
 SIT_COL   = "sit_lab_ap"                   # situación laboral (no se usa en modo SCORE)
-FLG_COL   = ""                             # no hay flag de escenarios -> se corre sobre TODA la base
-FAR_COL   = "flg_far_mto_trx_presencial_12m_c216"   # split opcional (far)
-VALORES_FLG = []
+FLG_COL   = ""                             # columna del segmento. Déjala "" para AUTODETECTAR la que
+                                           # contiene VALORES_FLG, o pon su nombre exacto (ej. "FLG_CAST_AP").
+FAR_COL   = ""                             # split de escenarios por far. "" = sin split.
+VALORES_FLG = ['CAST_NOIBK_REP>=5anios']   # segmento(s) a procesar; [] = toda la base.
 
 APETITO_RD    = 0.02                        # RD MÁXIMO aceptable (modo RD)
-APETITO_SCORE = 720                         # score MÍNIMO aceptable (modo SCORE)  <-- AJUSTA a tu apetito
+APETITO_SCORE = 840                         # score MÍNIMO aceptable (modo SCORE)  <-- AJUSTA a tu apetito
 FACTORES = [0.90, 0.95, 1.00, 1.05, 1.10]  # escenarios sobre el apetito
+
+# Variables que ENTRAN AL ÁRBOL TAL CUAL (sin optbinning/WoE): binarias 0/1 u ordinales ya codificadas.
+VARS_DIRECTAS = ["flg_far_mto_trx_presencial_12m_c216"]
 
 NUM_VARS = [
     # castigos / mora
@@ -133,6 +137,8 @@ DIRECCION_NEGOCIO = {
     # flags (0/1) de tenencia/relación -> tener = menos riesgo
     "flg_colaborador_um": -1, "flg_cliente_cts_um": -1, "flg_cliente_inversion_um": -1,
     "flg_cliente_millonaria_um": -1, "flg_cliente_alcancia_um": -1, "flg_cliente_planilla_um": -1,
+    # variable directa (bivariada) -> 0 = deja que los datos decidan el sentido
+    "flg_far_mto_trx_presencial_12m_c216": 0,
     # ordinal de segmentación -> código mayor = peor = más riesgo
     "segmentacion_gdp_v2": +1, "score_g": +1,
 }
@@ -414,6 +420,11 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
                                   df_sc[SIT_COL].values)
         raw[SCORE_BANDA] = pd.Series(bandas, index=df_sc.index).map({f"G{i}": i for i in range(1, 6)})
         feats.append(SCORE_BANDA)
+    # variables directas (entran al árbol tal cual, SIN optbinning/WoE)
+    for c in VARS_DIRECTAS:
+        if c in df_sc.columns and c not in excluir and c != TARGET_COL and c not in feats:
+            raw[c] = pd.to_numeric(df_sc[c], errors="coerce")
+            feats.append(c)
 
     # ----- 2) Dirección + (B) WoE que entra al árbol -----
     usa_woe = (metodologia == "B" and WOE_AL_ARBOL)
@@ -647,10 +658,18 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
 # ORQUESTACIÓN
 # ====================================================================================
 def construir_escenarios(df):
-    # Si no hay flag de escenarios (o no está en la base) -> un solo escenario con toda la base.
-    grupos = ([(v.replace(">=", "ge").replace("=", "").replace("/", "_")[:24], df[df[FLG_COL] == v])
+    # Determina la columna del segmento: la indicada en FLG_COL, o la AUTODETECTADA que
+    # contenga los VALORES_FLG. Si no hay -> un solo escenario con toda la base.
+    flg = FLG_COL if (FLG_COL and FLG_COL in df.columns) else ""
+    if (not flg) and VALORES_FLG:
+        for c in df.columns:
+            if (not pd.api.types.is_numeric_dtype(df[c])) and df[c].isin(VALORES_FLG).any():
+                flg = c
+                print(f"  [escenarios] columna de segmento autodetectada: '{flg}'")
+                break
+    grupos = ([(v.replace(">=", "ge").replace("=", "").replace("/", "_")[:24], df[df[flg] == v])
                for v in VALORES_FLG]
-              if (FLG_COL and FLG_COL in df.columns and VALORES_FLG)
+              if (flg and VALORES_FLG)
               else [("TODOS", df)])
     out = []
     for nombre, base in grupos:
@@ -785,8 +804,10 @@ def construir_workbook(df, metodologia, ruta, excluir=()):
     print(f"Generado: {txt_path}")
 
 
-def main():
-    df = pd.read_csv(DATA_PATH)
+def main(df=None):
+    # En notebook puedes llamar main(base_estrategia_sinnulos). Sin argumento lee DATA_PATH.
+    if df is None:
+        df = pd.read_csv(DATA_PATH)
     df = df[~df[TARGET_COL].isna()]
     print(f"Base: {len(df):,} filas, {df.shape[1]} columnas  |  OBJETIVO = {TGT}  (target = {TARGET_COL})")
 
