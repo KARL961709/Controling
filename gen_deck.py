@@ -315,17 +315,318 @@ TREES[("A","NOCASTfar")] = r"""
 """
 TREES[("B","NOCASTfar")] = TREES[("A","NOCASTfar")]   # idéntico en este escenario
 
-# importancia (peso %) por (modelo, escenario): lista (label, %)
+# ===== Corrida COMPLETA (con ingreso y edad) — sobrescribe los árboles =====
+TREES[("A","CAST")] = r"""
+|--- segmentacion_gdp_v2 <= 4.50
+|   |--- saldo_activo_actual <= -50000000.00
+|   |   |--- edad_num <= 57.50
+|   |   |   |--- max_dias_mora_castigo <= 2933.50
+|   |   |   |   |--- value: [761.01]
+|   |   |   |--- max_dias_mora_castigo >  2933.50
+|   |   |   |   |--- edad_num <= 51.50
+|   |   |   |   |   |--- max_dias_mora_castigo <= 4089.50
+|   |   |   |   |   |   |--- value: [727.24]
+|   |   |   |   |   |--- max_dias_mora_castigo >  4089.50
+|   |   |   |   |   |   |--- value: [718.60]
+|   |   |   |   |--- edad_num >  51.50
+|   |   |   |   |   |--- value: [740.35]
+|   |   |--- edad_num >  57.50
+|   |   |   |--- max_dias_mora_castigo <= 2640.50
+|   |   |   |   |--- value: [796.72]
+|   |   |   |--- max_dias_mora_castigo >  2640.50
+|   |   |   |   |--- segmentacion_gdp_v2 <= 3.50
+|   |   |   |   |   |--- value: [778.92]
+|   |   |   |   |--- segmentacion_gdp_v2 >  3.50
+|   |   |   |   |   |--- rk_ing_num <= 1657.50
+|   |   |   |   |   |   |--- value: [762.65]
+|   |   |   |   |   |--- rk_ing_num >  1657.50
+|   |   |   |   |   |   |--- value: [771.48]
+|   |--- saldo_activo_actual >  -50000000.00
+|   |   |--- value: [713.75]
+|--- segmentacion_gdp_v2 >  4.50
+|   |--- saldo_activo_actual <= -50000000.00
+|   |   |--- max_dias_mora_castigo <= 4428.50
+|   |   |   |--- monto_castigado_total <= 931.90
+|   |   |   |   |--- value: [713.75]
+|   |   |   |--- monto_castigado_total >  931.90
+|   |   |   |   |--- value: [713.75]
+|   |   |--- max_dias_mora_castigo >  4428.50
+|   |   |   |--- value: [695.49]
+|   |--- saldo_activo_actual >  -50000000.00
+|   |   |--- prom_saldo_pasivo_u4m <= 88.37
+|   |   |   |--- rk_ing_num <= 2644.50
+|   |   |   |   |--- max_dias_mora_castigo <= 2926.50
+|   |   |   |   |   |--- value: [634.30]
+|   |   |   |   |--- max_dias_mora_castigo >  2926.50
+|   |   |   |   |   |--- value: [585.79]
+|   |   |   |--- rk_ing_num >  2644.50
+|   |   |   |   |--- value: [672.46]
+|   |   |--- prom_saldo_pasivo_u4m >  88.37
+|   |   |   |--- value: [713.75]
+"""
+TREES[("A","CASTfar")] = r"""
+|--- segmentacion_gdp_v2 <= 4.50
+|   |--- rk_ing_num <= 3425.50
+|   |   |--- edad_num <= 59.50
+|   |   |   |--- saldo_activo_actual <= -50000000.00
+|   |   |   |   |--- max_dias_mora_castigo <= 4011.50
+|   |   |   |   |   |--- value: [747.72]
+|   |   |   |   |--- max_dias_mora_castigo >  4011.50
+|   |   |   |   |   |--- max_dias_mora_castigo <= 4667.50
+|   |   |   |   |   |   |--- value: [722.47]
+|   |   |   |   |   |--- max_dias_mora_castigo >  4667.50
+|   |   |   |   |   |   |--- value: [721.91]
+|   |   |   |--- saldo_activo_actual >  -50000000.00
+|   |   |   |   |--- value: [711.60]
+|   |   |--- edad_num >  59.50
+|   |   |   |--- saldo_activo_actual <= -50000000.00
+|   |   |   |   |--- value: [778.80]
+|   |   |   |--- saldo_activo_actual >  -50000000.00
+|   |   |   |   |--- value: [754.30]
+|   |--- rk_ing_num >  3425.50
+|   |   |--- rk_ing_num <= 4093.50
+|   |   |   |--- value: [797.12]
+|   |   |--- rk_ing_num >  4093.50
+|   |   |   |--- value: [851.68]
+|--- segmentacion_gdp_v2 >  4.50
+|   |--- max_dias_mora_castigo <= 2479.50
+|   |   |--- saldo_activo_actual <= -50000000.00
+|   |   |   |--- value: [711.60]
+|   |   |--- saldo_activo_actual >  -50000000.00
+|   |   |   |--- max_dias_mora_castigo <= 2078.50
+|   |   |   |   |--- value: [707.40]
+|   |   |   |--- max_dias_mora_castigo >  2078.50
+|   |   |   |   |--- value: [687.06]
+|   |--- max_dias_mora_castigo >  2479.50
+|   |   |--- saldo_activo_actual <= -50000000.00
+|   |   |   |--- value: [685.19]
+|   |   |--- saldo_activo_actual >  -50000000.00
+|   |   |   |--- prom_saldo_pasivo_u4m <= 29.35
+|   |   |   |   |--- rk_ing_num <= 2667.50
+|   |   |   |   |   |--- value: [585.69]
+|   |   |   |   |--- rk_ing_num >  2667.50
+|   |   |   |   |   |--- value: [645.30]
+|   |   |   |--- prom_saldo_pasivo_u4m >  29.35
+|   |   |   |   |--- value: [685.18]
+"""
+TREES[("A","NOCAST")] = r"""
+|--- segmentacion_gdp_v2 <= 4.50
+|   |--- rk_ing_num <= 3422.50
+|   |   |--- segmentacion_gdp_v2 <= 3.50
+|   |   |   |--- edad_num <= 56.50
+|   |   |   |   |--- rk_ing_num <= 2044.50
+|   |   |   |   |   |--- value: [746.98]
+|   |   |   |   |--- rk_ing_num >  2044.50
+|   |   |   |   |   |--- value: [763.51]
+|   |   |   |--- edad_num >  56.50
+|   |   |   |   |--- value: [781.15]
+|   |   |--- segmentacion_gdp_v2 >  3.50
+|   |   |   |--- edad_num <= 39.50
+|   |   |   |   |--- edad_num <= 32.50
+|   |   |   |   |   |--- value: [702.82]
+|   |   |   |   |--- edad_num >  32.50
+|   |   |   |   |   |--- value: [704.43]
+|   |   |   |--- edad_num >  39.50
+|   |   |   |   |--- meses_desde_ultimo_castigo <= 5.50
+|   |   |   |   |   |--- value: [713.29]
+|   |   |   |   |--- meses_desde_ultimo_castigo >  5.50
+|   |   |   |   |   |--- DEUDA_CAS <= 571.77
+|   |   |   |   |   |   |--- value: [729.70]
+|   |   |   |   |   |--- DEUDA_CAS >  571.77
+|   |   |   |   |   |   |--- value: [723.01]
+|   |--- rk_ing_num >  3422.50
+|   |   |--- rk_ing_num <= 4104.50
+|   |   |   |--- value: [802.62]
+|   |   |--- rk_ing_num >  4104.50
+|   |   |   |--- value: [857.88]
+|--- segmentacion_gdp_v2 >  4.50
+|   |--- meses_desde_primer_castigo <= 9.50
+|   |   |--- value: [518.57]
+|   |--- meses_desde_primer_castigo >  9.50
+|   |   |--- rk_ing_num <= 2823.50
+|   |   |   |--- edad_num <= 35.50
+|   |   |   |   |--- DEUDA_CAS <= 407.23
+|   |   |   |   |   |--- value: [663.62]
+|   |   |   |   |--- DEUDA_CAS >  407.23
+|   |   |   |   |   |--- edad_num <= 28.50
+|   |   |   |   |   |   |--- value: [644.08]
+|   |   |   |   |   |--- edad_num >  28.50
+|   |   |   |   |   |   |--- value: [652.46]
+|   |   |   |--- edad_num >  35.50
+|   |   |   |   |--- edad_num <= 40.50
+|   |   |   |   |   |--- edad_num <= 37.50
+|   |   |   |   |   |   |--- value: [666.28]
+|   |   |   |   |   |--- edad_num >  37.50
+|   |   |   |   |   |   |--- value: [668.57]
+|   |   |   |   |--- edad_num >  40.50
+|   |   |   |   |   |--- value: [680.43]
+|   |   |--- rk_ing_num >  2823.50
+|   |   |   |--- prom_saldo_pasivo_u4m <= 0.34
+|   |   |   |   |--- value: [702.55]
+|   |   |   |--- prom_saldo_pasivo_u4m >  0.34
+|   |   |   |   |--- value: [702.69]
+"""
+TREES[("A","NOCASTfar")] = r"""
+|--- segmentacion_gdp_v2 <= 4.50
+|   |--- rk_ing_num <= 3443.50
+|   |   |--- segmentacion_gdp_v2 <= 3.50
+|   |   |   |--- rk_ing_num <= 1791.50
+|   |   |   |   |--- value: [767.37]
+|   |   |   |--- rk_ing_num >  1791.50
+|   |   |   |   |--- DEUDA_CAS <= 1186.94
+|   |   |   |   |   |--- value: [793.13]
+|   |   |   |   |--- DEUDA_CAS >  1186.94
+|   |   |   |   |   |--- value: [792.66]
+|   |   |--- segmentacion_gdp_v2 >  3.50
+|   |   |   |--- DEUDA_CAS <= 230.30
+|   |   |   |   |--- value: [742.74]
+|   |   |   |--- DEUDA_CAS >  230.30
+|   |   |   |   |--- saldo_pasivo_actual <= 1.34
+|   |   |   |   |   |--- value: [718.61]
+|   |   |   |   |--- saldo_pasivo_actual >  1.34
+|   |   |   |   |   |--- value: [720.07]
+|   |--- rk_ing_num >  3443.50
+|   |   |--- segmentacion_gdp_v2 <= 2.50
+|   |   |   |--- value: [883.37]
+|   |   |--- segmentacion_gdp_v2 >  2.50
+|   |   |   |--- rk_ing_num <= 4507.50
+|   |   |   |   |--- rk_ing_num <= 3827.50
+|   |   |   |   |   |--- value: [796.99]
+|   |   |   |   |--- rk_ing_num >  3827.50
+|   |   |   |   |   |--- value: [816.28]
+|   |   |   |--- rk_ing_num >  4507.50
+|   |   |   |   |--- value: [850.96]
+|--- segmentacion_gdp_v2 >  4.50
+|   |--- meses_desde_primer_castigo <= 11.50
+|   |   |--- value: [561.88]
+|   |--- meses_desde_primer_castigo >  11.50
+|   |   |--- rk_ing_num <= 2829.50
+|   |   |   |--- prom_saldo_pasivo_u4m <= 25.08
+|   |   |   |   |--- edad_num <= 35.50
+|   |   |   |   |   |--- DEUDA_CAS <= 422.95
+|   |   |   |   |   |   |--- value: [660.29]
+|   |   |   |   |   |--- DEUDA_CAS >  422.95
+|   |   |   |   |   |   |--- value: [643.79]
+|   |   |   |   |--- edad_num >  35.50
+|   |   |   |   |   |--- DEUDA_CAS <= 745.33
+|   |   |   |   |   |   |--- value: [674.47]
+|   |   |   |   |   |--- DEUDA_CAS >  745.33
+|   |   |   |   |   |   |--- value: [672.54]
+|   |   |   |--- prom_saldo_pasivo_u4m >  25.08
+|   |   |   |   |--- value: [691.17]
+|   |   |--- rk_ing_num >  2829.50
+|   |   |   |--- saldo_pasivo_actual <= 0.15
+|   |   |   |   |--- value: [718.09]
+|   |   |   |--- saldo_pasivo_actual >  0.15
+|   |   |   |   |--- value: [718.60]
+"""
+TREES[("B","CAST")] = r"""
+|--- segmentacion_gdp_v2 <= 4.50
+|   |--- edad_num <= 59.50
+|   |   |--- rk_ing_num <= 2776.50
+|   |   |   |--- monto_castigado_otros <= 439.61
+|   |   |   |   |--- value: [726.35]
+|   |   |   |--- monto_castigado_otros >  439.61
+|   |   |   |   |--- value: [721.04]
+|   |   |--- rk_ing_num >  2776.50
+|   |   |   |--- prom_saldo_pasivo_u4m <= 0.53
+|   |   |   |   |--- value: [751.73]
+|   |   |   |--- prom_saldo_pasivo_u4m >  0.53
+|   |   |   |   |--- value: [751.76]
+|   |--- edad_num >  59.50
+|   |   |--- max_dias_mora_castigo <= 2649.50
+|   |   |   |--- value: [795.94]
+|   |   |--- max_dias_mora_castigo >  2649.50
+|   |   |   |--- edad_num <= 66.50
+|   |   |   |   |--- max_dias_mora_castigo <= 3971.50
+|   |   |   |   |   |--- value: [755.32]
+|   |   |   |   |--- max_dias_mora_castigo >  3971.50
+|   |   |   |   |   |--- value: [753.80]
+|   |   |   |--- edad_num >  66.50
+|   |   |   |   |--- value: [780.41]
+|--- segmentacion_gdp_v2 >  4.50
+|   |--- max_dias_mora_castigo <= 2470.50
+|   |   |--- rk_ing_num <= 2484.50
+|   |   |   |--- value: [707.92]
+|   |   |--- rk_ing_num >  2484.50
+|   |   |   |--- value: [713.73]
+|   |--- max_dias_mora_castigo >  2470.50
+|   |   |--- nro_entidades_castigo <= 1.50
+|   |   |   |--- edad_num <= 41.50
+|   |   |   |   |--- max_dias_mora_castigo <= 3473.50
+|   |   |   |   |   |--- max_dias_mora_castigo <= 2848.50
+|   |   |   |   |   |   |--- value: [682.20]
+|   |   |   |   |   |--- max_dias_mora_castigo >  2848.50
+|   |   |   |   |   |   |--- value: [681.65]
+|   |   |   |   |--- max_dias_mora_castigo >  3473.50
+|   |   |   |   |   |--- edad_num <= 34.50
+|   |   |   |   |   |   |--- value: [662.49]
+|   |   |   |   |   |--- edad_num >  34.50
+|   |   |   |   |   |   |--- value: [671.18]
+|   |   |   |--- edad_num >  41.50
+|   |   |   |   |--- value: [689.90]
+|   |   |--- nro_entidades_castigo >  1.50
+|   |   |   |--- value: [635.44]
+"""
+TREES[("B","CASTfar")] = r"""
+|--- segmentacion_gdp_v2 <= 4.50
+|   |--- rk_ing_num <= 3425.50
+|   |   |--- edad_num <= 59.50
+|   |   |   |--- prom_saldo_pasivo_u4m <= 14.92
+|   |   |   |   |--- rk_ing_num <= 2980.50
+|   |   |   |   |   |--- DEUDA_CAS <= 487.23
+|   |   |   |   |   |   |--- value: [716.37]
+|   |   |   |   |   |--- DEUDA_CAS >  487.23
+|   |   |   |   |   |   |--- value: [713.10]
+|   |   |   |   |--- rk_ing_num >  2980.50
+|   |   |   |   |   |--- value: [731.83]
+|   |   |   |--- prom_saldo_pasivo_u4m >  14.92
+|   |   |   |   |--- value: [747.72]
+|   |   |--- edad_num >  59.50
+|   |   |   |--- max_dias_mora_castigo <= 4228.50
+|   |   |   |   |--- value: [778.79]
+|   |   |   |--- max_dias_mora_castigo >  4228.50
+|   |   |   |   |--- value: [765.12]
+|   |--- rk_ing_num >  3425.50
+|   |   |--- rk_ing_num <= 4093.50
+|   |   |   |--- value: [797.12]
+|   |   |--- rk_ing_num >  4093.50
+|   |   |   |--- value: [851.68]
+|--- segmentacion_gdp_v2 >  4.50
+|   |--- max_dias_mora_castigo <= 2479.50
+|   |   |--- rk_ing_num <= 2229.50
+|   |   |   |--- value: [711.55]
+|   |   |--- rk_ing_num >  2229.50
+|   |   |   |--- value: [711.58]
+|   |--- max_dias_mora_castigo >  2479.50
+|   |   |--- rk_ing_num <= 2801.50
+|   |   |   |--- nro_entidades_castigo <= 1.50
+|   |   |   |   |--- max_dias_mora_castigo <= 3792.50
+|   |   |   |   |   |--- value: [668.17]
+|   |   |   |   |--- max_dias_mora_castigo >  3792.50
+|   |   |   |   |   |--- edad_num <= 39.50
+|   |   |   |   |   |   |--- value: [642.27]
+|   |   |   |   |   |--- edad_num >  39.50
+|   |   |   |   |   |   |--- value: [658.80]
+|   |   |   |--- nro_entidades_castigo >  1.50
+|   |   |   |   |--- value: [623.16]
+|   |   |--- rk_ing_num >  2801.50
+|   |   |   |--- value: [685.09]
+"""
+TREES[("B","NOCAST")] = TREES[("A","NOCAST")]
+TREES[("B","NOCASTfar")] = TREES[("A","NOCASTfar")]
+
+# importancia (peso %) por (modelo, escenario): lista (label, %)  — corrida COMPLETA
 ART = "saldo_activo (=MISSING)"
 IMP = {
- ("A","CAST"):[("segmentación",47.8),(ART,33.2),("ahorro prom 4m",9.3),("máx días mora",8.3),("nro entidades",1.0),("saldo pasivo",0.3)],
- ("B","CAST"):[("segmentación",67.8),("máx días mora",25.3),("nro entidades",6.6),("ahorro prom 4m",0.3),("deuda cast.",0.1)],
- ("A","CASTfar"):[("segmentación",49.4),("ahorro prom 4m",19.8),(ART,18.7),("máx días mora",12.0)],
- ("B","CASTfar"):[("segmentación",54.9),("máx días mora",25.9),("ahorro prom 4m",17.0),("nro entidades",2.2)],
- ("A","NOCAST"):[("segmentación",72.7),("meses 1er castigo",22.3),("ahorro prom 4m",3.5),("meses últ. castigo",0.9),("deuda cast.",0.6)],
- ("B","NOCAST"):[("segmentación",72.7),("meses 1er castigo",22.3),("ahorro prom 4m",3.5),("meses últ. castigo",0.9),("deuda cast.",0.6)],
- ("A","NOCASTfar"):[("segmentación",81.3),("meses 1er castigo",11.2),("ahorro prom 4m",5.0),("deuda cast.",1.7),("meses últ. castigo",0.9)],
- ("B","NOCASTfar"):[("segmentación",81.3),("meses 1er castigo",11.2),("ahorro prom 4m",5.0),("deuda cast.",1.7),("meses últ. castigo",0.9)],
+ ("A","CAST"):[("segmentación",41.1),(ART,30.6),("ahorro prom 4m",8.6),("ingreso",7.7),("edad",6.1),("máx días mora",6.0)],
+ ("B","CAST"):[("segmentación",59.2),("edad",19.2),("máx días mora",11.7),("nro entidades",6.0),("ingreso",3.8)],
+ ("A","CASTfar"):[("segmentación",42.5),("ingreso",20.1),(ART,12.0),("edad",9.8),("máx días mora",9.3),("ahorro prom 4m",6.3)],
+ ("B","CASTfar"):[("segmentación",50.5),("ingreso",23.1),("edad",11.9),("máx días mora",10.4),("ahorro prom 4m",2.2),("nro entidades",1.9)],
+ ("A","NOCAST"):[("segmentación",59.0),("meses 1er castigo",19.7),("ingreso",18.3),("edad",2.7),("deuda cast.",0.3),("meses últ. castigo",0.1)],
+ ("B","NOCAST"):[("segmentación",59.0),("meses 1er castigo",19.7),("ingreso",18.3),("edad",2.7),("deuda cast.",0.3),("meses últ. castigo",0.1)],
+ ("A","NOCASTfar"):[("segmentación",64.1),("ingreso",23.6),("meses 1er castigo",9.8),("ahorro prom 4m",1.1),("edad",0.8),("deuda cast.",0.5)],
+ ("B","NOCASTfar"):[("segmentación",64.1),("ingreso",23.6),("meses 1er castigo",9.8),("ahorro prom 4m",1.1),("edad",0.8),("deuda cast.",0.5)],
 }
 SCN = [("CAST","CAST_NOIBK_REP ≥ 5 años","1,695,395"),
        ("CASTfar","CAST_NOIBK_REP ≥ 5 años · far = 1","311,143"),
@@ -338,6 +639,7 @@ PRETTY = {
     "DEUDA_CAS": "deuda cast.", "meses_desde_ultimo_castigo": "meses últ. castigo",
     "meses_desde_primer_castigo": "meses 1er castigo", "saldo_pasivo_actual": "saldo pasivo",
     "monto_castigado_otros": "monto cast. otros", "monto_castigado_total": "monto cast. total",
+    "edad_num": "edad", "rk_ing_num": "ingreso",
 }
 
 def color(s, lo=540.0, hi=890.0):
@@ -522,7 +824,7 @@ slides.append(f"""<section class="slide active">{LOGO}
 <div style="margin-top:6vh">
 <div class="kicker">Rebancarización Castigados · Modelo de segmentación</div>
 <h1>Optbinning + Árbol &nbsp;vs.&nbsp; Solo Árbol</h1>
-<div class="sub">Comparación justa: ambos modelos SIN ingreso (rk_ing) ni edad</div>
+<div class="sub">Comparación con TODAS las variables (incluye ingreso y edad)</div>
 <p class="lead" style="margin-top:20px;max-width:900px">Mismo dataset (~2.7&nbsp;MM, 4 escenarios) y mismas variables.
 Proxy de riesgo: <b>puntaje_mod</b> (alto = menor riesgo). Objetivo: priorizar <b>grupos de bajo riesgo</b>,
 deduplicados por <b>subject_id</b>.</p>
@@ -557,10 +859,11 @@ slides.append(slide("""<h2>Variables y su sentido económico</h2>
 <tr><td class="l"><b>meses_desde_últ./primer_castigo</b></td><td class="l">Antigüedad del castigo</td><td>más antiguo → <span class="green">menor riesgo</span></td></tr>
 <tr><td class="l"><b>saldo_pasivo_* / ahorro_prom</b></td><td class="l">Ahorros / depósitos del cliente</td><td>más ahorro → <span class="green">menor riesgo</span></td></tr>
 <tr><td class="l"><b>nro_meses_con_pasivo_u6m</b></td><td class="l">Constancia del ahorro</td><td>más constancia → <span class="green">menor riesgo</span></td></tr>
-<tr><td class="l red">saldo_activo_actual</td><td class="l">Crédito vigente (señal ambigua)</td><td class="red">descartada (no binariza)</td></tr>
-<tr><td class="l">rk_ing_num · edad_num</td><td class="l">Ingreso · edad</td><td>excluidas en esta corrida</td></tr>
+<tr><td class="l"><b>rk_ing_num</b></td><td class="l">Nivel de ingreso del cliente</td><td>más ingreso → <span class="green">menor riesgo</span></td></tr>
+<tr><td class="l"><b>edad_num</b></td><td class="l">Edad del cliente</td><td>mayor edad → <span class="green">menor riesgo</span> (detectada)</td></tr>
+<tr><td class="l red">saldo_activo_actual</td><td class="l">Crédito vigente (señal ambigua)</td><td class="red">descartada por optbinning (no binariza)</td></tr>
 </table>
-<div class="callout"><p>Toda dirección tiene lectura de negocio. El árbol <b>se obliga</b> a respetarla (monótono) → no hay relaciones contraintuitivas.</p></div>
+<div class="callout"><p>Toda dirección tiene lectura de negocio. El árbol <b>se obliga</b> a respetarla (monótono) → no hay relaciones contraintuitivas. En esta corrida <b>ingreso y edad sí entran</b>.</p></div>
 <div class="foot">Variables · sentido económico</div>"""))
 
 # 3 metodologias
@@ -575,18 +878,18 @@ slides.append(slide("""<h2>Las dos metodologías</h2>
 <ul class="b"><li>Dirección inferida de datos (Spearman); <b>entran todas</b>.</li>
 <li>Sin filtro de binarización → admite variables ruidosas o artefactos.</li>
 <li>Más flexible, menos disciplinado para producción.</li></ul></div></div>
-<div class="callout"><p>Para que la comparación sea limpia, en esta corrida <b>ambos excluyen <code>edad_num</code> y <code>rk_ing_num</code></b>.</p></div>
+<div class="callout"><p>En esta corrida <b>entran todas las variables</b> (ingreso y edad incluidas). La diferencia clave: B las admite solo si <b>binarizan con su dirección de negocio</b>; A no filtra nada.</p></div>
 <div class="foot">2 · Definición</div>"""))
 
 # 3 hallazgo
 slides.append(slide("""<h2>El hallazgo decisivo: ¿de qué se alimenta cada árbol?</h2>
 <div class="grid2">
 <div class="card win"><span class="tag b">MODELO B</span><h3 class="green">Señales reales de riesgo</h3>
-<ul class="b"><li>Drivers: <b>segmentación</b>, <b>severidad de mora</b>, <b>multi-entidad</b>, <b>ahorro</b>.</li>
-<li>En NO_CAST descarta castigo/mora (no aplican). Descarta <code>saldo_activo</code> (no binariza).</li>
+<ul class="b"><li>Drivers: <b>segmentación</b>, <b>edad</b>, <b>severidad de mora</b>, <b>multi-entidad</b>, <b>ingreso</b>.</li>
+<li>Incorpora <b>ingreso y edad</b> de forma coherente (ambas crecientes). Descarta <code>saldo_activo</code> (no binariza).</li>
 <li>Reglas <b>explicables y auditables</b>.</li></ul></div>
 <div class="card warn"><span class="tag a">MODELO A</span><h3 class="red">Usa el “dato faltante” como predictor</h3>
-<ul class="b"><li>Su 2º driver es <code>saldo_activo ≤ -50,000,000</code> = clientes <b>SIN dato</b> (⚑ MISSING) — <b>33.2% del peso</b> en CAST.</li>
+<ul class="b"><li>Su 2º driver es <code>saldo_activo ≤ -50,000,000</code> = clientes <b>SIN dato</b> (⚑ MISSING) — <b>30.6% del peso</b> en CAST.</li>
 <li>Varias estrategias top se definen por <b>“no tener saldo activo”</b> (artefacto, no comportamiento).</li>
 <li>Dirección de <code>saldo_activo</code> inconsistente entre escenarios (0 vs +1).</li></ul></div></div>
 <div class="foot">3 · Coherencia</div>"""))
@@ -617,17 +920,17 @@ slides.append(slide(f"""<h2>Pesos de variables por escenario · Modelo A (Solo �
 slides.append(slide("""<h2>Volumen de leads de bajo riesgo (deduplicados)</h2>
 <table>
 <tr><th>Corte (top % puntaje)</th><th>top 10%</th><th>top 15%</th><th>top 20%</th><th>top 30%</th></tr>
-<tr><td class="l"><b>Modelo A · Solo árbol</b></td><td>91,972</td><td>128,623</td><td>160,489</td><td>216,848</td></tr>
-<tr><td class="l"><b>Modelo B · Optbinning</b></td><td>91,672</td><td>127,997</td><td>158,165</td><td>213,261</td></tr>
-<tr><td class="l">Diferencia (A − B)</td><td>+300</td><td>+626</td><td>+2,324</td><td>+3,587</td></tr>
+<tr><td class="l"><b>Modelo A · Solo árbol</b></td><td>112,222</td><td>156,505</td><td>198,562</td><td>269,613</td></tr>
+<tr><td class="l"><b>Modelo B · Optbinning</b></td><td>104,372</td><td>142,350</td><td>178,494</td><td>238,483</td></tr>
+<tr><td class="l">Diferencia (A − B)</td><td>+7,850</td><td>+14,155</td><td>+20,068</td><td>+31,130</td></tr>
 </table>
 <div class="grid2" style="margin-top:16px">
-<div class="card warn"><h3 class="amber">Empate técnico en volumen</h3>
-<ul class="b"><li>A solo aporta <b>+0.5%</b> de leads en top 15% (≈ 626 clientes).</li>
-<li>Ese “extra” proviene de segmentos definidos por el <b>flag de missing</b> → volumen <b>poco defendible</b>.</li></ul></div>
-<div class="card win"><h3 class="green">Mismo volumen, mejor calidad</h3>
-<ul class="b"><li>B entrega prácticamente los mismos leads <b>sin artefactos</b> y con segmentos explicables.</li>
-<li>A igualdad de volumen, <b>gana la robustez</b>.</li></ul></div></div>
+<div class="card warn"><h3 class="amber">A genera ~10% más… pero inflado</h3>
+<ul class="b"><li>El extra de A (≈ 14k en top 15%) viene de <b>~6 estrategias definidas por <code>saldo_activo = MISSING</code></b> (≈ 77k clientes en total).</li>
+<li>Son leads seleccionados por <b>un dato faltante</b>, no por comportamiento → volumen <b>poco defendible</b>.</li></ul></div>
+<div class="card win"><h3 class="green">B: 142k leads 100% accionables</h3>
+<ul class="b"><li>B incorpora <b>ingreso y edad</b> y entrega segmentos limpios y explicables.</li>
+<li>Es preferible <b>142k defendibles</b> que 156k con ~14k frágiles.</li></ul></div></div>
 <div class="foot">5 · Volumen de leads</div>"""))
 
 # 5b selección de leads + ejemplo
@@ -637,23 +940,23 @@ slides.append(slide("""<h2>¿Cómo se elige un lead? (y qué pasa con un cliente
   <div class="col"><div class="exbox"><h4 style="color:var(--navy);margin-bottom:6px">Cliente #00123</h4>
      <div class="kv">Castigado <b>≥ 5 años</b> &amp; <b>far = 1</b></div>
      <div class="kv">segmentación: <b>G3</b></div>
+     <div class="kv">edad: <b>63</b></div>
+     <div class="kv">ingreso (rk): <b>3,000</b></div>
      <div class="kv">máx días mora: <b>2,200</b></div>
-     <div class="kv">nro entidades: <b>1</b></div>
-     <div class="kv">ahorro prom 4m: <b>120</b></div>
      <div class="kv">puntaje_mod: <b>792</b> (top 15%)</div>
      <p class="note">Por sus flags cae en <b>2 escenarios</b> a la vez.</p></div></div>
   <div class="arrow">→</div>
   <div class="col"><div class="exbox"><h4 style="color:var(--navy)">Escenario CAST ≥5a</h4>
-     <div class="path">segmentación ≤4 → mora ≤2,534 → segmentación ≤3</div>
-     <span class="score" style="background:rgb(150,200,90)">hoja = 795</span>
-     <p class="note">Estrategia “segmentación≤4 &amp; mora≤2,534”.</p></div>
+     <div class="path">segmentación ≤4 → edad &gt;60 → mora ≤2,650</div>
+     <span class="score" style="background:rgb(150,200,90)">hoja = 796</span>
+     <p class="note">Estrategia “segmentación≤4 &amp; edad&gt;60 &amp; mora≤2,650”.</p></div>
      <div class="exbox mut" style="margin-top:10px"><h4 style="color:var(--navy)">Escenario CAST · far1</h4>
-     <div class="path">segmentación ≤4 → ahorro ≤602 → mora ≤2,255 → entidades ≤1</div>
-     <span class="score" style="background:rgb(160,205,95)">hoja = 790</span></div></div>
+     <div class="path">segmentación ≤4 → ingreso ≤3,426 → edad &gt;60 → mora ≤4,228</div>
+     <span class="score" style="background:rgb(165,205,95)">hoja = 779</span></div></div>
   <div class="arrow">→</div>
   <div class="col"><div class="exbox win"><h4 class="green">Deduplicación</h4>
-     <div class="kv">CAST ≥5a → <b>795</b> &nbsp; vs &nbsp; far1 → 790</div>
-     <div class="kv">Gana el <b>mayor score</b> (menor riesgo): <b class="green">795</b>.</div>
+     <div class="kv">CAST ≥5a → <b>796</b> &nbsp; vs &nbsp; far1 → 779</div>
+     <div class="kv">Gana el <b>mayor score</b> (menor riesgo): <b class="green">796</b>.</div>
      <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
      <div class="kv">✔ Queda en <b>1 estrategia</b> (CAST ≥5a).</div>
      <div class="kv">✘ Se elimina de far1.</div>
@@ -667,18 +970,18 @@ slides.append(slide("""<h2>Calidad de los segmentos top</h2>
 <div class="grid2">
 <div class="card win"><span class="tag b">MODELO B · reglas limpias</span>
 <table><tr><th class="l">Regla del segmento</th><th>score</th></tr>
-<tr><td class="l">segmentación ≤2 &amp; deuda ≤551</td><td class="best">875</td></tr>
-<tr><td class="l">segmentación ≤4 &amp; ahorro_prom &gt;602</td><td class="best">840</td></tr>
-<tr><td class="l">segmentación ≤4 &amp; mora ≤2,534</td><td>795</td></tr>
-<tr><td class="l">segmentación(2,4] &amp; meses_últ_cast &gt;6 &amp; deuda ≤805</td><td>802</td></tr></table>
-<p class="note">Comportamiento de pago + ahorro.</p></div>
+<tr><td class="l">segmentación ≤2 &amp; ingreso &gt;3,444</td><td class="best">883</td></tr>
+<tr><td class="l">segmentación ≤4 &amp; ingreso &gt;4,104</td><td class="best">858</td></tr>
+<tr><td class="l">segmentación ≤4 &amp; edad &gt;60 &amp; mora ≤2,650</td><td>796</td></tr>
+<tr><td class="l">segmentación ≤4 &amp; edad &gt;66 &amp; mora &gt;2,650</td><td>780</td></tr></table>
+<p class="note">Segmento + ingreso + edad + comportamiento de pago.</p></div>
 <div class="card"><span class="tag a">MODELO A · varios con artefacto</span>
 <table><tr><th class="l">Regla del segmento</th><th>n_leads</th></tr>
-<tr><td class="l">segmentación ≤2 &amp; <span class="red">saldo_activo MISSING</span></td><td>21,765</td></tr>
-<tr><td class="l">segmentación(2,4] &amp; <span class="red">saldo_activo MISSING</span> &amp; mora ≤2,312</td><td>30,790</td></tr>
-<tr><td class="l">… &amp; <span class="red">saldo_activo MISSING</span> &amp; mora(2,312–2,650]</td><td>12,330</td></tr>
-<tr><td class="l">… &amp; <span class="red">saldo_activo MISSING</span> &amp; mora(2,650–3,038]</td><td>9,010</td></tr></table>
-<p class="note red">≈ 7 de las 20 estrategias dependen de “no tener saldo activo”.</p></div></div>
+<tr><td class="l">segmentación ≤4 &amp; <span class="red">saldo_activo MISSING</span> &amp; edad &gt;58 &amp; mora ≤2,640</td><td>27,787</td></tr>
+<tr><td class="l">segmentación ≤4 &amp; <span class="red">saldo_activo MISSING</span> &amp; edad ≤58 &amp; mora ≤2,934</td><td>30,521</td></tr>
+<tr><td class="l">segmentación ≤4 &amp; <span class="red">saldo_activo MISSING</span> &amp; edad &gt;58 &amp; mora &gt;2,640</td><td>20,226</td></tr>
+<tr><td class="l">segmentación(4,4] &amp; <span class="red">saldo_activo MISSING</span> &amp; edad &gt;58 …</td><td>13,118</td></tr></table>
+<p class="note red">≈ 6 de las 20 estrategias dependen de “no tener saldo activo” (≈ 77k leads).</p></div></div>
 <div class="foot">6 · Calidad de segmentación</div>"""))
 
 # 7-8 árboles
@@ -688,10 +991,10 @@ LEG = ('<div class="lgnd">Hojas coloreadas por puntaje_mod: '
        '<span class="sw" style="background:rgb(224,60,70)"></span>mayor riesgo</div>')
 
 CAPS = {
- "CAST": '<p>En A el <b>1º/2º corte</b> ya es <code>saldo_activo = MISSING</code> (rojo). En B la raíz es <b>segmentación</b> y luego <b>mora/entidades</b> — señales reales.</p>',
- "CASTfar": '<p>Mismo patrón: A vuelve a usar <code>saldo_activo = MISSING</code>; B usa <b>ahorro + mora + entidades</b>. Ambos coinciden en el mejor segmento (ahorro &gt;602 → 840).</p>',
- "NOCAST": '<p><b>A y B convergen al MISMO árbol</b>: segmentación + meses desde castigo + ahorro. Sin variables de castigo (no aplican) y sin artefactos.</p>',
- "NOCASTfar": '<p>También <b>idénticos</b>: segmentación + deuda + meses desde castigo + ahorro. Máxima estabilidad y coherencia.</p>',
+ "CAST": '<p>En A el <b>1º/2º corte</b> ya es <code>saldo_activo = MISSING</code> (rojo). En B la raíz es <b>segmentación</b> y luego <b>edad / mora / entidades</b> — señales reales.</p>',
+ "CASTfar": '<p>A vuelve a apoyarse en <code>saldo_activo = MISSING</code>; B usa <b>ingreso + edad + mora</b>. Ambos coinciden en el mejor segmento (ingreso &gt;4,094 → 852).</p>',
+ "NOCAST": '<p><b>A y B convergen al MISMO árbol</b>: segmentación + ingreso + edad + meses desde castigo. Sin castigo/mora (no aplican) y sin artefactos.</p>',
+ "NOCASTfar": '<p>También <b>idénticos</b>: segmentación + ingreso + deuda + ahorro. Máxima estabilidad y coherencia.</p>',
 }
 CAPCLS = {"CAST": "bad", "CASTfar": "bad", "NOCAST": "", "NOCASTfar": ""}
 for k, name, nn in SCN:
@@ -709,21 +1012,40 @@ slides.append(slide("""<h2>Veredicto comparativo</h2>
 <table>
 <tr><th>Criterio</th><th>Modelo B · Optbinning</th><th>Modelo A · Solo árbol</th></tr>
 <tr><td class="l">Coherencia de negocio</td><td class="best">Alta — 100% coherente</td><td>Media — inconsistencias</td></tr>
-<tr><td class="l">Artefacto (missing como predictor)</td><td class="best">Nulo</td><td class="red">Alto (33% del peso en CAST)</td></tr>
+<tr><td class="l">Artefacto (missing como predictor)</td><td class="best">Nulo</td><td class="red">Alto (30.6% del peso en CAST)</td></tr>
+<tr><td class="l">Incorpora ingreso y edad coherentes</td><td class="best">Sí</td><td>Sí (pero junto al artefacto)</td></tr>
 <tr><td class="l">Explicabilidad / auditoría</td><td class="best">Alta</td><td>Media</td></tr>
 <tr><td class="l">Selección automática de variables</td><td class="best">Sí</td><td>No</td></tr>
-<tr><td class="l">Volumen de leads (top 15%)</td><td>127,997</td><td>128,623 <span class="note">(+0.5%)</span></td></tr>
+<tr><td class="l">Volumen de leads (top 15%)</td><td>142,350</td><td>156,505 <span class="note">(+10%, ~14k vía artefacto)</span></td></tr>
 <tr><td class="l">Robustez para producción 3&nbsp;MM</td><td class="best">Alta</td><td>Media</td></tr></table>
-<div class="verdict"><div class="big">A <em>igual volumen</em>, se recomienda implementar el <em>Modelo B (Optbinning + Árbol)</em>; usar A solo como benchmark.</div></div>
+<div class="verdict"><div class="big">Se recomienda implementar el <em>Modelo B (Optbinning + Árbol)</em>: 142k leads limpios; el +10% de A es <em>volumen frágil</em> apoyado en el dato faltante.</div></div>
 <div class="foot">9 · Veredicto</div>"""))
 
 # 10 proximos pasos
+slides.append(slide("""<h2>Conclusiones y resultados</h2>
+<div class="grid2">
+<div class="card win"><span class="tag b">Lo que confirma B</span>
+<ul class="b">
+<li><b>Incorpora ingreso y edad de forma coherente</b> (ambas crecientes) — valida la recomendación previa de sumar ingreso.</li>
+<li><b>Cero artefactos:</b> descarta <code>saldo_activo</code> y, en no castigados, las variables de castigo que no aplican.</li>
+<li>Segmentos <b>explicables</b>: segmentación + ingreso + edad + mora + ahorro.</li>
+<li><b>142,350 leads</b> (top 15%) listos y defendibles.</li></ul></div>
+<div class="card warn"><span class="tag a">Lo que arrastra A</span>
+<ul class="b">
+<li><code>saldo_activo = MISSING</code> es el <b>2º driver (30.6%)</b> en CAST y define <b>~6 estrategias</b> (≈ 77k leads).</li>
+<li>Su ventaja de volumen (<b>+14k, +10%</b>) es casi toda <b>artefacto</b>.</li>
+<li><b>Sobre-segmenta por edad</b> y deja la dirección de <code>saldo_activo</code> inconsistente entre escenarios.</li></ul></div></div>
+<div class="grid2" style="margin-top:6px">
+<div class="card"><h3 class="green">Hallazgo robusto</h3><p>En <b>las 3 corridas</b> (con y sin ingreso/edad), A siempre se apoya en el dato faltante y B nunca. Es un patrón <b>estructural</b>, no de azar.</p></div>
+<div class="card"><h3>Convergencia sana</h3><p>En <b>no castigados</b> A y B dan el <b>mismo árbol</b> → cuando no hay artefacto disponible, ambos coinciden. La diferencia la hace el artefacto.</p></div></div>
+<div class="foot">Conclusiones</div>"""))
+
 slides.append(f"""<section class="slide">{LOGO}<h2>Recomendación e implementación</h2>
 <div class="grid3">
 <div class="card win"><h3 class="green">1 · Modelo base</h3><p>Adoptar <b>Optbinning + Árbol</b> con direcciones de negocio y descarte automático de variables.</p></div>
-<div class="card"><h3>2 · Recuperar poder</h3><p>Evaluar <b>reincorporar rk_ing (ingreso, ↑)</b> a B para subir volumen sin perder coherencia, ahora que descartamos el artefacto.</p></div>
+<div class="card"><h3>2 · Variables</h3><p>Mantener <b>ingreso y edad</b> (ya entran coherentes) y la <b>exclusión de saldo_activo</b> para no reintroducir el artefacto.</p></div>
 <div class="card"><h3>3 · Activación</h3><p>Usar la <b>hoja de Estrategia</b> (top segmentos, sin duplicados) y el CSV de leads. Calibrar el corte 10–30% según campaña.</p></div></div>
-<div class="callout" style="margin-top:20px"><p><b>Quick win:</b> el corte <b>top 15%</b> de B entrega <b>~128 mil leads de riesgo controlado</b>, 100% explicables, listos para desplegar.</p></div>
+<div class="callout" style="margin-top:20px"><p><b>Quick win:</b> el corte <b>top 15%</b> de B entrega <b>~142 mil leads de riesgo controlado</b>, 100% explicables, listos para desplegar.</p></div>
 <div class="verdict" style="background:var(--green-d)"><div class="big">Misma cosecha de leads, base más limpia → menos pérdida y mejor tasa de aprobación.</div></div>
 <div class="foot">10 · Próximos pasos</div></section>""")
 
