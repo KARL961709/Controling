@@ -14,8 +14,19 @@
 -- CTE se agrega por key_value para evitar fan-out.
 -- Ventanas t_360 (ancladas en codmes_ejec): UM=mes; U3M=[-2,0]; U4M=[-3,0]; U6M=[-5,0]
 -- =========================================================================
--- Para materializar:  CREATE TABLE <destino> WITH (...) AS  <este SELECT>
+-- TABLA DESTINO (NUEVA): no modifica disc_riesgos.scr_rebank_v1.
+--   @NOMBRE_TABLA  = disc_model_owner.T_SCR_REBANK_V1_VARIABLES  (ajustar si aplica)
+--   @S3_LOCATION   = .../estrategias/REBANK_V1_VARIABLES/        (ajustar si aplica)
 -- =========================================================================
+DROP TABLE IF EXISTS disc_model_owner.T_SCR_REBANK_V1_VARIABLES;
+
+CREATE TABLE disc_model_owner.T_SCR_REBANK_V1_VARIABLES
+WITH (
+    format = 'PARQUET',
+    parquet_compression = 'SNAPPY',
+    external_location = 's3://ibk-discovery-riesgos-us-east-1-339712995012-data/discovery/model_owner/B47515/estrategias/REBANK_V1_VARIABLES/'
+)
+AS
 WITH base AS (
     SELECT DISTINCT
         CAST(key_value   AS VARCHAR) AS key_value,
