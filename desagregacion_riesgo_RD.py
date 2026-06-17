@@ -416,16 +416,23 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
         tree = DecisionTreeRegressor(max_depth=MAX_DEPTH, min_samples_leaf=MIN_SAMPLES_LEAF,
                                      random_state=RANDOM_STATE).fit(X, y)
 
-    # ----- 4) Imagen del árbol (estructura; verde=RD bajo). Los RANGOS legibles van en las tablas. -----
+    # ----- 4) Imagen del árbol: colorea por RD y reescribe cada nodo con el LABEL del bin -----
+    t_ = tree.tree_
     plt.figure(figsize=(26, 12))
     anns = plot_tree(tree, feature_names=feats, filled=True, rounded=True,
                      impurity=False, precision=4, fontsize=9, proportion=True)
-    for ann, v in zip(anns, tree.tree_.value.reshape(-1)):
+    for i in range(t_.node_count):
+        ann = anns[i]
         if ann.get_bbox_patch() is not None:
-            ann.get_bbox_patch().set_facecolor(CMAP(norm_riesgo(v, vmin, vmax)))
+            ann.get_bbox_patch().set_facecolor(CMAP(norm_riesgo(t_.value[i][0][0], vmin, vmax)))
             ann.get_bbox_patch().set_edgecolor("black")
-    plt.title("Árbol — verde = RD bajo, rojo = RD alto" +
-              ("  (umbrales en WoE; ver 'cuadro del árbol completo' para los rangos)" if usa_woe else ""))
+        if t_.children_left[i] != -1:                        # nodo interno: muestra el rango, no el WoE
+            var = feats[t_.feature[i]]
+            cond = cond_label(woemap, var, -np.inf, t_.threshold[i])
+            lineas = ann.get_text().split("\n")
+            lineas[0] = f"{var}\n{cond}"                      # rama izquierda = condición True
+            ann.set_text("\n".join(lineas))
+    plt.title("Árbol — verde = RD bajo, rojo = RD alto  (cortes = rangos de los bins; izquierda = se cumple)")
     plt.tight_layout(); plt.savefig(f"_tree_{nombre}.png", dpi=120, bbox_inches="tight"); plt.close()
 
     # ----- 5) Encabezado + imagen -----
