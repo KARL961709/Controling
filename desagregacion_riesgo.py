@@ -36,7 +36,7 @@ import matplotlib
 matplotlib.use("Agg")                       # backend sin ventana (servidor/batch)
 import matplotlib.pyplot as plt
 from scipy.stats import spearmanr, kendalltau
-from sklearn.tree import DecisionTreeRegressor, plot_tree
+from sklearn.tree import DecisionTreeRegressor, plot_tree, export_text
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.drawing.image import Image as XLImage
@@ -272,7 +272,7 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
     n = len(df_sc)
     if n < 50:
         ws.cell(1, 1, f"Escenario con muy pocos casos ({n}). Se omite.")
-        return
+        return None, f"{'='*70}\nESCENARIO: {nombre}\n(omitido: solo {n} casos)\n\n"
 
     y = pd.to_numeric(df_sc[SCORE_COL], errors="coerce").values
     vmin, vmax = np.nanmin(y), np.nanmax(y)
@@ -488,7 +488,28 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
         "banda_cortes": cortes_v,
         "pct": pct,                                      # 1 = mejor; lead si pct >= 1 - corte
     })
-    return leads[leads["pct"] >= 1 - max(PCTS_LEADS)].reset_index(drop=True)
+
+    # ----- 10) Espejo en TEXTO de la hoja (mismo contenido que el Excel) -----
+    L = ["=" * 70, f"ESCENARIO: {nombre}",
+         f"n = {n:,} | puntaje_mod medio = {np.nanmean(y):,.0f} | "
+         f"metodología = {'Solo árbol' if metodologia == 'A' else 'Optbinning + árbol'}",
+         f"monotonic_cst: {dict(zip(feats, cst))}",
+         "-" * 70, "ÁRBOL (texto):",
+         export_text(tree, feature_names=list(feats)),
+         "-" * 70, "IMPORTANCIA DE VARIABLES (peso / peso %):",
+         pd.DataFrame({"peso": imp.round(4), "peso_%": (imp * 100).round(1)}).to_string(),
+         "-" * 70, f"CUADRO POR CANTIDAD (filas={vfil} / columnas={vcol}):",
+         cant.to_string(na_rep=""),
+         "-" * 70, f"CUADRO POR RIESGO - prom puntaje_mod (filas={vfil} / columnas={vcol}):",
+         riesgo.round(0).to_string(na_rep=""),
+         "-" * 70, "CUADRO DEL ÁRBOL COMPLETO (una fila = una hoja):",
+         tab.to_string(index=False)]
+    if plots:
+        L += ["-" * 70, "TENDENCIA POR VARIABLE (optbinning):"]
+        L += [f"  {nom}: {etiqueta}" for nom, etiqueta, _ in plots]
+    texto = "\n".join(L) + "\n\n"
+
+    return leads[leads["pct"] >= 1 - max(PCTS_LEADS)].reset_index(drop=True), texto
 
 
 # ====================================================================================
@@ -520,7 +541,7 @@ def hoja_estrategia(wb, leads_total, ruta):
     ws = wb.create_sheet("Estrategia")
     if leads_total.empty:
         ws.cell(1, 1, "No hay leads de bajo riesgo para construir estrategias.")
-        return
+        return "=" * 70 + "\nHOJA DE ESTRATEGIA\n(sin leads de bajo riesgo)\n"
 
     # Estrategias = top-N segmentos por menor riesgo (score medio de la hoja, descendente)
     seg = (leads_total.groupby("leaf_key")
@@ -590,6 +611,16 @@ def hoja_estrategia(wb, leads_total, ruta):
                 ws2.cell(i, 1 + j, val if not isinstance(val, float) else round(val, 0))
     print(f"  Leads (top {int(MAIN_PCT*100)}%) -> {csv_path}  ({len(pool):,} clientes únicos)")
 
+    # Espejo en TEXTO de la hoja de estrategia
+    comp = pd.DataFrame({f"top {int(pc*100)}%": [int((pools[pc]['estrategia'] == e).sum()) for e in estr_ids]
+                         for pc in cortes}, index=[f"Estrategia {e}" for e in estr_ids])
+    comp.loc["TOTAL"] = [int(len(pools[pc])) for pc in cortes]
+    T = ["=" * 70, "HOJA DE ESTRATEGIA — grupos de BAJO RIESGO (sin clientes duplicados)",
+         "-" * 70, "Leads únicos por corte de bajo riesgo:", comp.to_string(),
+         "-" * 70, f"DETALLE corte principal = top {int(MAIN_PCT*100)}% (leads únicos: {len(pool):,}) | CSV: {csv_path}",
+         resumen.to_string(index=False)]
+    return "\n".join(T) + "\n"
+
 
 def construir_workbook(df, metodologia, ruta, excluir=()):
     """Genera un Excel completo para la metodología indicada ('A' o 'B'),
@@ -602,19 +633,29 @@ def construir_workbook(df, metodologia, ruta, excluir=()):
     if excluir:
         idx.cell(3, 1, f"Variables excluidas: {', '.join(excluir)}").font = Font(italic=True)
     r = 5
-    leads_list = []
+    leads_list, txt_blocks = [], []
+    cab = (f"DESAGREGACIÓN DE RIESGO — {'Solo árbol' if metodologia == 'A' else 'Optbinning + árbol'}\n"
+           f"proxy de riesgo: puntaje_mod (alto = menor riesgo)\n"
+           + (f"Variables excluidas: {', '.join(excluir)}\n" if excluir else ""))
     for nombre, sub in construir_escenarios(df):
-        leads = procesar_escenario(wb, nombre, sub, metodologia, excluir)
+        leads, texto = procesar_escenario(wb, nombre, sub, metodologia, excluir)
+        txt_blocks.append(texto)
         if leads is not None and len(leads):
             leads_list.append(leads)
         idx.cell(r, 1, f"• {nombre}  (n={len(sub):,})"); r += 1
 
     # Hoja de estrategia final (una por Excel)
     leads_total = pd.concat(leads_list, ignore_index=True) if leads_list else pd.DataFrame()
-    hoja_estrategia(wb, leads_total, ruta)
+    txt_estr = hoja_estrategia(wb, leads_total, ruta)
 
     wb.save(ruta)
     print(f"Generado: {ruta}")
+
+    # Espejo en TXT del Excel completo (árbol como texto en vez de imagen)
+    txt_path = ruta.replace(".xlsx", ".txt")
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write(cab + "\n" + "".join(txt_blocks) + "\n" + (txt_estr or ""))
+    print(f"Generado: {txt_path}")
 
 
 def main():
