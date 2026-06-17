@@ -42,28 +42,48 @@ warnings.filterwarnings("ignore")
 # ====================================================================================
 # CONFIGURACIÓN  (edita esto)
 # ====================================================================================
-OBJETIVO  = "RD"                           # *** "RD"  ó  "SCORE"  ***
-DATA_PATH = "dataprueba1606VF.csv"
-RD_COL    = "rd"                            # columna de tasa de default
-SCORE_COL = "puntaje_mod"                   # columna de puntaje
-SIT_COL   = "sit_laboral_mod"             # situación laboral (para bandear el puntaje cuando es variable)
-FLG_COL   = "FLG_CAST_AP"
-FAR_COL   = "flg_far_mto_trx_presencial_12m_c216"
-VALORES_FLG = ["CAST_NOIBK_REP>=5anios", "NO_CAST_NOIBK_U24M"]
+OBJETIVO  = "SCORE"                        # *** "RD"  ó  "SCORE"  ***  (no hay RD -> proxy = puntaje)
+DATA_PATH = "dataprueba1606VF.csv"          # <-- pon aquí tu archivo
+RD_COL    = "rd"                            # columna de tasa de default (no existe en este caso)
+SCORE_COL = "puntaje_mod"                   # *** proxy de riesgo: a MAYOR score, MENOR riesgo ***
+SIT_COL   = "sit_lab_ap"                   # situación laboral (no se usa en modo SCORE)
+FLG_COL   = ""                             # no hay flag de escenarios -> se corre sobre TODA la base
+FAR_COL   = "flg_far_mto_trx_presencial_12m_c216"   # split opcional (far)
+VALORES_FLG = []
 
 APETITO_RD    = 0.02                        # RD MÁXIMO aceptable (modo RD)
-APETITO_SCORE = 720                         # score MÍNIMO aceptable (modo SCORE)
+APETITO_SCORE = 720                         # score MÍNIMO aceptable (modo SCORE)  <-- AJUSTA a tu apetito
 FACTORES = [0.90, 0.95, 1.00, 1.05, 1.10]  # escenarios sobre el apetito
 
 NUM_VARS = [
-    "edad_num", "rk_ing_num", "DEUDA_CAS", "monto_castigado_total",
-    "monto_castigado_otros", "nro_entidades_castigo", "max_dias_mora_castigo",
+    # castigos / mora
+    "deuda_cas", "monto_castigado_total", "monto_castigado_ibk", "monto_castigado_otros",
+    "nro_entidades_castigo", "nro_entidades_castigo_vida", "max_dias_mora_castigo",
     "meses_desde_ultimo_castigo", "meses_desde_primer_castigo",
-    "saldo_pasivo_actual", "saldo_prom_pasivo", "saldo_activo_actual",
-    "prom_saldo_pasivo_u4m", "max_saldo_pasivo_u6m", "nro_meses_con_pasivo_u6m",
+    # demográficas / ingreso
+    "edad_num", "rk_ing_num",
+    # saldos transaccionales (txs)
+    "saldo_fdp_tot_txs_um", "saldo_fdp_tot_txs_u3m", "saldo_fdp_tot_txs_u6m",
+    "saldo_prom_tot_txs_um", "saldo_prom_tot_txs_u3m", "saldo_prom_tot_txs_u6m",
+    # saldos planilla
+    "saldo_fdp_tot_planilla_um", "saldo_fdp_tot_planilla_u3m", "saldo_fdp_tot_planilla_u6m",
+    "saldo_prom_tot_planilla_um", "saldo_prom_tot_planilla_u3m", "saldo_prom_tot_planilla_u6m",
+    # saldos tarjeta de crédito (tc)
+    "saldo_fdp_tot_tc_um", "saldo_fdp_tot_tc_u3m", "saldo_fdp_tot_tc_u6m",
+    "saldo_prom_tot_tc_um", "saldo_prom_tot_tc_u3m", "saldo_prom_tot_tc_u6m",
+    # pasivo (ahorros / depósitos)
+    "saldo_prom_tot_pasivo_um", "saldo_prom_tot_pasivo_u3m", "saldo_prom_tot_pasivo_u6m",
+    "saldo_prom_tot_pasivo_max_u6m", "saldo_pasivo_componentes_u3m",
+    "saldo_pasivo_actual", "saldo_prom_pasivo", "saldo_activo_actual", "prom_saldo_pasivo_u4m",
+    # ratios / variación
+    "ratio_tc_pasivo_u3m", "ratio_planilla_pasivo_u3m", "ratio_txs_pasivo_u3m",
+    "var_pasivo_um_vs_u6m",
+    # flags binarios (0/1) de tenencia / relación
+    "flg_colaborador_um", "flg_cliente_cts_um", "flg_cliente_inversion_um",
+    "flg_cliente_millonaria_um", "flg_cliente_alcancia_um", "flg_cliente_planilla_um",
 ]
-ORD_VAR = "segmentacion_gdp_v2"
-SCORE_BANDA = "score_g"
+ORD_VAR = "segmentacion_gdp_v2"            # ordinal G1..G5 -> 1..5
+SCORE_BANDA = "score_g"                     # (no se usa en modo SCORE)
 VARS_EXCLUIR = ["edad_num", "rk_ing_num"]
 
 WOE_AL_ARBOL = True
@@ -80,14 +100,40 @@ CORTES = {
     "INDEPENDIENTE":  [("G1", 981), ("G2", 960), ("G3", 943), ("G4", 898), ("G5", 844)],
 }
 
-# Dirección monótona POR NEGOCIO frente al RIESGO:
-#   +1 = a mayor variable, MÁS riesgo | -1 = a mayor variable, MENOS riesgo | 0 = ambigua.
+# Dirección monótona POR NEGOCIO frente al RIESGO (NO depende del objetivo; el script
+# multiplica por SIGN según RD/SCORE). +1 = a mayor variable MÁS riesgo | -1 = MENOS riesgo | 0 = ambigua.
 DIRECCION_NEGOCIO = {
-    "edad_num": 0, "rk_ing_num": -1, "DEUDA_CAS": +1, "monto_castigado_total": +1,
-    "monto_castigado_otros": +1, "nro_entidades_castigo": +1, "max_dias_mora_castigo": +1,
-    "meses_desde_ultimo_castigo": -1, "meses_desde_primer_castigo": -1,
-    "saldo_pasivo_actual": -1, "saldo_prom_pasivo": -1, "saldo_activo_actual": 0,
-    "prom_saldo_pasivo_u4m": -1, "max_saldo_pasivo_u6m": -1, "nro_meses_con_pasivo_u6m": -1,
+    # castigos / mora -> más castigo = más riesgo
+    "deuda_cas": +1, "monto_castigado_total": +1, "monto_castigado_ibk": +1,
+    "monto_castigado_otros": +1, "nro_entidades_castigo": +1, "nro_entidades_castigo_vida": +1,
+    "max_dias_mora_castigo": +1,
+    "meses_desde_ultimo_castigo": -1, "meses_desde_primer_castigo": -1,  # más antiguo = menos riesgo
+    # demográficas / ingreso
+    "edad_num": 0,
+    "rk_ing_num": -1,                  # más ingreso = menos riesgo (si rk=1 es el MAYOR ingreso, cambia a +1)
+    # saldos transaccionales -> más saldo = menos riesgo
+    "saldo_fdp_tot_txs_um": -1, "saldo_fdp_tot_txs_u3m": -1, "saldo_fdp_tot_txs_u6m": -1,
+    "saldo_prom_tot_txs_um": -1, "saldo_prom_tot_txs_u3m": -1, "saldo_prom_tot_txs_u6m": -1,
+    # planilla (sueldo) -> más = menos riesgo
+    "saldo_fdp_tot_planilla_um": -1, "saldo_fdp_tot_planilla_u3m": -1, "saldo_fdp_tot_planilla_u6m": -1,
+    "saldo_prom_tot_planilla_um": -1, "saldo_prom_tot_planilla_u3m": -1, "saldo_prom_tot_planilla_u6m": -1,
+    # tarjeta de crédito (uso/deuda TC) -> más = más riesgo (si fuera línea/saldo disponible, cambia a -1)
+    "saldo_fdp_tot_tc_um": +1, "saldo_fdp_tot_tc_u3m": +1, "saldo_fdp_tot_tc_u6m": +1,
+    "saldo_prom_tot_tc_um": +1, "saldo_prom_tot_tc_u3m": +1, "saldo_prom_tot_tc_u6m": +1,
+    # pasivo (ahorros/depósitos) -> más = menos riesgo
+    "saldo_prom_tot_pasivo_um": -1, "saldo_prom_tot_pasivo_u3m": -1, "saldo_prom_tot_pasivo_u6m": -1,
+    "saldo_prom_tot_pasivo_max_u6m": -1, "saldo_pasivo_componentes_u3m": -1,
+    "saldo_pasivo_actual": -1, "saldo_prom_pasivo": -1, "prom_saldo_pasivo_u4m": -1,
+    "saldo_activo_actual": 0,          # ambigua (producto activo)
+    # ratios / variación
+    "ratio_tc_pasivo_u3m": +1,         # más apalancamiento TC vs ahorro = más riesgo
+    "ratio_planilla_pasivo_u3m": -1,   # más sueldo respecto al pasivo = menos riesgo
+    "ratio_txs_pasivo_u3m": 0,         # ambigua
+    "var_pasivo_um_vs_u6m": -1,        # crecimiento del ahorro = menos riesgo
+    # flags (0/1) de tenencia/relación -> tener = menos riesgo
+    "flg_colaborador_um": -1, "flg_cliente_cts_um": -1, "flg_cliente_inversion_um": -1,
+    "flg_cliente_millonaria_um": -1, "flg_cliente_alcancia_um": -1, "flg_cliente_planilla_um": -1,
+    # ordinal de segmentación -> código mayor = peor = más riesgo
     "segmentacion_gdp_v2": +1, "score_g": +1,
 }
 
@@ -601,14 +647,18 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
 # ORQUESTACIÓN
 # ====================================================================================
 def construir_escenarios(df):
+    # Si no hay flag de escenarios (o no está en la base) -> un solo escenario con toda la base.
+    grupos = ([(v.replace(">=", "ge").replace("=", "").replace("/", "_")[:24], df[df[FLG_COL] == v])
+               for v in VALORES_FLG]
+              if (FLG_COL and FLG_COL in df.columns and VALORES_FLG)
+              else [("TODOS", df)])
     out = []
-    for v in VALORES_FLG:
-        base = df[df[FLG_COL] == v]
-        nombre = v.replace(">=", "ge").replace("=", "").replace("/", "_")
-        out.append((nombre[:24], base))
+    for nombre, base in grupos:
+        out.append((nombre, base))
         if FAR_COL in df.columns:
             far = base[pd.to_numeric(base[FAR_COL], errors="coerce") == 1]
-            out.append((f"{nombre}_far1"[:28], far))
+            if len(far):
+                out.append((f"{nombre}_far1"[:28], far))
     return out
 
 
