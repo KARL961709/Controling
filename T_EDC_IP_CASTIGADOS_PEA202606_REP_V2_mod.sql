@@ -4,7 +4,7 @@
 --   @CODMES_MODELO = '202605'     -> maestro_score desfasado 1 mes (codmes_pea - 1)
 --   @CODMES_SEG_GDP= '202603'     -> t_rsk_segmentacion_gdp es TRIMESTRAL; usa la ultima foto disponible (NO sigue a codmes_pea)
 --   @CODMES_INCA   = '202604'     -> variable INCA desfasada 2 meses (codmes_pea - 2)
---   @CODMES_PASIVO = '202605'     -> t_360_cliente (pasivo) desfasado 1 mes (codmes_pea - 1)
+--   @CODMES_PASIVO = '202606'     -> t_360_cliente (pasivo) SIN desfase (codmes_pea)
 --   @ANCLA_RCC     = '20260401'   -> primer dia del mes RCC (para las ventanas BETWEEN)
 --   @NOMBRE_TABLA  = T_EDC_IP_CASTIGADOS_PEA202606_REP_V2
 -- NOTA: Athena no soporta variables en DDL. Para otra corrida:
@@ -734,21 +734,21 @@ WITH PEA AS (
     GROUP BY key_value, tip_doc
 )
 -- =========================================================================
--- 3e) PASIVO (t_360_cliente). Desfase 1 mes: cod_mes = '202605' ; ventana 6m
+-- 3e) PASIVO (t_360_cliente). Anclaje 202606 (desfase 0) ; ventana 6m
 -- =========================================================================
 , pasivo_num AS (
     SELECT
         CAST(cod_tipo_documento AS VARCHAR) AS cod_tip_doc,
         nro_documento                       AS key_value,
-        MAX(CASE WHEN cod_mes='202605' THEN saldo_fdp_tot_pasivo END)  AS saldo_pasivo_actual,
-        MAX(CASE WHEN cod_mes='202605' THEN saldo_prom_tot_pasivo END) AS saldo_prom_pasivo,
-        MAX(CASE WHEN cod_mes='202605' THEN saldo_fdp_tot_activo END)  AS saldo_activo_actual,
-        AVG(CASE WHEN cod_mes IN ('202605','202604','202603','202602') THEN saldo_fdp_tot_pasivo END) AS prom_saldo_pasivo_u4m,
+        MAX(CASE WHEN cod_mes='202606' THEN saldo_fdp_tot_pasivo END)  AS saldo_pasivo_actual,
+        MAX(CASE WHEN cod_mes='202606' THEN saldo_prom_tot_pasivo END) AS saldo_prom_pasivo,
+        MAX(CASE WHEN cod_mes='202606' THEN saldo_fdp_tot_activo END)  AS saldo_activo_actual,
+        AVG(CASE WHEN cod_mes IN ('202606','202605','202604','202603') THEN saldo_fdp_tot_pasivo END) AS prom_saldo_pasivo_u4m,
         MAX(saldo_fdp_tot_pasivo)                                      AS max_saldo_pasivo_u6m,
         COUNT(DISTINCT CASE WHEN saldo_fdp_tot_pasivo > 0 THEN cod_mes END) AS nro_meses_con_pasivo_u6m
     FROM e_perm_aws.t_360_cliente
     WHERE frecuencia = 1
-      AND cod_mes IN ('202605','202604','202603','202602','202601','202512')   -- @CODMES_PASIVO + ventana 6m
+      AND cod_mes IN ('202606','202605','202604','202603','202602','202601')   -- anclaje 202606 + ventana 6m
     GROUP BY CAST(cod_tipo_documento AS VARCHAR), nro_documento
 )
 -- =========================================================================
@@ -914,7 +914,7 @@ SELECT
     rcn.monto_castigado_total, rcn.monto_castigado_ibk, rcn.monto_castigado_otros,
     rcn.nro_entidades_castigo, rcn.max_dias_mora_castigo,
     rcn.meses_desde_ultimo_castigo, rcn.meses_desde_primer_castigo,
-    -- ===== pasivo (t_360_cliente, 202605) =====
+    -- ===== pasivo (t_360_cliente, 202606) =====
     pn.saldo_pasivo_actual, pn.saldo_prom_pasivo, pn.saldo_activo_actual,
     pn.prom_saldo_pasivo_u4m, pn.max_saldo_pasivo_u6m, pn.nro_meses_con_pasivo_u6m,
     -- ===== t_360: saldos (UM / U3M / U6M) anclaje 202606 =====
@@ -978,7 +978,7 @@ LEFT JOIN ms_3m m3                                                  -- NUEVO: hi
 LEFT JOIN rcc_castigo_num rcn                                       -- NUEVO: A) montos/antiguedad castigo
        ON rcn.key_value = base.key_value
       AND rcn.tip_doc   = base.cod_tip_doc
-LEFT JOIN pasivo_num pn                                             -- NUEVO: pasivo (t_360_cliente, 202605)
+LEFT JOIN pasivo_num pn                                             -- NUEVO: pasivo (t_360_cliente, 202606)
        ON pn.key_value   = base.key_value
       AND pn.cod_tip_doc = base.cod_tip_doc
 LEFT JOIN t360_final t3                                             -- NUEVO: saldos/flags/ratios t_360 (202606)

@@ -137,17 +137,17 @@ rows += [
      "key_value + tip_doc", "ventana 24m vs 202604", "U24M", "-2 meses (ref)"),
     # ---- pasivo_num (t_360_cliente, 202605) ----
     ("saldo_pasivo_actual", "Saldo fin de periodo pasivo (mes actual)", "decimal", "t_360_cliente", "e_perm_aws",
-     "cod_tipo_documento + nro_documento", "cod_mes=202605", "Actual", "-1 mes"),
+     "cod_tipo_documento + nro_documento", "cod_mes=202606", "Actual", "0 (anclaje 202606)"),
     ("saldo_prom_pasivo", "Saldo promedio pasivo (mes actual)", "decimal", "t_360_cliente", "e_perm_aws",
-     "doc", "cod_mes=202605", "Actual", "-1 mes"),
+     "doc", "cod_mes=202606", "Actual", "0 (anclaje 202606)"),
     ("saldo_activo_actual", "Saldo fin de periodo activo (mes actual)", "decimal", "t_360_cliente", "e_perm_aws",
-     "doc", "cod_mes=202605", "Actual", "-1 mes"),
+     "doc", "cod_mes=202606", "Actual", "0 (anclaje 202606)"),
     ("prom_saldo_pasivo_u4m", "Promedio saldo FDP pasivo U4M", "decimal", "t_360_cliente", "e_perm_aws",
-     "doc", "cod_mes 202605-202602", "U4M (prom)", "-1 a -4 meses"),
+     "doc", "cod_mes 202606-202603", "U4M (prom)", "0 a -3 meses"),
     ("max_saldo_pasivo_u6m", "Maximo saldo FDP pasivo U6M", "decimal", "t_360_cliente", "e_perm_aws",
-     "doc", "cod_mes 202605-202512", "U6M (max)", "-1 a -6 meses"),
+     "doc", "cod_mes 202606-202601", "U6M (max)", "0 a -5 meses"),
     ("nro_meses_con_pasivo_u6m", "Nro meses con saldo pasivo>0 en U6M", "bigint", "t_360_cliente", "e_perm_aws",
-     "doc", "cod_mes 202605-202512", "U6M", "-1 a -6 meses"),
+     "doc", "cod_mes 202606-202601", "U6M", "0 a -5 meses"),
 ]
 
 # estilos
