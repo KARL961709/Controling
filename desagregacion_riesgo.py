@@ -211,6 +211,9 @@ def escribir_cuadro(ws, r0, c0, titulo, tab, vfil, vcol, modo, vmin=None, vmax=N
 # ====================================================================================
 def procesar_escenario(wb, nombre, df_sc, metodologia):
     ws = wb.create_sheet(title=nombre[:31])
+
+    # El target (puntaje_mod) no puede tener NaN: descartamos esas filas y reindexamos.
+    df_sc = df_sc.loc[pd.to_numeric(df_sc[SCORE_COL], errors="coerce").notna()].reset_index(drop=True)
     n = len(df_sc)
     if n < 50:
         ws.cell(1, 1, f"Escenario con muy pocos casos ({n}). Se omite.")
