@@ -65,6 +65,7 @@ def transformar_base(df_sc, modelo_sc, excluir=()):
     feats = modelo_sc["feats"]
     optbs = modelo_sc["optbs"]
     usa_woe = modelo_sc["usa_woe"]
+    imputa = modelo_sc.get("imputa_missing", {})   # {var: WoE de mayor riesgo}
     raw, _ = construir_raw(df_sc, excluir)
 
     Xcols, misscol = {}, {}
@@ -79,7 +80,12 @@ def transformar_base(df_sc, modelo_sc, excluir=()):
                 col = optb.transform(serie.values, metric="woe")
             except Exception:
                 col = optb.transform(serie.values, metric="mean")
-            Xcols[c] = np.asarray(col, dtype=float)
+            col = np.asarray(col, dtype=float)
+            # mismo criterio del entrenamiento: missing -> WoE del bin de mayor riesgo
+            woe_peor = imputa.get(c)
+            if woe_peor is not None:
+                col[serie.isna().values] = woe_peor
+            Xcols[c] = col
             misscol[c] = np.zeros(len(df_sc), dtype=bool)
         else:
             Xcols[c] = serie.fillna(SENTINEL).values
