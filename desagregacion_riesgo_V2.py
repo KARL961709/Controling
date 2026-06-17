@@ -335,6 +335,7 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
                     woe_peor = max(woes) if SIGN == 1 else min(woes)
                     col[miss_mask] = woe_peor
                     imputados[c] = woe_peor          # se guarda para reaplicar
+                    woemap[c]["miss_val"] = None     # <-- evita que la etiqueta 'Missing' siga apareciendo
                 Xcols[c] = col
                 cst_map[c] = +1                       # WoE crece con el target
                 misscol[c] = np.zeros(n, dtype=bool)
