@@ -4,3 +4,6 @@ arbol_regresion.png
 arbol_clasificacion.png
 __pycache__/
 arbol_monotono.png
+base_riesgo.tsv
+*.xlsx
+_tree_*.png
