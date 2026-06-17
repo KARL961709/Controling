@@ -1,14 +1,21 @@
--- =========================================================================
--- TABLA: disc_model_owner.T_EDC_IP_CASTIGADOS_PEA202606_REP_V2_mod
--- Periodo PEA: 202606 (p_fecinformacion = 20260616) | RCC: 202604
--- Variables agregadas:
---   * t_360_cliente: saldos (txs/planilla/tc/pasivo) UM/U3M/U6M, flags (0/1/null) + ratios
---   * t_fact_report_rcc_rsk: nro/tipo entidad castigo (U24M)
---   * t_nds_principalidad: motivo_principalidad
---   * t_rm_cliente: sexo, estado_civil
---   * t_profesiones_hist: nivel_profesional, tipinstitucion
--- (No se incluye flg_activo / saldo activo)
--- =========================================================================
+-- PARAMETROS DE LA CORRIDA  (cambia estos valores con Find & Replace)
+--   @FECHA_PEA     = '20260616' (caidas mo/es = 20260615)   -> p_fecinformacion del PEA y de las CAIDAS (codmes_pea = 202606)
+--   @CODMES_RCC    = '202604'     -> RCC desfasado 2 meses (codmes_pea - 2)
+--   @CODMES_MODELO = '202605'     -> maestro_score desfasado 1 mes (codmes_pea - 1)
+--   @CODMES_SEG_GDP= '202603'     -> t_rsk_segmentacion_gdp es TRIMESTRAL; usa la ultima foto disponible (NO sigue a codmes_pea)
+--   @CODMES_INCA   = '202604'     -> variable INCA desfasada 2 meses (codmes_pea - 2)
+--   @CODMES_PASIVO = '202605'     -> t_360_cliente (pasivo) desfasado 1 mes (codmes_pea - 1)
+--   @ANCLA_RCC     = '20260401'   -> primer dia del mes RCC (para las ventanas BETWEEN)
+--   @NOMBRE_TABLA  = T_EDC_IP_CASTIGADOS_PEA202606_REP_V2
+-- NOTA: Athena no soporta variables en DDL. Para otra corrida:
+--   1) reemplaza '20260610' por la nueva fecha PEA
+--   2) reemplaza '202604'   por (nuevo codmes_pea - 2)
+--   3) reemplaza '20260401' por el primer dia de ese mes RCC
+--   4) reemplaza el nombre de la tabla
+-- =====================================================================
+
+DROP TABLE IF EXISTS disc_model_owner.T_EDC_IP_CASTIGADOS_PEA202606_REP_V2_mod;
+
 CREATE TABLE disc_model_owner.T_EDC_IP_CASTIGADOS_PEA202606_REP_V2_mod
 WITH (format = 'PARQUET', parquet_compression = 'SNAPPY' , external_location = 's3://ibk-discovery-riesgos-us-east-1-339712995012-data/discovery/model_owner/B47515/estrategias/PEA202606VAR/')
 AS
@@ -131,6 +138,7 @@ WITH PEA AS (
               when edad<=75 then '8.<70-75]'
               when edad<=80 then '9.<75-80]'
               when edad>80  then '10.<80-+>' end RNG_EDAD
+        ,edad  AS edad_num                                          -- NUEVO: valor numerico de edad
         ,case when renta>0 and renta<=750 then '0.<0-750]'
               when renta<=1000  then '1.<1k]'
               when renta<=1500  then '2.<1.5k]'
@@ -143,6 +151,7 @@ WITH PEA AS (
               when renta<=15000 then '9.<10k-15k]'
               when renta>15000  then '10.>15k'
               else '-' end rk_ing
+        ,renta AS rk_ing_num                                        -- NUEVO: valor numerico de renta (ingreso)
         ,case when e.dm_cast_noibk/360 <5  then '0.<5años['
               when e.dm_cast_noibk/360 >=5 then '1.[5años+' end ANTI_CAST
         ,case when b.SUBJECT_ID is not null then 'CASTIGOS_REP' else 'NO_REP_CASTIGO' end FLG_CAST_REP
@@ -220,10 +229,12 @@ WITH PEA AS (
 , caidas AS (
     SELECT ca.subject_id, mo.descripcion, MAX(es.estado) AS estado
     FROM awsdatacatalog.e_perm_aws.ds_rtd_rskvol_caidas_adquisicion ca
+    -- 1) ESTADO: por motcod + basecod = 1
     LEFT JOIN awsdatacatalog.e_perm_aws.ms_rskvol_base_motivo_adq es
            ON  TRIM(CAST(ca.motcod AS VARCHAR)) = TRIM(CAST(es.motcod AS VARCHAR))
           AND es.basecod = 1                                            -- TC regular
           AND es.p_fecinformacion = '20260615'                          -- @FECHA_PEA
+    -- 2) DESCRIPCION: por motcod  (esta maestra NO tiene basecod, solo motcod/descripcion/p_fecinformacion)
     LEFT JOIN awsdatacatalog.e_perm_aws.ms_rskvol_motivo_adq mo
            ON  TRIM(CAST(ca.motcod AS VARCHAR)) = TRIM(CAST(mo.motcod AS VARCHAR))
           AND mo.p_fecinformacion = '20260615'                          -- @FECHA_PEA
@@ -634,12 +645,13 @@ WITH PEA AS (
 )
 -- =========================================================================
 -- 3) FEATURE INCA (party_id -> key_value via base_cliente, con desfase -1 mes)
+--    Es relativo a codmes_pea: NO lleva fecha hardcodeada.
 -- =========================================================================
 , inca_rf AS (
     SELECT
         bc.tip_doc   AS cod_tip_doc,
         bc.key_value AS key_value,
-        date_format(date_parse(CAST(inca.process_date AS VARCHAR), '%Y%m'), '%Y%m') AS cod_mes_join,
+        date_format(date_parse(CAST(inca.process_date AS VARCHAR), '%Y%m'), '%Y%m') AS cod_mes_join,  -- SIN -1
         MAX(inca.flg_far_mto_trx_presencial_12m_c216) AS flg_far_mto_trx_presencial_12m_c216
     FROM e_perm_aws.t_inca_rf inca
     JOIN e_perm_aws.t_mst_inter_ibk_base_cliente bc
@@ -650,42 +662,48 @@ WITH PEA AS (
 )
 -- =========================================================================
 -- 3b) MS_VAR: mejor modelo por puntaje (mira TODOS los modelos del cliente)
+--     -> puntaje_var = puntaje maximo ; nom_modelo_var = modelo de ese maximo
 -- =========================================================================
 , ms_var AS (
     SELECT key_value, tipdoc,
            MAX(puntaje)                AS puntaje_var,
            max_by(nom_modelo, puntaje) AS nom_modelo_var
     FROM awsdatacatalog.e_perm_aws.t_rsk_maestro_score
-    WHERE periodo = '202605'                                     -- @CODMES_MODELO
+    WHERE periodo = '202605'                                     -- @CODMES_MODELO (mismo mes; SIN filtrar nom_modelo)
     GROUP BY key_value, tipdoc
 )
 -- =========================================================================
 -- 3c) MS_3M: historia de los 3 meses PREVIOS al modelo (202604, 202603, 202602)
+--     Por mes: MAX(puntaje) ; luego entre meses: MIN.
+--     _mod = solo Bank/No Bank   |   _var = TODOS los modelos
 -- =========================================================================
-, ms_3m_mes AS (
+, ms_3m_mes AS (   -- nivel 1: MAX por (cliente, mes)
     SELECT key_value, tipdoc, periodo,
            MAX(CASE WHEN nom_modelo IN ('Score Originación TC No Bank 2024','Score Originación TC Bank 2024') THEN puntaje END)         AS pmod,
            max_by(nom_modelo, CASE WHEN nom_modelo IN ('Score Originación TC No Bank 2024','Score Originación TC Bank 2024') THEN puntaje END) AS nmod,
            MAX(puntaje)                AS pvar,
            max_by(nom_modelo, puntaje) AS nvar
     FROM awsdatacatalog.e_perm_aws.t_rsk_maestro_score
-    WHERE periodo IN ('202604','202603','202602')                -- @MESES_3M
+    WHERE periodo IN ('202604','202603','202602')                -- @MESES_3M (3 previos al mes del modelo)
     GROUP BY key_value, tipdoc, periodo
 )
-, ms_3m AS (
+, ms_3m AS (       -- nivel 2: columnas por mes + MIN entre meses
     SELECT key_value, tipdoc,
+           -- columnas por mes que originan el resultado (_mod)
            MAX(CASE WHEN periodo='202604' THEN pmod END) AS pmod_202604,
            MAX(CASE WHEN periodo='202603' THEN pmod END) AS pmod_202603,
            MAX(CASE WHEN periodo='202602' THEN pmod END) AS pmod_202602,
            MAX(CASE WHEN periodo='202604' THEN nmod END) AS nmod_202604,
            MAX(CASE WHEN periodo='202603' THEN nmod END) AS nmod_202603,
            MAX(CASE WHEN periodo='202602' THEN nmod END) AS nmod_202602,
+           -- columnas por mes que originan el resultado (_var)
            MAX(CASE WHEN periodo='202604' THEN pvar END) AS pvar_202604,
            MAX(CASE WHEN periodo='202603' THEN pvar END) AS pvar_202603,
            MAX(CASE WHEN periodo='202602' THEN pvar END) AS pvar_202602,
            MAX(CASE WHEN periodo='202604' THEN nvar END) AS nvar_202604,
            MAX(CASE WHEN periodo='202603' THEN nvar END) AS nvar_202603,
            MAX(CASE WHEN periodo='202602' THEN nvar END) AS nvar_202602,
+           -- resultado final: MIN entre los 3 meses + su modelo
            MIN(pmod)          AS min_puntaje_mod_3m,
            min_by(nmod, pmod) AS nom_mod_3m,
            MIN(pvar)          AS min_puntaje_var_3m,
@@ -694,10 +712,50 @@ WITH PEA AS (
     GROUP BY key_value, tipdoc
 )
 -- =========================================================================
--- 5) VARIABLES t_360_cliente: saldos (UM/U3M/U6M), flags (0/1/null) y ratios
---    + entidades castigo (U24M) + principalidad.
+-- 3d) NUMERICAS RCC (montos/conteos/dias). Mismo desfase RCC del query:
+--     codmes = '202604'  y  ventanas ancladas en '20260401'
 -- =========================================================================
-, t360_base AS (                            -- foto U6M de t_360 (frecuencia mensual)
+, rcc_castigo_num AS (   -- A) montos y antiguedad del CASTIGO (cuentas 8113/8123/8133)
+    SELECT key_value, tip_doc,
+           SUM(CASE WHEN codmes='202604' THEN saldo END)                                       AS monto_castigado_total,
+           SUM(CASE WHEN codmes='202604' AND cod_instit_financiera =  '00002' THEN saldo END)  AS monto_castigado_ibk,
+           SUM(CASE WHEN codmes='202604' AND cod_instit_financiera <> '00002' THEN saldo END)  AS monto_castigado_otros,
+           COUNT(DISTINCT CASE WHEN codmes='202604' THEN cod_instit_financiera END)            AS nro_entidades_castigo,
+           MAX(CASE WHEN codmes='202604' THEN condicion END)                                   AS max_dias_mora_castigo,
+           date_diff('month', CAST(date_parse(MAX(codmes),'%Y%m') AS date),
+                              CAST(date_parse('202604','%Y%m') AS date))                       AS meses_desde_ultimo_castigo,
+           date_diff('month', CAST(date_parse(MIN(codmes),'%Y%m') AS date),
+                              CAST(date_parse('202604','%Y%m') AS date))                       AS meses_desde_primer_castigo
+    FROM AwsDataCatalog.e_perm_aws.t_fact_report_rcc_rsk
+    WHERE SUBSTRING(cod_cuenta_rcc,1,4) IN ('8113','8123','8133')
+      AND date_parse(concat(codmes,'01'),'%Y%m%d')
+          BETWEEN date_add('month',-23, date_parse('20260401','%Y%m%d'))   -- @ANCLA_RCC (ventana 24m)
+              AND date_add('month',  0, date_parse('20260401','%Y%m%d'))
+    GROUP BY key_value, tip_doc
+)
+-- =========================================================================
+-- 3e) PASIVO (t_360_cliente). Desfase 1 mes: cod_mes = '202605' ; ventana 6m
+-- =========================================================================
+, pasivo_num AS (
+    SELECT
+        CAST(cod_tipo_documento AS VARCHAR) AS cod_tip_doc,
+        nro_documento                       AS key_value,
+        MAX(CASE WHEN cod_mes='202605' THEN saldo_fdp_tot_pasivo END)  AS saldo_pasivo_actual,
+        MAX(CASE WHEN cod_mes='202605' THEN saldo_prom_tot_pasivo END) AS saldo_prom_pasivo,
+        MAX(CASE WHEN cod_mes='202605' THEN saldo_fdp_tot_activo END)  AS saldo_activo_actual,
+        AVG(CASE WHEN cod_mes IN ('202605','202604','202603','202602') THEN saldo_fdp_tot_pasivo END) AS prom_saldo_pasivo_u4m,
+        MAX(saldo_fdp_tot_pasivo)                                      AS max_saldo_pasivo_u6m,
+        COUNT(DISTINCT CASE WHEN saldo_fdp_tot_pasivo > 0 THEN cod_mes END) AS nro_meses_con_pasivo_u6m
+    FROM e_perm_aws.t_360_cliente
+    WHERE frecuencia = 1
+      AND cod_mes IN ('202605','202604','202603','202602','202601','202512')   -- @CODMES_PASIVO + ventana 6m
+    GROUP BY CAST(cod_tipo_documento AS VARCHAR), nro_documento
+)
+-- =========================================================================
+-- 3f) t_360_cliente: saldos txs/planilla/tc (UM/U3M/U6M), flags 0/1/null y ratios
+--     Anclaje 202606 (codmes_pea). UM=202606; U3M=202606-202604; U6M=202606-202601
+-- =========================================================================
+, t360_base AS (
     SELECT
         cast(cod_tipo_documento as varchar) AS cod_tipo_documento,
         nro_documento,
@@ -720,7 +778,7 @@ WITH PEA AS (
         cod_tipo_documento,
         nro_documento,
         max(codunicocli) AS codunicocli,
-        -- ===================== SALDOS: UM / prom U3M / prom U6M =====================
+        -- ===== SALDOS: UM / prom U3M / prom U6M =====
         max(case when cod_mes='202606' then saldo_fdp_tot_txs end)                              AS saldo_fdp_tot_txs_um,
         avg(case when cod_mes in ('202606','202605','202604') then saldo_fdp_tot_txs end)       AS saldo_fdp_tot_txs_u3m,
         avg(saldo_fdp_tot_txs)                                                                  AS saldo_fdp_tot_txs_u6m,
@@ -743,7 +801,7 @@ WITH PEA AS (
         avg(case when cod_mes in ('202606','202605','202604') then saldo_prom_tot_pasivo end)   AS saldo_prom_tot_pasivo_u3m,
         avg(saldo_prom_tot_pasivo)                                                              AS saldo_prom_tot_pasivo_u6m,
         max(saldo_prom_tot_pasivo)                                                              AS saldo_prom_tot_pasivo_max_u6m,
-        -- ===================== FLAGS (0/1/null): último mes + tuvo en U6M =====================
+        -- ===== FLAGS (0/1/null): ultimo mes + tuvo en U6M =====
         max(case when cod_mes='202606' then flg_colaborador end)                          AS flg_colaborador_um,
         max(case when cast(flg_colaborador as varchar)='1' then 1 else 0 end)             AS flg_colaborador_u6m,
         max(case when cod_mes='202606' then flg_cliente_cts end)                          AS flg_cliente_cts_um,
@@ -784,7 +842,10 @@ WITH PEA AS (
         WHERE fch_periodo = date '2026-06-30'          -- @FCH_PRINCIPALIDAD (anclaje 202606)
     ) pr ON f.codunicocli = pr.codunicocli
 )
-, variables_rcc AS (                        -- nro_entidades y tipo_entidad de castigo (U24M)
+-- =========================================================================
+-- 3g) RCC entidades castigo "vida" (U24M) + RM_CLIENTE + PROFESIONES
+-- =========================================================================
+, variables_rcc AS (
     SELECT
         r.key_value,
         r.tip_doc,
@@ -811,9 +872,6 @@ WITH PEA AS (
     WHERE r.codmes <= '202603'                                   -- @CODMES_RCC_VIDA
     GROUP BY r.key_value, r.tip_doc
 )
--- =========================================================================
--- 6) RM_CLIENTE (sexo, estado_civil) y PROFESIONES (nivel_profesional, tipinstitucion)
--- =========================================================================
 , rm_cliente AS (
     SELECT cast(tipdoc as varchar) AS tipdoc, key_value,
            max(sexo) AS sexo, max(estado_civil) AS estado_civil
@@ -829,28 +887,37 @@ WITH PEA AS (
     GROUP BY cast(tipdoc as varchar), key_value
 )
 -- =========================================================================
--- 4) SELECT FINAL
+-- 4) SELECT FINAL: base + pivot + maestro_score + inca + origenapp + segmentacion_gdp
+--    Los joins de score/origenapp/segmentacion usan base.codmes_pea (202606): relativos.
 -- =========================================================================
 SELECT
     base.*,
     ms.concepto_nivel AS GRUPO_SCORE,
     ms.segmentacion_gdp,
     ms.nom_modelo,
-    ms.sit_laboral    as sit_laboral_mod,
+    ms.sit_laboral as sit_laboral_mod,
     ms.fuente_ingreso as fuente_ingreso_mod,
-    ms.puntaje        as puntaje_mod,
+    ms.puntaje as puntaje_mod,
     ir.flg_far_mto_trx_presencial_12m_c216,
     oa.trf_tip_segmentacion_gdp,
     sg.segmentacion_gdp as segmentacion_gdp_v2,
-    mv.puntaje_var,
-    mv.nom_modelo_var,
-    m3.pmod_202604, m3.pmod_202603, m3.pmod_202602,
-    m3.nmod_202604, m3.nmod_202603, m3.nmod_202602,
-    m3.pvar_202604, m3.pvar_202603, m3.pvar_202602,
-    m3.nvar_202604, m3.nvar_202603, m3.nvar_202602,
-    m3.min_puntaje_mod_3m, m3.nom_mod_3m,
-    m3.min_puntaje_var_3m, m3.nom_mod_var_3m,
-    -- ===== t_360: saldos (UM / U3M / U6M) =====
+    mv.puntaje_var,                                              -- NUEVO: puntaje mas alto entre todos los modelos
+    mv.nom_modelo_var,                                           -- NUEVO: modelo de ese puntaje mas alto
+    -- ===== historia 3 meses (por mes + resultado) =====
+    m3.pmod_202604, m3.pmod_202603, m3.pmod_202602,              -- max por mes (solo Bank/No Bank)
+    m3.nmod_202604, m3.nmod_202603, m3.nmod_202602,              -- modelo de ese max por mes (_mod)
+    m3.pvar_202604, m3.pvar_202603, m3.pvar_202602,              -- max por mes (todos los modelos)
+    m3.nvar_202604, m3.nvar_202603, m3.nvar_202602,              -- modelo de ese max por mes (_var)
+    m3.min_puntaje_mod_3m, m3.nom_mod_3m,                        -- RESULTADO _mod
+    m3.min_puntaje_var_3m, m3.nom_mod_var_3m,                    -- RESULTADO _var
+    -- ===== numericas RCC (A - castigo) =====
+    rcn.monto_castigado_total, rcn.monto_castigado_ibk, rcn.monto_castigado_otros,
+    rcn.nro_entidades_castigo, rcn.max_dias_mora_castigo,
+    rcn.meses_desde_ultimo_castigo, rcn.meses_desde_primer_castigo,
+    -- ===== pasivo (t_360_cliente, 202605) =====
+    pn.saldo_pasivo_actual, pn.saldo_prom_pasivo, pn.saldo_activo_actual,
+    pn.prom_saldo_pasivo_u4m, pn.max_saldo_pasivo_u6m, pn.nro_meses_con_pasivo_u6m,
+    -- ===== t_360: saldos (UM / U3M / U6M) anclaje 202606 =====
     t3.saldo_fdp_tot_txs_um,        t3.saldo_fdp_tot_txs_u3m,        t3.saldo_fdp_tot_txs_u6m,
     t3.saldo_prom_tot_txs_um,       t3.saldo_prom_tot_txs_u3m,       t3.saldo_prom_tot_txs_u6m,
     t3.saldo_fdp_tot_planilla_um,   t3.saldo_fdp_tot_planilla_u3m,   t3.saldo_fdp_tot_planilla_u6m,
@@ -869,57 +936,61 @@ SELECT
     t3.flg_cliente_planilla_abon_um,    t3.flg_cliente_planilla_abon_u6m,
     t3.flg_cliente_planilla_depo_um,    t3.flg_cliente_planilla_depo_u6m,
     t3.flg_cliente_plazo_fijo_um,       t3.flg_cliente_plazo_fijo_u6m,
-    -- ===== ratios / derivados =====
+    -- ===== ratios / derivados + principalidad =====
     t3.saldo_pasivo_componentes_u3m,
     t3.ratio_tc_pasivo_u3m, t3.ratio_planilla_pasivo_u3m, t3.ratio_txs_pasivo_u3m,
     t3.var_pasivo_um_vs_u6m, t3.flg_tiene_pasivo_u6m,
     t3.motivo_principalidad,
-    -- ===== castigo (entidades) =====
+    -- ===== entidades castigo vida (U24M) =====
     coalesce(vr.nro_entidades_castigo_vida, 0)            AS nro_entidades_castigo_vida,
     coalesce(vr.tipo_entidad_castigo_vida, 'SIN CASTIGO') AS tipo_entidad_castigo_vida,
     -- ===== rm_cliente + profesiones =====
-    rmc.sexo,
-    rmc.estado_civil,
-    prof.nivel_profesional,
-    prof.tipinstitucion
+    rmc.sexo, rmc.estado_civil,
+    prof.nivel_profesional, prof.tipinstitucion
 FROM (
     SELECT *
     FROM base_pea m
     LEFT JOIN pivot p USING (subject_id)
 ) base
 LEFT JOIN awsdatacatalog.e_perm_aws.t_rsk_maestro_score ms
-       ON ms.periodo    = '202605'                                  -- @CODMES_MODELO
+       ON ms.periodo    = '202605'                                  -- @CODMES_MODELO = codmes_pea - 1 mes (desfase modelo)
       AND ms.key_value  = base.key_value
       AND ms.tipdoc     = base.cod_tip_doc
-      AND ms.nom_modelo IN ('Score Originación TC No Bank 2024','Score Originación TC Bank 2024')
+      AND ms.nom_modelo IN ( 'Score Originación TC No Bank 2024', 'Score Originación TC Bank 2024')
 LEFT JOIN inca_rf ir
        ON ir.key_value    = base.key_value
       AND ir.cod_tip_doc  = base.cod_tip_doc
-      AND ir.cod_mes_join = '202604'                              -- @CODMES_INCA
+      AND ir.cod_mes_join = '202604'                              -- @CODMES_INCA = codmes_pea - 2 meses (desfase inca)
 LEFT JOIN awsdatacatalog.e_perm_aws.scr_origenapp1_rsk oa
        ON oa.cod_mes      = base.codmes_pea
       AND oa.cod_tip_doc  = base.cod_tip_doc
       AND oa.key_value    = base.key_value
 LEFT JOIN awsdatacatalog.e_perm_aws.t_rsk_segmentacion_gdp sg
-       ON sg.codmes     = '202603'                                  -- @CODMES_SEG_GDP
+       ON sg.codmes     = '202603'                                  -- @CODMES_SEG_GDP (tabla trimestral; ultima foto disponible)
       AND sg.key_value  = base.key_value
       AND sg.tipdoc     = base.cod_tip_doc
-LEFT JOIN ms_var mv
+LEFT JOIN ms_var mv                                                 -- NUEVO: mejor modelo por puntaje (no afecta lo demas)
        ON mv.key_value  = base.key_value
       AND mv.tipdoc     = base.cod_tip_doc
-LEFT JOIN ms_3m m3
+LEFT JOIN ms_3m m3                                                  -- NUEVO: historia 3 meses (mod / var)
        ON m3.key_value  = base.key_value
       AND m3.tipdoc     = base.cod_tip_doc
-LEFT JOIN t360_final t3
+LEFT JOIN rcc_castigo_num rcn                                       -- NUEVO: A) montos/antiguedad castigo
+       ON rcn.key_value = base.key_value
+      AND rcn.tip_doc   = base.cod_tip_doc
+LEFT JOIN pasivo_num pn                                             -- NUEVO: pasivo (t_360_cliente, 202605)
+       ON pn.key_value   = base.key_value
+      AND pn.cod_tip_doc = base.cod_tip_doc
+LEFT JOIN t360_final t3                                             -- NUEVO: saldos/flags/ratios t_360 (202606)
        ON t3.cod_tipo_documento = base.cod_tip_doc
       AND t3.nro_documento      = base.key_value
-LEFT JOIN variables_rcc vr
+LEFT JOIN variables_rcc vr                                          -- NUEVO: entidades castigo vida (U24M)
        ON vr.tip_doc   = base.cod_tip_doc
       AND vr.key_value = base.key_value
-LEFT JOIN rm_cliente rmc
+LEFT JOIN rm_cliente rmc                                            -- NUEVO: sexo, estado_civil
        ON rmc.tipdoc    = base.cod_tip_doc
       AND rmc.key_value = base.key_value
-LEFT JOIN profesiones prof
+LEFT JOIN profesiones prof                                          -- NUEVO: nivel_profesional, tipinstitucion
        ON prof.tipdoc    = base.cod_tip_doc
       AND prof.key_value = base.key_value
 ;
