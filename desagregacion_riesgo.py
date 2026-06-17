@@ -92,9 +92,9 @@ VARS_EXCLUIR = ["edad_num", "rk_ing_num"]
 
 WOE_AL_ARBOL = True
 SENTINEL  = -99999999
-MAX_DEPTH = 6
-MIN_SAMPLES_LEAF = 0.03
-OPTB_SAMPLE = 200_000
+MAX_DEPTH = 12                              # profundo: deja que el árbol corte hasta el piso de 20k
+MIN_SAMPLES_LEAF = 20000                    # *** cada corte final (hoja) tendrá ~20k (mínimo 20k) ***
+OPTB_SAMPLE = 10_000_000                    # WoE con TODA la data del grupo (sin submuestreo)
 RANDOM_STATE = 42
 
 CORTES = {
