@@ -64,6 +64,13 @@ NUM_VARS = [
 ORD_VAR = "segmentacion_gdp_v2"             # ordinal G1..G5 (entra como predictor; sin optbinning)
 NOM_VAR = "sit_laboral_mod"                 # nominal (sin restricción monótona)
 
+# Variables numéricas a EXCLUIR en el 2º juego de Excel (sufijo "_sinalgunasvariables").
+# Edita esta lista con lo que quieras quitar. Si la dejas vacía, no se genera el 2º juego.
+VARS_EXCLUIR = [
+    "monto_castigado_otros",
+    "saldo_activo_actual",
+]
+
 SENTINEL  = -99999999                       # valor especial para missing
 MAX_DEPTH = 4                               # profundidad del árbol
 MIN_SAMPLES_LEAF = 0.03                     # 3% mínimo por hoja
@@ -257,7 +264,7 @@ def escribir_cuadro(ws, r0, c0, titulo, tab, vfil, vcol, modo, vmin=None, vmax=N
 # ====================================================================================
 # PROCESA UN ESCENARIO -> UNA HOJA
 # ====================================================================================
-def procesar_escenario(wb, nombre, df_sc, metodologia):
+def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
     ws = wb.create_sheet(title=nombre[:31])
 
     # El target (puntaje_mod) no puede tener NaN: descartamos esas filas y reindexamos.
@@ -271,7 +278,7 @@ def procesar_escenario(wb, nombre, df_sc, metodologia):
     vmin, vmax = np.nanmin(y), np.nanmax(y)
 
     # ----- 1) Matriz de predictores X con sentinel para missing -----
-    feats = [c for c in NUM_VARS if c in df_sc.columns]
+    feats = [c for c in NUM_VARS if c in df_sc.columns and c not in excluir]
     X = pd.DataFrame({c: pd.to_numeric(df_sc[c], errors="coerce") for c in feats})
     if ORD_VAR in df_sc.columns:                         # G1..G5 -> 1..5
         X[ORD_VAR] = df_sc[ORD_VAR].map({f"G{i}": i for i in range(1, 9)})
@@ -388,6 +395,18 @@ def procesar_escenario(wb, nombre, df_sc, metodologia):
     fila = escribir_cuadro(ws, fila, 1, "CUADRO POR CANTIDAD", cant, vfil, vcol, "cantidad") + 2
     fila = escribir_cuadro(ws, fila, 1, "CUADRO POR RIESGO (prom puntaje_mod)", riesgo,
                            vfil, vcol, "riesgo", vmin, vmax) + 2
+
+    # ----- 6b) Importancia de variables (pesos del árbol) -----
+    imp = (pd.Series(tree.feature_importances_, index=feats)
+           .sort_values(ascending=False))
+    ws.cell(fila, 1, "IMPORTANCIA DE VARIABLES (peso en el árbol)").font = Font(bold=True, size=12)
+    for j, h in enumerate(["Variable", "Peso", "Peso %"]):
+        c = ws.cell(fila + 1, 1 + j, h); c.font = BOLD; c.border = BORDER
+    for i, (var, w) in enumerate(imp.items()):
+        ws.cell(fila + 2 + i, 1, var).border = BORDER
+        ws.cell(fila + 2 + i, 2, round(float(w), 4)).border = BORDER
+        ws.cell(fila + 2 + i, 3, round(float(w) * 100, 1)).border = BORDER
+    fila = fila + 3 + len(imp)
 
     # ----- 7) Cuadro del árbol completo (1 fila = 1 hoja) -----
     leafmap = reglas_por_hoja(tree, feats)
@@ -572,17 +591,20 @@ def hoja_estrategia(wb, leads_total, ruta):
     print(f"  Leads (top {int(MAIN_PCT*100)}%) -> {csv_path}  ({len(pool):,} clientes únicos)")
 
 
-def construir_workbook(df, metodologia, ruta):
-    """Genera un Excel completo para la metodología indicada ('A' o 'B')."""
+def construir_workbook(df, metodologia, ruta, excluir=()):
+    """Genera un Excel completo para la metodología indicada ('A' o 'B'),
+    excluyendo las variables numéricas de 'excluir'."""
     wb = Workbook(); wb.remove(wb.active)
     idx = wb.create_sheet("Índice")
     idx.cell(1, 1, f"Desagregación de riesgo — "
                    f"{'Solo árbol' if metodologia == 'A' else 'Optbinning + árbol'}").font = Font(bold=True, size=14)
     idx.cell(2, 1, "proxy de riesgo: puntaje_mod (alto = menor riesgo)")
-    r = 4
+    if excluir:
+        idx.cell(3, 1, f"Variables excluidas: {', '.join(excluir)}").font = Font(italic=True)
+    r = 5
     leads_list = []
     for nombre, sub in construir_escenarios(df):
-        leads = procesar_escenario(wb, nombre, sub, metodologia)
+        leads = procesar_escenario(wb, nombre, sub, metodologia, excluir)
         if leads is not None and len(leads):
             leads_list.append(leads)
         idx.cell(r, 1, f"• {nombre}  (n={len(sub):,})"); r += 1
@@ -602,9 +624,18 @@ def main():
         df = pd.read_csv(DATA_PATH, sep=",")
     print(f"Base: {len(df):,} filas, {df.shape[1]} columnas")
 
+    # 1er juego: con todas las variables
     construir_workbook(df, "A", "arbol_solo.xlsx")
     construir_workbook(df, "B", "optbinning_arbol.xlsx")
     print("Listo: arbol_solo.xlsx y optbinning_arbol.xlsx")
+
+    # 2do juego: excluyendo VARS_EXCLUIR (solo si hay variables que quitar)
+    excluir = [c for c in VARS_EXCLUIR if c in df.columns]
+    if excluir:
+        construir_workbook(df, "A", "arbol_solo_sinalgunasvariables.xlsx", excluir)
+        construir_workbook(df, "B", "optbinning_arbol_sinalgunasvariables.xlsx", excluir)
+        print(f"Listo (sin {', '.join(excluir)}): "
+              "arbol_solo_sinalgunasvariables.xlsx y optbinning_arbol_sinalgunasvariables.xlsx")
 
 
 if __name__ == "__main__":
