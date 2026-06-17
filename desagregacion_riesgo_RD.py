@@ -2,18 +2,22 @@
 ====================================================================================
 DESAGREGACIÓN DE RIESGO  (proxy = RD / tasa de default, continuo)
 ====================================================================================
-Versión RD: el objetivo es la TASA DE DEFAULT (RD) — RD alto = MAYOR riesgo.
-Diferencias vs la versión de puntaje:
-  - Target = RD continuo (no puntaje). Verde = RD bajo / rojo = RD alto.
-  - El PUNTAJE entra como VARIABLE: se transforma a banda G1..G5 (vía CORTES por
-    situación laboral) y se codifica 1..5 (G1=mejor=1 ... G5=peor=5).
-  - La selección de leads ya NO es top-%, sino por APETITO de RD: un segmento entra
-    si su RD <= apetito. Se evalúan escenarios apetito × {0.90, 0.95, 1.00, 1.05, 1.10}.
-  - Optbinning (metodología B): en vez de gráficos, escribe la TABLA por variable
-    (medias por bin) en el Excel y en el TXT.
+Objetivo = RD (tasa de default). RD alto = MAYOR riesgo. Verde = RD bajo / rojo = RD alto.
 
-Genera, por metodología (A solo árbol / B optbinning+árbol) y juego de variables:
-  arbol_solo_RD.xlsx, optbinning_arbol_RD.xlsx (+ *_sinalgunasvariables) y sus .txt/.csv
+Metodología A (Solo árbol): variables CRUDAS + restricción monótona de negocio.
+Metodología B (Optbinning + árbol):
+  - Se fija la dirección de negocio (+1 / -1) para que optbinning agrupe la variable
+    en el sentido correcto.
+  - El WoE de cada bin ENTRA al árbol (la variable se reemplaza por su WoE).
+    -> como el WoE ya codifica el riesgo, la restricción en el árbol es +1 para todas.
+  - En el árbol y en los cuadros se muestran los LABELS (rangos de los bins), NO el
+    número de WoE.
+  - Si una variable no logra binarizar (ni 5 ni 2 bins) -> se descarta.
+  - Por variable se exporta la TABLA optbinning (bin / WoE / RD medio) en Excel y TXT.
+
+El PUNTAJE entra como variable: banda G1..G5 (vía CORTES por situación laboral) -> 1..5.
+Selección de leads por APETITO de RD (no top-%): un segmento entra si su RD <= apetito;
+se evalúan escenarios apetito × {0.90, 0.95, 1.00, 1.05, 1.10}.
 
 Requisitos: pip install pandas numpy scikit-learn matplotlib openpyxl scipy optbinning
 ====================================================================================
@@ -26,7 +30,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.stats import spearmanr
-from sklearn.tree import DecisionTreeRegressor, plot_tree, export_text
+from sklearn.tree import DecisionTreeRegressor, plot_tree
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.drawing.image import Image as XLImage
@@ -37,15 +41,14 @@ warnings.filterwarnings("ignore")
 # ====================================================================================
 # CONFIGURACIÓN  (edita esto)
 # ====================================================================================
-DATA_PATH = "dataprueba1606VF.csv"          # tu base
-RD_COL    = "rd"                            # *** TARGET: tasa de default (continuo, 0-1) ***
-SCORE_COL = "puntaje_mod"                   # puntaje (ahora ENTRA como variable, en banda 1..5)
-SIT_COL   = "sit_laboral_mod"              # situación laboral (para bandear el puntaje con CORTES)
-FLG_COL   = "FLG_CAST_AP"                   # define escenarios
+DATA_PATH = "dataprueba1606VF.csv"
+RD_COL    = "rd"                            # *** TARGET: tasa de default (continuo) ***
+SCORE_COL = "puntaje_mod"                   # puntaje -> entra como banda 1..5
+SIT_COL   = "sit_laboral_mod"              # situación laboral (para bandear el puntaje)
+FLG_COL   = "FLG_CAST_AP"
 FAR_COL   = "flg_far_mto_trx_presencial_12m_c216"
 VALORES_FLG = ["CAST_NOIBK_REP>=5anios", "NO_CAST_NOIBK_U24M"]
 
-# Variables numéricas predictoras
 NUM_VARS = [
     "edad_num", "rk_ing_num", "DEUDA_CAS", "monto_castigado_total",
     "monto_castigado_otros", "nro_entidades_castigo", "max_dias_mora_castigo",
@@ -53,19 +56,17 @@ NUM_VARS = [
     "saldo_pasivo_actual", "saldo_prom_pasivo", "saldo_activo_actual",
     "prom_saldo_pasivo_u4m", "max_saldo_pasivo_u6m", "nro_meses_con_pasivo_u6m",
 ]
-ORD_VAR = "segmentacion_gdp_v2"             # ordinal G1..G5 -> 1..5
-SCORE_BANDA = "score_g"                     # nombre de la variable derivada del puntaje (1..5)
-
-# Variables numéricas a EXCLUIR en el 2º juego de Excel (sufijo "_sinalgunasvariables")
+ORD_VAR = "segmentacion_gdp_v2"
+SCORE_BANDA = "score_g"
 VARS_EXCLUIR = ["edad_num", "rk_ing_num"]
 
+WOE_AL_ARBOL = True                         # B: el WoE de los bins entra al árbol (labels en el árbol)
 SENTINEL  = -99999999
 MAX_DEPTH = 6
 MIN_SAMPLES_LEAF = 0.03
 OPTB_SAMPLE = 200_000
 RANDOM_STATE = 42
 
-# Cortes de negocio puntaje -> banda, por situación laboral (umbrales DESCENDENTES)
 CORTES = {
     "DEPENDIENTE":    [("G1", 967), ("G2", 941), ("G3", 876)],
     "MIXTO":          [("G1", 971), ("G2", 949), ("G3", 915), ("G4", 872), ("G5", 852)],
@@ -74,32 +75,19 @@ CORTES = {
 }
 
 # Dirección monótona POR NEGOCIO frente al RD (RD alto = peor).
-#   +1 = a mayor variable, MAYOR RD (más riesgo) | -1 = a mayor variable, MENOR RD.
 DIRECCION_NEGOCIO = {
-    "edad_num": 0,                       # ambigua
-    "rk_ing_num": -1,                    # más ingreso -> menor RD
-    "DEUDA_CAS": +1,                     # más deuda castigada -> mayor RD
-    "monto_castigado_total": +1,
-    "monto_castigado_otros": +1,
-    "nro_entidades_castigo": +1,
-    "max_dias_mora_castigo": +1,
-    "meses_desde_ultimo_castigo": -1,    # castigo más antiguo -> menor RD
-    "meses_desde_primer_castigo": -1,
-    "saldo_pasivo_actual": -1,           # más ahorro -> menor RD
-    "saldo_prom_pasivo": -1,
-    "saldo_activo_actual": 0,            # ambigua
-    "prom_saldo_pasivo_u4m": -1,
-    "max_saldo_pasivo_u6m": -1,
-    "nro_meses_con_pasivo_u6m": -1,
-    "segmentacion_gdp_v2": +1,           # G1(1) mejor ... G5(5) peor -> mayor RD
-    "score_g": +1,                       # G1(1) mejor puntaje ... G5(5) peor -> mayor RD
+    "edad_num": 0, "rk_ing_num": -1, "DEUDA_CAS": +1, "monto_castigado_total": +1,
+    "monto_castigado_otros": +1, "nro_entidades_castigo": +1, "max_dias_mora_castigo": +1,
+    "meses_desde_ultimo_castigo": -1, "meses_desde_primer_castigo": -1,
+    "saldo_pasivo_actual": -1, "saldo_prom_pasivo": -1, "saldo_activo_actual": 0,
+    "prom_saldo_pasivo_u4m": -1, "max_saldo_pasivo_u6m": -1, "nro_meses_con_pasivo_u6m": -1,
+    "segmentacion_gdp_v2": +1, "score_g": +1,
 }
 
-# Hoja de estrategia: selección por APETITO de RD (no por top-%)
 SUBJECT_COL = "subject_id"
-APETITO_RD = 0.02                        # umbral base de RD aceptable (un segmento entra si RD <= apetito)
-FACTORES_RD = [0.90, 0.95, 1.00, 1.05, 1.10]   # escenarios ±5% / ±10% sobre el apetito
-TOP_N_ESTRATEGIAS = 20                   # tope de segmentos a mostrar
+APETITO_RD = 0.02
+FACTORES_RD = [0.90, 0.95, 1.00, 1.05, 1.10]
+TOP_N_ESTRATEGIAS = 20
 LEADS_EN_EXCEL_MAX = 100_000
 BINS_OBJETIVO = [5, 2]
 
@@ -112,7 +100,7 @@ BOLD = Font(bold=True)
 # UTILIDADES
 # ====================================================================================
 def norm_riesgo(v, vmin, vmax):
-    """Devuelve t en [0,1] para el colormap: 1 = verde = RD BAJO (menor riesgo)."""
+    """1 = verde = RD BAJO (menor riesgo)."""
     return 0.5 if vmax <= vmin else (vmax - v) / (vmax - vmin)
 
 
@@ -122,7 +110,6 @@ def hex_color(t):
 
 
 def banda_cortes_vec(score, sit):
-    """Puntaje -> banda G1..Gx (CORTES) VECTORIZADO, según situación laboral."""
     score = np.asarray(score, dtype=float)
     sit = np.asarray(sit, dtype=object)
     out = np.full(score.shape, "s/d", dtype=object)
@@ -152,6 +139,67 @@ def fmt_intervalo(lo, hi):
     return f"({lo:,.0f}, {hi:,.0f}]"
 
 
+def _parse_bin(s):
+    """Convierte el texto de un bin de optbinning a (low, high) numéricos."""
+    s = str(s).strip()
+    if s in ("Special", "Missing", "", "nan"):
+        return None
+    s = s.strip("[]()")
+    if "," not in s:
+        return None
+    a, b = s.split(",", 1)
+
+    def f(z):
+        z = z.strip()
+        if "inf" in z:
+            return -np.inf if z.startswith("-") else np.inf
+        try:
+            return float(z)
+        except ValueError:
+            return None
+    lo, hi = f(a), f(b)
+    return None if lo is None or hi is None else (lo, hi)
+
+
+def labelmap_from_table(tb, valcol):
+    """Construye el mapeo {valor_WoE_o_mean -> rango original} a partir de la tabla optbinning."""
+    vbins, miss_val = [], None
+    for _, row in tb.iterrows():
+        b = str(row["Bin"])
+        val = pd.to_numeric(row.get(valcol), errors="coerce")
+        if b == "Missing":
+            if pd.notna(val) and row.get("Count", 0) > 0:
+                miss_val = float(val)
+            continue
+        pr = _parse_bin(b)
+        if pr is None or pd.isna(val):
+            continue
+        vbins.append((float(val), pr[0], pr[1]))
+    vbins.sort(key=lambda z: z[0])
+    return {"vbins": vbins, "miss_val": miss_val}
+
+
+def cond_label(woemap, var, lo, hi):
+    """Etiqueta legible de la condición (lo, hi] de 'var'.
+    - Variables WoE: traduce el rango de WoE al RANGO ORIGINAL de los bins (+ 'Missing' si aplica).
+    - Variables crudas/ordinales: usa el intervalo real (fmt_intervalo)."""
+    if var not in woemap:
+        return fmt_intervalo(lo, hi)
+    info = woemap[var]
+    vb, mv = info["vbins"], info["miss_val"]
+    sel = [(low, high) for (w, low, high) in vb if (w > lo and w <= hi)]
+    inc_miss = (mv is not None and mv > lo and mv <= hi)
+    total = len(vb) + (1 if mv is not None else 0)
+    if len(sel) + (1 if inc_miss else 0) >= total:
+        return "(todos)"
+    partes = []
+    if sel:
+        partes.append(fmt_intervalo(min(l for l, _ in sel), max(h for _, h in sel)))
+    if inc_miss:
+        partes.append("Missing")
+    return " + ".join(partes) if partes else "(ninguno)"
+
+
 def reglas_por_hoja(tree, feats):
     t = tree.tree_
     out, stack = {}, [(0, {})]
@@ -168,14 +216,34 @@ def reglas_por_hoja(tree, feats):
     return out
 
 
-def optbinning_var(x, y, nombre, direccion):
-    """Ajusta optbinning (target continuo RD) FORZANDO dirección y exigiendo bins (5, luego 2).
-    Devuelve (feasible, etiqueta, tabla_df, dir_efectiva). tabla_df = medias por bin."""
+def arbol_texto(tree, feats, woemap):
+    """Árbol en texto mostrando LABELS (rangos), no umbrales WoE. value = RD del nodo."""
+    t = tree.tree_
+    lines = []
+
+    def rec(node, depth):
+        pre = "|   " * depth + "|--- "
+        if t.children_left[node] == -1:
+            lines.append("|   " * depth + f"|--- RD = {t.value[node][0][0]:.4f}")
+            return
+        f, thr = feats[t.feature[node]], t.threshold[node]
+        lines.append(pre + f"{f}: {cond_label(woemap, f, -np.inf, thr)}")
+        rec(t.children_left[node], depth + 1)
+        lines.append(pre + f"{f}: {cond_label(woemap, f, thr, np.inf)}")
+        rec(t.children_right[node], depth + 1)
+
+    rec(0, 0)
+    return "\n".join(lines)
+
+
+def optbinning_fit(x, y, nombre, direccion):
+    """Ajusta optbinning (target continuo) forzando dirección, exigiendo bins (5, luego 2).
+    Devuelve (feasible, etiqueta, tabla, dir_efectiva, optb)."""
     from optbinning import ContinuousOptimalBinning
     trend = {1: "ascending", -1: "descending", 0: "auto_asc_desc"}[direccion]
     etiqueta = {1: "CRECIENTE RD (+)", -1: "DECRECIENTE RD (-)", 0: "auto"}[direccion]
     if (~np.isnan(x)).sum() < 50:
-        return False, "sin datos -> descartada", None, 0
+        return False, "sin datos -> descartada", None, 0, None
     optb = None
     for min_bins in BINS_OBJETIVO:
         try:
@@ -188,9 +256,9 @@ def optbinning_var(x, y, nombre, direccion):
         except Exception:
             continue
     if optb is None:
-        return False, etiqueta + " -> SIN BINARIZACIÓN (ni 5 ni 2 bins), descartada", None, 0
+        return False, etiqueta + " -> SIN BINARIZACIÓN (ni 5 ni 2 bins), descartada", None, 0, None
     n_bins = len(optb.splits) + 1
-    tb = optb.binning_table.build()                      # tabla por bin (Count, Mean RD, ...)
+    tb = optb.binning_table.build()
     if direccion != 0:
         dir_ef = direccion
     else:
@@ -198,7 +266,7 @@ def optbinning_var(x, y, nombre, direccion):
         means = pd.to_numeric(tb.loc[mask, "Mean"], errors="coerce").dropna().values
         dir_ef = (1 if means[-1] >= means[0] else -1) if len(means) >= 2 else 0
         etiqueta = ("CRECIENTE RD (+)" if dir_ef > 0 else "DECRECIENTE RD (-)") + " (detectada)"
-    return True, f"{etiqueta} [{n_bins} bins]", tb, dir_ef
+    return True, f"{etiqueta} [{n_bins} bins]", tb, dir_ef, optb
 
 
 def escribir_cuadro(ws, r0, c0, titulo, tab, vfil, vcol, modo, vmin=None, vmax=None):
@@ -218,34 +286,48 @@ def escribir_cuadro(ws, r0, c0, titulo, tab, vfil, vcol, modo, vmin=None, vmax=N
             cell.border = BORDER; cell.alignment = Alignment(horizontal="center")
             if pd.isna(val):
                 continue
-            if modo == "riesgo":                         # RD: verde=bajo, rojo=alto
+            if modo == "riesgo":
                 cell.value = round(float(val), 4)
                 cell.fill = PatternFill("solid", fgColor=hex_color(norm_riesgo(val, vmin, vmax)))
             else:
                 cell.value = int(val)
                 g = int(255 - 120 * (val / mx if mx else 0))
                 cell.fill = PatternFill("solid", fgColor=f"D6E4{g:02X}")
-    ws.column_dimensions[get_column_letter(c0)].width = 22
+    ws.column_dimensions[get_column_letter(c0)].width = 26
     for j in range(len(tab.columns)):
-        ws.column_dimensions[get_column_letter(c0 + 1 + j)].width = 15
+        ws.column_dimensions[get_column_letter(c0 + 1 + j)].width = 16
     return r0 + 4 + len(tab.index)
 
 
 def escribir_tabla_df(ws, r0, c0, titulo, df):
-    """Escribe un DataFrame genérico (ej. tabla optbinning) a partir de (r0,c0)."""
-    ws.cell(r0, c0, titulo).font = BOLD
+    if titulo:
+        ws.cell(r0, c0, titulo).font = BOLD
+        r0 += 1
     cols = list(df.columns)
     for j, h in enumerate(cols):
-        cc = ws.cell(r0 + 1, c0 + j, str(h)); cc.font = BOLD; cc.border = BORDER
+        cc = ws.cell(r0, c0 + j, str(h)); cc.font = BOLD; cc.border = BORDER
     for i in range(len(df)):
         for j, h in enumerate(cols):
             v = df.iloc[i][h]
-            cell = ws.cell(r0 + 2 + i, c0 + j); cell.border = BORDER
+            cell = ws.cell(r0 + 1 + i, c0 + j); cell.border = BORDER
             if isinstance(v, (int, float, np.integer, np.floating)) and not pd.isna(v):
                 cell.value = round(float(v), 5)
             else:
                 cell.value = str(v)
-    return r0 + 3 + len(df)
+    return r0 + 2 + len(df)
+
+
+def ejes_unicos(labels):
+    """Garantiza labels únicos para pd.cut (agrega espacios si se repiten)."""
+    vistos, out = {}, []
+    for l in labels:
+        if l in vistos:
+            vistos[l] += 1
+            out.append(l + " " * vistos[l])
+        else:
+            vistos[l] = 0
+            out.append(l)
+    return out
 
 
 # ====================================================================================
@@ -253,64 +335,80 @@ def escribir_tabla_df(ws, r0, c0, titulo, df):
 # ====================================================================================
 def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
     ws = wb.create_sheet(title=nombre[:31])
-
-    # El target (RD) no puede tener NaN
     df_sc = df_sc.loc[pd.to_numeric(df_sc[RD_COL], errors="coerce").notna()].reset_index(drop=True)
     n = len(df_sc)
     if n < 50:
         ws.cell(1, 1, f"Escenario con muy pocos casos ({n}). Se omite.")
         return None, f"{'='*70}\nESCENARIO: {nombre}\n(omitido: solo {n} casos)\n\n"
 
-    y = pd.to_numeric(df_sc[RD_COL], errors="coerce").values     # RD continuo
+    y = pd.to_numeric(df_sc[RD_COL], errors="coerce").values
     vmin, vmax = np.nanmin(y), np.nanmax(y)
 
-    # ----- 1) Predictores X con sentinel para missing -----
-    feats = [c for c in NUM_VARS if c in df_sc.columns and c not in excluir]
-    X = pd.DataFrame({c: pd.to_numeric(df_sc[c], errors="coerce") for c in feats})
-    if ORD_VAR in df_sc.columns:                          # segmentación G1..G5 -> 1..5
-        X[ORD_VAR] = df_sc[ORD_VAR].map({f"G{i}": i for i in range(1, 9)})
+    # ----- 1) Series crudas de predictores -----
+    num = [c for c in NUM_VARS if c in df_sc.columns and c not in excluir]
+    raw = {c: pd.to_numeric(df_sc[c], errors="coerce") for c in num}
+    feats = list(num)
+    if ORD_VAR in df_sc.columns:
+        raw[ORD_VAR] = df_sc[ORD_VAR].map({f"G{i}": i for i in range(1, 9)})
         feats.append(ORD_VAR)
-    if SCORE_COL in df_sc.columns and SIT_COL in df_sc.columns:   # puntaje -> banda 1..5
+    if SCORE_COL in df_sc.columns and SIT_COL in df_sc.columns:
         bandas = banda_cortes_vec(pd.to_numeric(df_sc[SCORE_COL], errors="coerce").values,
                                   df_sc[SIT_COL].values)
-        X[SCORE_BANDA] = pd.Series(bandas, index=df_sc.index).map({f"G{i}": i for i in range(1, 6)})
-        X[SCORE_BANDA] = pd.to_numeric(X[SCORE_BANDA], errors="coerce")
+        raw[SCORE_BANDA] = pd.Series(bandas, index=df_sc.index).map({f"G{i}": i for i in range(1, 6)})
         feats.append(SCORE_BANDA)
-    miss = X.isna()
-    X = X.fillna(SENTINEL)
 
-    # ----- 2) Dirección monótona por variable -----
-    cst_map, tablas, drop = {}, [], []
+    # ----- 2) Dirección + (B) codificación WoE que entra al árbol -----
+    usa_woe = (metodologia == "B" and WOE_AL_ARBOL)
+    Xcols, misscol, cst_map, woemap, tablas, drop = {}, {}, {}, {}, [], []
     samp = (df_sc.sample(OPTB_SAMPLE, random_state=RANDOM_STATE).index
             if (metodologia == "B" and n > OPTB_SAMPLE) else df_sc.index)
     y_s = pd.Series(y, index=df_sc.index)
     for c in feats:
-        if metodologia == "B" and c in NUM_VARS:         # B numéricas: optbinning + bins exigidos
+        serie = raw[c]
+        if metodologia == "B" and c in NUM_VARS:                     # optbinning
             d = DIRECCION_NEGOCIO.get(c, 0)
-            xs = X.loc[samp, c].where(~miss.loc[samp, c]).values
-            feasible, etiqueta, tb, dir_ef = optbinning_var(xs, y_s.loc[samp].values, c, d)
+            feasible, etiqueta, tb, dir_ef, optb = optbinning_fit(
+                serie.loc[samp].values, y_s.loc[samp].values, c, d)
             tablas.append((c, etiqueta, tb))
-            if feasible:
-                cst_map[c] = dir_ef
-            else:
+            if not feasible:
                 drop.append(c)
-        else:                                             # A (todas) y ordinales: dirección de negocio
+                continue
+            if usa_woe:                                              # el WoE entra al árbol
+                metric = "woe"
+                try:
+                    col = optb.transform(serie.values, metric="woe")
+                    valcol = "WoE"
+                except Exception:                                    # fallback: media de RD por bin
+                    col = optb.transform(serie.values, metric="mean")
+                    valcol = "Mean"
+                Xcols[c] = np.asarray(col, dtype=float)
+                cst_map[c] = +1                                      # WoE/mean ya crece con el RD
+                woemap[c] = labelmap_from_table(tb, valcol)
+                misscol[c] = np.zeros(n, dtype=bool)                 # missing ya codificado en el WoE
+            else:
+                Xcols[c] = serie.fillna(SENTINEL).values
+                cst_map[c] = dir_ef
+                misscol[c] = serie.isna().values
+        else:                                                        # A (todas) / ordinales
             d = DIRECCION_NEGOCIO.get(c, 0)
             if d != 0:
                 cst_map[c] = d
             else:
-                ok = ~miss[c]
+                ok = serie.notna()
                 if ok.sum() < 30:
                     cst_map[c] = 0
                 else:
-                    rho, p = spearmanr(X.loc[ok, c], y[ok])
+                    rho, p = spearmanr(serie[ok], y[ok.values])
                     cst_map[c] = 0 if (np.isnan(rho) or p > 0.05) else int(np.sign(rho))
+            Xcols[c] = serie.fillna(SENTINEL).values
+            misscol[c] = serie.isna().values
 
     feats = [c for c in feats if c not in drop]
-    X = X[feats]; miss = miss[feats]
+    X = pd.DataFrame({c: Xcols[c] for c in feats})
+    miss = pd.DataFrame({c: misscol[c] for c in feats})
     cst = [cst_map[c] for c in feats]
 
-    # ----- 3) Árbol de regresión monótono sobre RD -----
+    # ----- 3) Árbol monótono sobre RD -----
     try:
         tree = DecisionTreeRegressor(max_depth=MAX_DEPTH, min_samples_leaf=MIN_SAMPLES_LEAF,
                                      monotonic_cst=cst, random_state=RANDOM_STATE).fit(X, y)
@@ -318,7 +416,7 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
         tree = DecisionTreeRegressor(max_depth=MAX_DEPTH, min_samples_leaf=MIN_SAMPLES_LEAF,
                                      random_state=RANDOM_STATE).fit(X, y)
 
-    # ----- 4) Imagen del árbol (verde = RD bajo, rojo = RD alto) -----
+    # ----- 4) Imagen del árbol (estructura; verde=RD bajo). Los RANGOS legibles van en las tablas. -----
     plt.figure(figsize=(26, 12))
     anns = plot_tree(tree, feature_names=feats, filled=True, rounded=True,
                      impurity=False, precision=4, fontsize=9, proportion=True)
@@ -326,22 +424,22 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
         if ann.get_bbox_patch() is not None:
             ann.get_bbox_patch().set_facecolor(CMAP(norm_riesgo(v, vmin, vmax)))
             ann.get_bbox_patch().set_edgecolor("black")
-    plt.title("Árbol — verde = RD bajo (menor riesgo), rojo = RD alto")
+    plt.title("Árbol — verde = RD bajo, rojo = RD alto" +
+              ("  (umbrales en WoE; ver 'cuadro del árbol completo' para los rangos)" if usa_woe else ""))
     plt.tight_layout(); plt.savefig(f"_tree_{nombre}.png", dpi=120, bbox_inches="tight"); plt.close()
 
     # ----- 5) Encabezado + imagen -----
     ws.cell(1, 1, f"ESCENARIO: {nombre}").font = Font(bold=True, size=14)
     ws.cell(2, 1, f"n = {n:,}   |   RD medio = {np.nanmean(y):.4f}   |   "
-                  f"metodología = {'Solo árbol' if metodologia == 'A' else 'Optbinning + árbol'}")
-    ws.cell(3, 1, f"monotonic_cst (+ a mayor variable mayor RD / - menor RD / 0 sin restricción): "
-                  f"{dict(zip(feats, cst))}")
+                  f"metodología = {'Solo árbol' if metodologia == 'A' else 'Optbinning + árbol (WoE al árbol)' if usa_woe else 'Optbinning + árbol'}")
+    ws.cell(3, 1, f"monotonic_cst: {dict(zip(feats, cst))}")
     try:
         img = XLImage(f"_tree_{nombre}.png"); img.width, img.height = 1100, 520
         ws.add_image(img, "A5")
     except Exception as e:
         ws.cell(5, 1, f"(no se pudo insertar imagen: {e})")
 
-    # ----- 6) Cuadros doble entrada (top-2 variables) -----
+    # ----- 6) Cuadros de doble entrada (top-2 variables) -----
     imp = pd.Series(tree.feature_importances_, index=feats).sort_values(ascending=False)
     top = [v for v in imp.index if imp[v] > 0][:2]
     for v in feats:
@@ -354,14 +452,14 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
     cuadro = {}
     for var in (vfil, vcol):
         idx = feats.index(var)
-        thr = sorted({round(t, 4) for f, t in zip(tree.tree_.feature, tree.tree_.threshold)
-                      if f == idx and t > SENTINEL / 2})
+        es_woe = var in woemap
+        thr = sorted({round(t, 6) for f, t in zip(tree.tree_.feature, tree.tree_.threshold)
+                      if f == idx and (es_woe or t > SENTINEL / 2)})
         edges = [-np.inf] + thr + [np.inf]
-        labels = [f"({'-inf' if e0 == -np.inf else f'{e0:,.0f}'}, "
-                  f"{'inf' if e1 == np.inf else f'{e1:,.0f}'}]"
-                  for e0, e1 in zip(edges[:-1], edges[1:])]
+        labels = ejes_unicos([cond_label(woemap, var, e0, e1) for e0, e1 in zip(edges[:-1], edges[1:])])
         b = pd.cut(X[var], bins=edges, labels=labels).astype(object)
-        b[miss[var].values] = "Missing"
+        if not es_woe:
+            b[miss[var].values] = "Missing"
         cuadro[var] = (b, labels)
     bf, lab_f = cuadro[vfil]
     bc, lab_c = cuadro[vcol]
@@ -386,12 +484,12 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
         ws.cell(fila + 2 + i, 3, round(float(w) * 100, 1)).border = BORDER
     fila = fila + 3 + len(imp)
 
-    # ----- 7) Cuadro del árbol completo (1 fila = 1 hoja) -----
+    # ----- 7) Cuadro del árbol completo (1 fila = 1 hoja, con LABELS de los bins) -----
     leafmap = reglas_por_hoja(tree, feats)
     usadas = [f for f in feats if any(f in cond for cond in leafmap.values())]
     leaf_id = tree.apply(X)
     try:
-        quint_v = pd.qcut(y_s, 5, labels=["G1", "G2", "G3", "G4", "G5"])   # G1 = RD más bajo
+        quint_v = pd.qcut(y_s, 5, labels=["G1", "G2", "G3", "G4", "G5"])
     except ValueError:
         quint_v = pd.qcut(y_s.rank(method="first"), 5, labels=["G1", "G2", "G3", "G4", "G5"])
     res = pd.DataFrame({"leaf": leaf_id, "s": y, "quint": quint_v.values})
@@ -399,13 +497,13 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
     filas = []
     for lid, sub in res.groupby("leaf"):
         cond = leafmap.get(lid, {})
-        row = {f: fmt_intervalo(*cond.get(f, (-np.inf, np.inf))) for f in usadas}
+        row = {f: cond_label(woemap, f, *cond.get(f, (-np.inf, np.inf))) for f in usadas}
         row["n"] = len(sub)
         row["%"] = round(100 * len(sub) / n, 1)
         row["RD_medio"] = sub["s"].mean()
         row["quintil_RD"] = sub["quint"].mode().iloc[0] if not sub["quint"].mode().empty else ""
         filas.append(row)
-    tab = pd.DataFrame(filas).sort_values("RD_medio", ascending=True).reset_index(drop=True)  # mejor (RD bajo) primero
+    tab = pd.DataFrame(filas).sort_values("RD_medio", ascending=True).reset_index(drop=True)
 
     ws.cell(fila, 1, "CUADRO DEL ÁRBOL COMPLETO (una fila = una hoja, ordenado por RD ascendente)").font = Font(bold=True, size=12)
     cols = usadas + ["n", "%", "RD_medio", "quintil_RD"]
@@ -425,13 +523,13 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
             else:
                 cell.value = str(val)
     for j, h in enumerate(cols):
-        ws.column_dimensions[get_column_letter(1 + j)].width = 17 if h in usadas else 11
+        ws.column_dimensions[get_column_letter(1 + j)].width = 20 if h in usadas else 11
     fila = fila + 3 + len(tab)
 
-    # ----- 8) (Solo B) TABLA optbinning por variable (medias por bin) -----
+    # ----- 8) (Solo B) TABLA optbinning por variable (bin / WoE / RD medio) -----
     if tablas:
         fila += 2
-        ws.cell(fila, 1, "TABLA OPTBINNING POR VARIABLE (medias de RD por bin)").font = Font(bold=True, size=12)
+        ws.cell(fila, 1, "TABLA OPTBINNING POR VARIABLE (bin · WoE · RD medio)").font = Font(bold=True, size=12)
         fila += 1
         for nom, etiqueta, tb in tablas:
             ws.cell(fila, 1, f"{nom}  —  {etiqueta}").font = BOLD
@@ -440,29 +538,29 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
             else:
                 fila += 2
 
-    # ----- 9) Leads por APETITO (segmentos con RD <= apetito×factor_máx) -----
+    # ----- 9) Leads por APETITO de RD -----
     leaf_rd = res.groupby("leaf")["s"].mean().to_dict()
-    regla_txt = {lid: " & ".join(f"{f}{fmt_intervalo(*rng)}" for f, rng in cond.items()) or "(raíz)"
-                 for lid, cond in leafmap.items()}
+    regla_txt = {}
+    for lid, cond in leafmap.items():
+        partes = [f"{f} {cond_label(woemap, f, *rng)}" for f, rng in cond.items()
+                  if cond_label(woemap, f, *rng) != "(todos)"]
+        regla_txt[lid] = " & ".join(partes) if partes else "(raíz)"
     sid = df_sc[SUBJECT_COL].values if SUBJECT_COL in df_sc.columns else df_sc.index.values
     leads = pd.DataFrame({
-        "subject_id": sid,
-        "escenario": nombre,
+        "subject_id": sid, "escenario": nombre,
         "leaf_key": [f"{nombre}#{l}" for l in leaf_id],
         "regla": [regla_txt.get(l, "") for l in leaf_id],
-        "rd_cliente": y,
-        "leaf_rd": [leaf_rd.get(l, np.nan) for l in leaf_id],
+        "rd_cliente": y, "leaf_rd": [leaf_rd.get(l, np.nan) for l in leaf_id],
     })
-    tope = APETITO_RD * max(FACTORES_RD)
-    leads = leads[leads["leaf_rd"] <= tope].reset_index(drop=True)
+    leads = leads[leads["leaf_rd"] <= APETITO_RD * max(FACTORES_RD)].reset_index(drop=True)
 
     # ----- 10) Espejo en TEXTO -----
     L = ["=" * 70, f"ESCENARIO: {nombre}",
          f"n = {n:,} | RD medio = {np.nanmean(y):.4f} | "
-         f"metodología = {'Solo árbol' if metodologia == 'A' else 'Optbinning + árbol'}",
+         f"metodología = {'Solo árbol' if metodologia == 'A' else 'Optbinning + árbol (WoE al árbol)' if usa_woe else 'Optbinning + árbol'}",
          f"monotonic_cst: {dict(zip(feats, cst))}",
-         "-" * 70, "ÁRBOL (texto, value = RD):",
-         export_text(tree, feature_names=list(feats), decimals=4),
+         "-" * 70, "ÁRBOL (texto, rangos de los bins; value = RD):",
+         arbol_texto(tree, feats, woemap),
          "-" * 70, "IMPORTANCIA DE VARIABLES (peso / peso %):",
          pd.DataFrame({"peso": imp.round(4), "peso_%": (imp * 100).round(1)}).to_string(),
          "-" * 70, f"CUADRO POR CANTIDAD (filas={vfil} / columnas={vcol}):",
@@ -472,10 +570,9 @@ def procesar_escenario(wb, nombre, df_sc, metodologia, excluir=()):
          "-" * 70, "CUADRO DEL ÁRBOL COMPLETO (ordenado por RD ascendente):",
          tab.to_string(index=False)]
     if tablas:
-        L += ["-" * 70, "TABLA OPTBINNING POR VARIABLE (medias de RD por bin):"]
+        L += ["-" * 70, "TABLA OPTBINNING POR VARIABLE (bin · WoE · RD medio):"]
         for nom, etiqueta, tb in tablas:
-            L += ["", f"### {nom} — {etiqueta}"]
-            L += [tb.to_string() if tb is not None else "  (descartada)"]
+            L += ["", f"### {nom} — {etiqueta}", tb.to_string() if tb is not None else "  (descartada)"]
     texto = "\n".join(L) + "\n\n"
 
     return leads, texto
@@ -497,20 +594,16 @@ def construir_escenarios(df):
 
 
 def _dedup(pool):
-    """Cada cliente se queda en su segmento de MENOR RD."""
     return pool.sort_values("leaf_rd", ascending=True).drop_duplicates("subject_id", keep="first")
 
 
 def hoja_estrategia(wb, leads_total, ruta):
-    """Hoja de estrategia por APETITO de RD:
-       - segmentos (hojas) con RD <= apetito × factor; escenarios ±5% / ±10%.
-       - corte principal = apetito base; CSV de leads de esos segmentos."""
     ws = wb.create_sheet("Estrategia")
     if leads_total.empty:
         ws.cell(1, 1, f"No hay segmentos con RD <= {APETITO_RD*max(FACTORES_RD):.4f}.")
         return f"{'='*70}\nHOJA DE ESTRATEGIA\n(sin segmentos bajo el apetito)\n"
 
-    ded = _dedup(leads_total)                              # 1 fila por cliente (su mejor segmento)
+    ded = _dedup(leads_total)
     seg = (ded.groupby("leaf_key")
            .agg(escenario=("escenario", "first"), regla=("regla", "first"),
                 rd=("leaf_rd", "first"), n_leads=("subject_id", "size"))
@@ -520,14 +613,11 @@ def hoja_estrategia(wb, leads_total, ruta):
     rdmin, rdmax = seg["rd"].min(), seg["rd"].max()
 
     ws.cell(1, 1, f"HOJA DE ESTRATEGIA — apetito RD base = {APETITO_RD:.4f} (un segmento entra si su RD <= apetito)").font = Font(bold=True, size=13)
-
-    # ---- A) Escenarios de apetito (±5% / ±10%) : leads únicos por estrategia ----
     ws.cell(3, 1, "Leads únicos por estrategia según APETITO de RD:").font = BOLD
     ws.cell(4, 1, "Estrategia").font = BOLD; ws.cell(4, 1).border = BORDER
     ws.cell(4, 2, "RD segmento").font = BOLD; ws.cell(4, 2).border = BORDER
     for j, t in enumerate(thr):
-        h = ws.cell(4, 3 + j, f"RD≤{t:.4f}"); h.font = BOLD; h.border = BORDER
-        ws.cell(5 + len(seg) + 0, 1)  # placeholder no-op
+        h = ws.cell(4, 3 + j, f"RD<={t:.4f}"); h.font = BOLD; h.border = BORDER
     for i, row in enumerate(seg.itertuples(index=False)):
         ws.cell(5 + i, 1, int(row.estrategia)).border = BORDER
         cr = ws.cell(5 + i, 2, round(float(row.rd), 4)); cr.border = BORDER
@@ -537,10 +627,8 @@ def hoja_estrategia(wb, leads_total, ruta):
     tot_row = 5 + len(seg)
     ws.cell(tot_row, 1, "TOTAL").font = BOLD; ws.cell(tot_row, 1).border = BORDER
     for j, t in enumerate(thr):
-        tot = int(seg.loc[seg["rd"] <= t, "n_leads"].sum())
-        c = ws.cell(tot_row, 3 + j, tot); c.font = BOLD; c.border = BORDER
+        c = ws.cell(tot_row, 3 + j, int(seg.loc[seg["rd"] <= t, "n_leads"].sum())); c.font = BOLD; c.border = BORDER
 
-    # ---- B) Detalle corte principal (apetito base) + CSV ----
     main_seg = seg[seg["rd"] <= APETITO_RD]
     main_leads = ded[ded["leaf_key"].isin(main_seg["leaf_key"])].copy()
     rank = dict(zip(seg["leaf_key"], seg["estrategia"]))
@@ -562,7 +650,7 @@ def hoja_estrategia(wb, leads_total, ruta):
         cs = ws.cell(r0 + 2 + i, 4, round(float(row.rd), 4)); cs.border = BORDER
         cs.fill = PatternFill("solid", fgColor=hex_color(norm_riesgo(row.rd, rdmin, rdmax)))
         ws.cell(r0 + 2 + i, 5, int(row.n_leads)).border = BORDER
-    ws.column_dimensions["C"].width = 70
+    ws.column_dimensions["C"].width = 80
     for col in ("A", "B", "D", "E"):
         ws.column_dimensions[col].width = 16
 
@@ -576,7 +664,6 @@ def hoja_estrategia(wb, leads_total, ruta):
                 ws2.cell(i, 1 + j, val if not isinstance(val, float) else round(val, 4))
     print(f"  Leads (apetito {APETITO_RD:.4f}) -> {csv_path}  ({len(main_leads):,} clientes únicos)")
 
-    # Espejo TEXTO
     comp = seg.copy()
     for t in thr:
         comp[f"RD<={t:.4f}"] = np.where(comp["rd"] <= t, comp["n_leads"], 0)
@@ -593,14 +680,14 @@ def hoja_estrategia(wb, leads_total, ruta):
 def construir_workbook(df, metodologia, ruta, excluir=()):
     wb = Workbook(); wb.remove(wb.active)
     idx = wb.create_sheet("Índice")
-    idx.cell(1, 1, f"Desagregación de riesgo (RD) — "
-                   f"{'Solo árbol' if metodologia == 'A' else 'Optbinning + árbol'}").font = Font(bold=True, size=14)
+    metnom = "Solo árbol" if metodologia == "A" else ("Optbinning + árbol (WoE al árbol)" if WOE_AL_ARBOL else "Optbinning + árbol")
+    idx.cell(1, 1, f"Desagregación de riesgo (RD) — {metnom}").font = Font(bold=True, size=14)
     idx.cell(2, 1, f"objetivo: {RD_COL} (RD, alto = MAYOR riesgo) | apetito base = {APETITO_RD:.4f}")
     if excluir:
         idx.cell(3, 1, f"Variables excluidas: {', '.join(excluir)}").font = Font(italic=True)
     r = 5
     leads_list, txt_blocks = [], []
-    cab = (f"DESAGREGACIÓN DE RIESGO (RD) — {'Solo árbol' if metodologia == 'A' else 'Optbinning + árbol'}\n"
+    cab = (f"DESAGREGACIÓN DE RIESGO (RD) — {metnom}\n"
            f"objetivo: {RD_COL} (RD, alto = MAYOR riesgo) | apetito base = {APETITO_RD:.4f}\n"
            + (f"Variables excluidas: {', '.join(excluir)}\n" if excluir else ""))
     for nombre, sub in construir_escenarios(df):
@@ -614,7 +701,6 @@ def construir_workbook(df, metodologia, ruta, excluir=()):
     txt_estr = hoja_estrategia(wb, leads_total, ruta)
     wb.save(ruta)
     print(f"Generado: {ruta}")
-
     txt_path = ruta.replace(".xlsx", ".txt")
     with open(txt_path, "w", encoding="utf-8") as f:
         f.write(cab + "\n" + "".join(txt_blocks) + "\n" + (txt_estr or ""))
