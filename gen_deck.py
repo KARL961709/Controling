@@ -1,6 +1,243 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Comparación de Modelos — Rebancarización Castigados</title><style>
+# -*- coding: utf-8 -*-
+"""Genera comparacion_modelos.html: deck comparando Solo árbol (A) vs Optbinning+árbol (B),
+ambos SIN edad_num ni rk_ing_num. Dibuja los árboles estilo flujo (como la imagen 1N)."""
+
+# ----------------------------------------------------------------------------- árboles (export_text reales)
+TREES = {}
+TREES[("A","CAST")] = r"""
+|--- segmentacion_gdp_v2 <= 4.50
+|   |--- saldo_activo_actual <= -50000000.00
+|   |   |--- segmentacion_gdp_v2 <= 2.50
+|   |   |   |--- value: [803.44]
+|   |   |--- segmentacion_gdp_v2 >  2.50
+|   |   |   |--- max_dias_mora_castigo <= 2649.50
+|   |   |   |   |--- max_dias_mora_castigo <= 2311.50
+|   |   |   |   |   |--- value: [779.55]
+|   |   |   |   |--- max_dias_mora_castigo >  2311.50
+|   |   |   |   |   |--- value: [764.87]
+|   |   |   |--- max_dias_mora_castigo >  2649.50
+|   |   |   |   |--- nro_entidades_castigo <= 1.50
+|   |   |   |   |   |--- max_dias_mora_castigo <= 3038.50
+|   |   |   |   |   |   |--- value: [757.12]
+|   |   |   |   |   |--- max_dias_mora_castigo >  3038.50
+|   |   |   |   |   |   |--- value: [750.47]
+|   |   |   |   |--- nro_entidades_castigo >  1.50
+|   |   |   |   |   |--- value: [727.04]
+|   |--- saldo_activo_actual >  -50000000.00
+|   |   |--- value: [713.75]
+|--- segmentacion_gdp_v2 >  4.50
+|   |--- saldo_activo_actual <= -50000000.00
+|   |   |--- max_dias_mora_castigo <= 4428.50
+|   |   |   |--- monto_castigado_otros <= 931.90
+|   |   |   |   |--- value: [713.75]
+|   |   |   |--- monto_castigado_otros >  931.90
+|   |   |   |   |--- value: [713.75]
+|   |   |--- max_dias_mora_castigo >  4428.50
+|   |   |   |--- value: [695.49]
+|   |--- saldo_activo_actual >  -50000000.00
+|   |   |--- prom_saldo_pasivo_u4m <= 88.37
+|   |   |   |--- max_dias_mora_castigo <= 2473.50
+|   |   |   |   |--- value: [670.44]
+|   |   |   |--- max_dias_mora_castigo >  2473.50
+|   |   |   |   |--- max_dias_mora_castigo <= 2991.50
+|   |   |   |   |   |--- value: [637.74]
+|   |   |   |   |--- max_dias_mora_castigo >  2991.50
+|   |   |   |   |   |--- saldo_pasivo_actual <= 2.24
+|   |   |   |   |   |   |--- value: [608.01]
+|   |   |   |   |   |--- saldo_pasivo_actual >  2.24
+|   |   |   |   |   |   |--- value: [625.47]
+|   |   |--- prom_saldo_pasivo_u4m >  88.37
+|   |   |   |--- value: [713.75]
+"""
+TREES[("B","CAST")] = r"""
+|--- segmentacion_gdp_v2 <= 4.50
+|   |--- max_dias_mora_castigo <= 2533.50
+|   |   |--- segmentacion_gdp_v2 <= 3.50
+|   |   |   |--- value: [794.59]
+|   |   |--- segmentacion_gdp_v2 >  3.50
+|   |   |   |--- max_dias_mora_castigo <= 2079.50
+|   |   |   |   |--- value: [770.10]
+|   |   |   |--- max_dias_mora_castigo >  2079.50
+|   |   |   |   |--- value: [753.48]
+|   |--- max_dias_mora_castigo >  2533.50
+|   |   |--- max_dias_mora_castigo <= 2965.50
+|   |   |   |--- max_dias_mora_castigo <= 2747.50
+|   |   |   |   |--- value: [749.11]
+|   |   |   |--- max_dias_mora_castigo >  2747.50
+|   |   |   |   |--- value: [748.87]
+|   |   |--- max_dias_mora_castigo >  2965.50
+|   |   |   |--- prom_saldo_pasivo_u4m <= 17.06
+|   |   |   |   |--- DEUDA_CAS <= 436.68
+|   |   |   |   |   |--- value: [733.95]
+|   |   |   |   |--- DEUDA_CAS >  436.68
+|   |   |   |   |   |--- max_dias_mora_castigo <= 3661.50
+|   |   |   |   |   |   |--- value: [730.91]
+|   |   |   |   |   |--- max_dias_mora_castigo >  3661.50
+|   |   |   |   |   |   |--- value: [727.45]
+|   |   |   |--- prom_saldo_pasivo_u4m >  17.06
+|   |   |   |   |--- value: [739.53]
+|--- segmentacion_gdp_v2 >  4.50
+|   |--- max_dias_mora_castigo <= 2470.50
+|   |   |--- prom_saldo_pasivo_u4m <= 3.75
+|   |   |   |--- value: [709.71]
+|   |   |--- prom_saldo_pasivo_u4m >  3.75
+|   |   |   |--- value: [711.06]
+|   |--- max_dias_mora_castigo >  2470.50
+|   |   |--- nro_entidades_castigo <= 1.50
+|   |   |   |--- max_dias_mora_castigo <= 2995.50
+|   |   |   |   |--- value: [690.71]
+|   |   |   |--- max_dias_mora_castigo >  2995.50
+|   |   |   |   |--- max_dias_mora_castigo <= 4675.50
+|   |   |   |   |   |--- max_dias_mora_castigo <= 3673.50
+|   |   |   |   |   |   |--- value: [681.48]
+|   |   |   |   |   |--- max_dias_mora_castigo >  3673.50
+|   |   |   |   |   |   |--- value: [676.50]
+|   |   |   |   |--- max_dias_mora_castigo >  4675.50
+|   |   |   |   |   |--- value: [669.61]
+|   |   |--- nro_entidades_castigo >  1.50
+|   |   |   |--- value: [635.44]
+"""
+TREES[("A","NOCAST")] = r"""
+|--- segmentacion_gdp_v2 <= 4.50
+|   |--- segmentacion_gdp_v2 <= 3.50
+|   |   |--- segmentacion_gdp_v2 <= 2.50
+|   |   |   |--- value: [826.65]
+|   |   |--- segmentacion_gdp_v2 >  2.50
+|   |   |   |--- meses_desde_ultimo_castigo <= 6.50
+|   |   |   |   |--- value: [754.92]
+|   |   |   |--- meses_desde_ultimo_castigo >  6.50
+|   |   |   |   |--- meses_desde_ultimo_castigo <= 13.50
+|   |   |   |   |   |--- value: [770.03]
+|   |   |   |   |--- meses_desde_ultimo_castigo >  13.50
+|   |   |   |   |   |--- value: [771.72]
+|   |--- segmentacion_gdp_v2 >  3.50
+|   |   |--- prom_saldo_pasivo_u4m <= 41.67
+|   |   |   |--- meses_desde_primer_castigo <= 20.50
+|   |   |   |   |--- value: [703.22]
+|   |   |   |--- meses_desde_primer_castigo >  20.50
+|   |   |   |   |--- DEUDA_CAS <= 505.87
+|   |   |   |   |   |--- value: [737.94]
+|   |   |   |   |--- DEUDA_CAS >  505.87
+|   |   |   |   |   |--- value: [722.13]
+|   |   |--- prom_saldo_pasivo_u4m >  41.67
+|   |   |   |--- value: [754.69]
+|--- segmentacion_gdp_v2 >  4.50
+|   |--- meses_desde_primer_castigo <= 9.50
+|   |   |--- value: [518.57]
+|   |--- meses_desde_primer_castigo >  9.50
+|   |   |--- prom_saldo_pasivo_u4m <= 54.50
+|   |   |   |--- meses_desde_ultimo_castigo <= 17.50
+|   |   |   |   |--- DEUDA_CAS <= 422.90
+|   |   |   |   |   |--- value: [670.95]
+|   |   |   |   |--- DEUDA_CAS >  422.90
+|   |   |   |   |   |--- value: [658.08]
+|   |   |   |--- meses_desde_ultimo_castigo >  17.50
+|   |   |   |   |--- value: [681.42]
+|   |   |--- prom_saldo_pasivo_u4m >  54.50
+|   |   |   |--- value: [702.68]
+"""
+TREES[("B","NOCAST")] = r"""
+|--- segmentacion_gdp_v2 <= 4.50
+|   |--- segmentacion_gdp_v2 <= 3.50
+|   |   |--- segmentacion_gdp_v2 <= 2.50
+|   |   |   |--- value: [826.65]
+|   |   |--- segmentacion_gdp_v2 >  2.50
+|   |   |   |--- meses_desde_ultimo_castigo <= 6.50
+|   |   |   |   |--- value: [754.92]
+|   |   |   |--- meses_desde_ultimo_castigo >  6.50
+|   |   |   |   |--- meses_desde_ultimo_castigo <= 13.50
+|   |   |   |   |   |--- value: [770.03]
+|   |   |   |   |--- meses_desde_ultimo_castigo >  13.50
+|   |   |   |   |   |--- value: [771.72]
+|   |--- segmentacion_gdp_v2 >  3.50
+|   |   |--- prom_saldo_pasivo_u4m <= 41.67
+|   |   |   |--- meses_desde_primer_castigo <= 20.50
+|   |   |   |   |--- value: [703.22]
+|   |   |   |--- meses_desde_primer_castigo >  20.50
+|   |   |   |   |--- DEUDA_CAS <= 505.87
+|   |   |   |   |   |--- value: [737.94]
+|   |   |   |   |--- DEUDA_CAS >  505.87
+|   |   |   |   |   |--- value: [722.13]
+|   |   |--- prom_saldo_pasivo_u4m >  41.67
+|   |   |   |--- value: [754.69]
+|--- segmentacion_gdp_v2 >  4.50
+|   |--- meses_desde_primer_castigo <= 9.50
+|   |   |--- value: [518.57]
+|   |--- meses_desde_primer_castigo >  9.50
+|   |   |--- prom_saldo_pasivo_u4m <= 54.50
+|   |   |   |--- meses_desde_ultimo_castigo <= 17.50
+|   |   |   |   |--- DEUDA_CAS <= 422.90
+|   |   |   |   |   |--- value: [670.95]
+|   |   |   |   |--- DEUDA_CAS >  422.90
+|   |   |   |   |   |--- value: [658.08]
+|   |   |   |--- meses_desde_ultimo_castigo >  17.50
+|   |   |   |   |--- value: [681.42]
+|   |   |--- prom_saldo_pasivo_u4m >  54.50
+|   |   |   |--- value: [702.68]
+"""
+
+PRETTY = {
+    "segmentacion_gdp_v2": "segmentación", "max_dias_mora_castigo": "máx días mora",
+    "nro_entidades_castigo": "nro entidades", "prom_saldo_pasivo_u4m": "ahorro prom 4m",
+    "DEUDA_CAS": "deuda cast.", "meses_desde_ultimo_castigo": "meses últ. castigo",
+    "meses_desde_primer_castigo": "meses 1er castigo", "saldo_pasivo_actual": "saldo pasivo",
+    "monto_castigado_otros": "monto cast. otros", "monto_castigado_total": "monto cast. total",
+}
+
+def color(s, lo=540.0, hi=890.0):
+    t = max(0.0, min(1.0, (s - lo) / (hi - lo)))
+    if t < 0.5:
+        r, g, b = 224, int(120 + 100 * (t * 2)), 70
+    else:
+        r, g, b = int(224 - 150 * ((t - 0.5) * 2)), 176, 70
+    return f"rgb({r},{g},{b})"
+
+def fmt_cond(c):
+    for op, sym in ((" <= ", "≤"), (" >  ", ">")):
+        if op in c:
+            var, thr = c.split(op)
+            thr = float(thr)
+            if var == "saldo_activo_actual":      # corte en el sentinel = flag de missing
+                return ("⚑ saldo_activo = MISSING" if sym == "≤" else "saldo_activo = con dato"), (var == "saldo_activo_actual")
+            v = PRETTY.get(var, var)
+            if var == "segmentacion_gdp_v2":
+                return f"{v} {sym} {int(round(thr))}", False
+            return f"{v} {sym} {thr:,.0f}", False
+    return c, False
+
+def parse(text):
+    root = {"label": None, "children": []}
+    stack = [(-1, root)]
+    for line in text.strip("\n").split("\n"):
+        if "|---" not in line:
+            continue
+        idx = line.find("|---")
+        depth = idx // 4
+        content = line[idx + 4:].strip()
+        node = {"label": content, "children": []}
+        while stack and stack[-1][0] >= depth:
+            stack.pop()
+        stack[-1][1]["children"].append(node)
+        stack.append((depth, node))
+    return root
+
+def render(node):
+    kids = node["children"]
+    if not kids:                                  # hoja
+        s = float(node["label"].split("[")[1].split("]")[0])
+        return f'<li><span class="leaf" style="background:{color(s)}">{s:.0f}</span></li>'
+    cond, miss = fmt_cond(node["label"])
+    cls = "cond miss" if miss else "cond"
+    inner = "".join(render(k) for k in kids)
+    return f'<li><span class="{cls}">{cond}</span><ul>{inner}</ul></li>'
+
+def tree_html(key, title):
+    root = parse(TREES[key])
+    inner = "".join(render(k) for k in root["children"])
+    return f'<ul class="tree"><li><span class="root">{title}</span><ul>{inner}</ul></li></ul>'
+
+# ----------------------------------------------------------------------------- HTML
+CSS = """
 :root{--navy:#16366e;--navy2:#1f4e96;--green:#43b02a;--green-d:#2e7d1c;--ink:#2b2b2b;
 --muted:#6b7280;--line:#cdd8e6;--soft:#eef3f9;--red:#c0392b;--amber:#e08e0b;}
 *{box-sizing:border-box;margin:0;padding:0;}html,body{height:100%;}
@@ -61,8 +298,17 @@ th{background:var(--navy);color:#fff;}td.l{text-align:left;}tr:nth-child(even) t
 .leaf{display:inline-block;color:#1d1d1d;font-weight:800;padding:3px 10px;border-radius:14px;min-width:42px;text-align:center;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);}
 .lgnd{font-size:12px;color:var(--muted);}
 .lgnd .sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin:0 3px 0 8px;}
-</style></head>
-<body><div class="deck" id="deck"><section class="slide active"><div class="logo">1<span class="n">N</span></div>
+"""
+
+def slide(content):
+    return f'<section class="slide">{content}</section>'
+
+LOGO = '<div class="logo">1<span class="n">N</span></div>'
+
+slides = []
+
+# 1 portada
+slides.append(f"""<section class="slide active">{LOGO}
 <div style="margin-top:6vh">
 <div class="kicker">Rebancarización Castigados · Modelo de segmentación</div>
 <h1>Optbinning + Árbol &nbsp;vs.&nbsp; Solo Árbol</h1>
@@ -72,7 +318,10 @@ Proxy de riesgo: <b>puntaje_mod</b> (alto = menor riesgo). Objetivo: priorizar <
 deduplicados por <b>subject_id</b>.</p>
 <div style="margin-top:18px"><span class="pill">2.7 MM registros</span><span class="pill">4 escenarios</span>
 <span class="pill">Restricciones monótonas de negocio</span><span class="pill">Leads sin duplicados</span></div>
-</div><div class="foot">Comparativo de modelos · uso interno</div></section><section class="slide"><h2>Las dos metodologías</h2>
+</div><div class="foot">Comparativo de modelos · uso interno</div></section>""")
+
+# 2 metodologias
+slides.append(slide("""<h2>Las dos metodologías</h2>
 <div class="sub" style="font-size:17px">Misma estructura; cambia cómo se decide la dirección y qué variables entran.</div>
 <div class="grid2">
 <div class="card win"><span class="tag b">MODELO B · recomendado</span><h3>Optbinning + Árbol</h3>
@@ -84,7 +333,10 @@ deduplicados por <b>subject_id</b>.</p>
 <li>Sin filtro de binarización → admite variables ruidosas o artefactos.</li>
 <li>Más flexible, menos disciplinado para producción.</li></ul></div></div>
 <div class="callout"><p>Para que la comparación sea limpia, en esta corrida <b>ambos excluyen <code>edad_num</code> y <code>rk_ing_num</code></b>.</p></div>
-<div class="foot">2 · Definición</div></section><section class="slide"><h2>El hallazgo decisivo: ¿de qué se alimenta cada árbol?</h2>
+<div class="foot">2 · Definición</div>"""))
+
+# 3 hallazgo
+slides.append(slide("""<h2>El hallazgo decisivo: ¿de qué se alimenta cada árbol?</h2>
 <div class="grid2">
 <div class="card win"><span class="tag b">MODELO B</span><h3 class="green">Señales reales de riesgo</h3>
 <ul class="b"><li>Drivers: <b>segmentación</b>, <b>severidad de mora</b>, <b>multi-entidad</b>, <b>ahorro</b>.</li>
@@ -94,7 +346,10 @@ deduplicados por <b>subject_id</b>.</p>
 <ul class="b"><li>Su 2º driver es <code>saldo_activo ≤ -50,000,000</code> = clientes <b>SIN dato</b> (⚑ MISSING) — <b>33.2% del peso</b> en CAST.</li>
 <li>Varias estrategias top se definen por <b>“no tener saldo activo”</b> (artefacto, no comportamiento).</li>
 <li>Dirección de <code>saldo_activo</code> inconsistente entre escenarios (0 vs +1).</li></ul></div></div>
-<div class="foot">3 · Coherencia</div></section><section class="slide"><h2>Importancia de variables (escenario CAST · 1.7&nbsp;MM)</h2>
+<div class="foot">3 · Coherencia</div>"""))
+
+# 4 importancia
+slides.append(slide("""<h2>Importancia de variables (escenario CAST · 1.7&nbsp;MM)</h2>
 <div class="grid2">
 <div class="card"><span class="tag b">MODELO B</span><div style="margin-top:10px">
 <div class="bar-row"><div class="bar-lab">segmentación</div><div class="bar-wrap"><div class="bar b" style="width:84%"></div></div><div class="bar-val">67.8%</div></div>
@@ -108,7 +363,10 @@ deduplicados por <b>subject_id</b>.</p>
 <div class="bar-row"><div class="bar-lab">ahorro prom 4m</div><div class="bar-wrap"><div class="bar a" style="width:12%"></div></div><div class="bar-val">9.3%</div></div>
 <div class="bar-row"><div class="bar-lab">máx días mora</div><div class="bar-wrap"><div class="bar a" style="width:10%"></div></div><div class="bar-val">8.3%</div></div></div>
 <div class="callout bad"><p>El <b>2º driver es un artefacto</b> (flag de dato faltante).</p></div></div></div>
-<div class="foot">4 · Importancia</div></section><section class="slide"><h2>Volumen de leads de bajo riesgo (deduplicados)</h2>
+<div class="foot">4 · Importancia</div>"""))
+
+# 5 volumen
+slides.append(slide("""<h2>Volumen de leads de bajo riesgo (deduplicados)</h2>
 <table>
 <tr><th>Corte (top % puntaje)</th><th>top 10%</th><th>top 15%</th><th>top 20%</th><th>top 30%</th></tr>
 <tr><td class="l"><b>Modelo A · Solo árbol</b></td><td>91,972</td><td>128,623</td><td>160,489</td><td>216,848</td></tr>
@@ -122,7 +380,10 @@ deduplicados por <b>subject_id</b>.</p>
 <div class="card win"><h3 class="green">Mismo volumen, mejor calidad</h3>
 <ul class="b"><li>B entrega prácticamente los mismos leads <b>sin artefactos</b> y con segmentos explicables.</li>
 <li>A igualdad de volumen, <b>gana la robustez</b>.</li></ul></div></div>
-<div class="foot">5 · Volumen de leads</div></section><section class="slide"><h2>Calidad de los segmentos top</h2>
+<div class="foot">5 · Volumen de leads</div>"""))
+
+# 6 calidad segmentos
+slides.append(slide("""<h2>Calidad de los segmentos top</h2>
 <div class="grid2">
 <div class="card win"><span class="tag b">MODELO B · reglas limpias</span>
 <table><tr><th class="l">Regla del segmento</th><th>score</th></tr>
@@ -138,21 +399,34 @@ deduplicados por <b>subject_id</b>.</p>
 <tr><td class="l">… &amp; <span class="red">saldo_activo MISSING</span> &amp; mora(2,312–2,650]</td><td>12,330</td></tr>
 <tr><td class="l">… &amp; <span class="red">saldo_activo MISSING</span> &amp; mora(2,650–3,038]</td><td>9,010</td></tr></table>
 <p class="note red">≈ 7 de las 20 estrategias dependen de “no tener saldo activo”.</p></div></div>
-<div class="foot">6 · Calidad de segmentación</div></section><section class="slide"><h2>Árboles · Escenario CAST (castigados, 1.7&nbsp;MM)</h2><div class="lgnd">Hojas coloreadas por puntaje_mod: <span class="sw" style="background:rgb(74,176,70)"></span>menor riesgo · <span class="sw" style="background:rgb(224,176,70)"></span>medio · <span class="sw" style="background:rgb(224,60,70)"></span>mayor riesgo</div>
+<div class="foot">6 · Calidad de segmentación</div>"""))
+
+# 7-8 árboles
+LEG = ('<div class="lgnd">Hojas coloreadas por puntaje_mod: '
+       '<span class="sw" style="background:rgb(74,176,70)"></span>menor riesgo · '
+       '<span class="sw" style="background:rgb(224,176,70)"></span>medio · '
+       '<span class="sw" style="background:rgb(224,60,70)"></span>mayor riesgo</div>')
+
+slides.append(slide(f"""<h2>Árboles · Escenario CAST (castigados, 1.7&nbsp;MM)</h2>{LEG}
 <div class="grid2">
 <div><div class="treehd"><span class="tag a">MODELO A · Solo árbol</span></div>
-<div class="treecol"><ul class="tree"><li><span class="root">CAST · Solo árbol</span><ul><li><span class="cond">segmentación ≤ 4</span><ul><li><span class="cond miss">⚑ saldo_activo = MISSING</span><ul><li><span class="cond">segmentación ≤ 2</span><ul><li><span class="leaf" style="background:rgb(148,176,70)">803</span></li></ul></li><li><span class="cond">segmentación > 2</span><ul><li><span class="cond">máx días mora ≤ 2,650</span><ul><li><span class="cond">máx días mora ≤ 2,312</span><ul><li><span class="leaf" style="background:rgb(168,176,70)">780</span></li></ul></li><li><span class="cond">máx días mora > 2,312</span><ul><li><span class="leaf" style="background:rgb(181,176,70)">765</span></li></ul></li></ul></li><li><span class="cond">máx días mora > 2,650</span><ul><li><span class="cond">nro entidades ≤ 2</span><ul><li><span class="cond">máx días mora ≤ 3,038</span><ul><li><span class="leaf" style="background:rgb(187,176,70)">757</span></li></ul></li><li><span class="cond">máx días mora > 3,038</span><ul><li><span class="leaf" style="background:rgb(193,176,70)">750</span></li></ul></li></ul></li><li><span class="cond">nro entidades > 2</span><ul><li><span class="leaf" style="background:rgb(213,176,70)">727</span></li></ul></li></ul></li></ul></li></ul></li><li><span class="cond miss">saldo_activo = con dato</span><ul><li><span class="leaf" style="background:rgb(224,219,70)">714</span></li></ul></li></ul></li><li><span class="cond">segmentación > 4</span><ul><li><span class="cond miss">⚑ saldo_activo = MISSING</span><ul><li><span class="cond">máx días mora ≤ 4,428</span><ul><li><span class="cond">monto cast. otros ≤ 932</span><ul><li><span class="leaf" style="background:rgb(224,219,70)">714</span></li></ul></li><li><span class="cond">monto cast. otros > 932</span><ul><li><span class="leaf" style="background:rgb(224,219,70)">714</span></li></ul></li></ul></li><li><span class="cond">máx días mora > 4,428</span><ul><li><span class="leaf" style="background:rgb(224,208,70)">695</span></li></ul></li></ul></li><li><span class="cond miss">saldo_activo = con dato</span><ul><li><span class="cond">ahorro prom 4m ≤ 88</span><ul><li><span class="cond">máx días mora ≤ 2,474</span><ul><li><span class="leaf" style="background:rgb(224,194,70)">670</span></li></ul></li><li><span class="cond">máx días mora > 2,474</span><ul><li><span class="cond">máx días mora ≤ 2,992</span><ul><li><span class="leaf" style="background:rgb(224,175,70)">638</span></li></ul></li><li><span class="cond">máx días mora > 2,992</span><ul><li><span class="cond">saldo pasivo ≤ 2</span><ul><li><span class="leaf" style="background:rgb(224,158,70)">608</span></li></ul></li><li><span class="cond">saldo pasivo > 2</span><ul><li><span class="leaf" style="background:rgb(224,168,70)">625</span></li></ul></li></ul></li></ul></li></ul></li><li><span class="cond">ahorro prom 4m > 88</span><ul><li><span class="leaf" style="background:rgb(224,219,70)">714</span></li></ul></li></ul></li></ul></li></ul></li></ul></div></div>
+<div class="treecol">{tree_html(("A","CAST"),"CAST · Solo árbol")}</div></div>
 <div><div class="treehd"><span class="tag b">MODELO B · Optbinning</span></div>
-<div class="treecol"><ul class="tree"><li><span class="root">CAST · Optbinning</span><ul><li><span class="cond">segmentación ≤ 4</span><ul><li><span class="cond">máx días mora ≤ 2,534</span><ul><li><span class="cond">segmentación ≤ 4</span><ul><li><span class="leaf" style="background:rgb(155,176,70)">795</span></li></ul></li><li><span class="cond">segmentación > 4</span><ul><li><span class="cond">máx días mora ≤ 2,080</span><ul><li><span class="leaf" style="background:rgb(176,176,70)">770</span></li></ul></li><li><span class="cond">máx días mora > 2,080</span><ul><li><span class="leaf" style="background:rgb(191,176,70)">753</span></li></ul></li></ul></li></ul></li><li><span class="cond">máx días mora > 2,534</span><ul><li><span class="cond">máx días mora ≤ 2,966</span><ul><li><span class="cond">máx días mora ≤ 2,748</span><ul><li><span class="leaf" style="background:rgb(194,176,70)">749</span></li></ul></li><li><span class="cond">máx días mora > 2,748</span><ul><li><span class="leaf" style="background:rgb(194,176,70)">749</span></li></ul></li></ul></li><li><span class="cond">máx días mora > 2,966</span><ul><li><span class="cond">ahorro prom 4m ≤ 17</span><ul><li><span class="cond">deuda cast. ≤ 437</span><ul><li><span class="leaf" style="background:rgb(207,176,70)">734</span></li></ul></li><li><span class="cond">deuda cast. > 437</span><ul><li><span class="cond">máx días mora ≤ 3,662</span><ul><li><span class="leaf" style="background:rgb(210,176,70)">731</span></li></ul></li><li><span class="cond">máx días mora > 3,662</span><ul><li><span class="leaf" style="background:rgb(213,176,70)">727</span></li></ul></li></ul></li></ul></li><li><span class="cond">ahorro prom 4m > 17</span><ul><li><span class="leaf" style="background:rgb(202,176,70)">740</span></li></ul></li></ul></li></ul></li></ul></li><li><span class="cond">segmentación > 4</span><ul><li><span class="cond">máx días mora ≤ 2,470</span><ul><li><span class="cond">ahorro prom 4m ≤ 4</span><ul><li><span class="leaf" style="background:rgb(224,216,70)">710</span></li></ul></li><li><span class="cond">ahorro prom 4m > 4</span><ul><li><span class="leaf" style="background:rgb(224,217,70)">711</span></li></ul></li></ul></li><li><span class="cond">máx días mora > 2,470</span><ul><li><span class="cond">nro entidades ≤ 2</span><ul><li><span class="cond">máx días mora ≤ 2,996</span><ul><li><span class="leaf" style="background:rgb(224,206,70)">691</span></li></ul></li><li><span class="cond">máx días mora > 2,996</span><ul><li><span class="cond">máx días mora ≤ 4,676</span><ul><li><span class="cond">máx días mora ≤ 3,674</span><ul><li><span class="leaf" style="background:rgb(224,200,70)">681</span></li></ul></li><li><span class="cond">máx días mora > 3,674</span><ul><li><span class="leaf" style="background:rgb(224,198,70)">676</span></li></ul></li></ul></li><li><span class="cond">máx días mora > 4,676</span><ul><li><span class="leaf" style="background:rgb(224,194,70)">670</span></li></ul></li></ul></li></ul></li><li><span class="cond">nro entidades > 2</span><ul><li><span class="leaf" style="background:rgb(224,174,70)">635</span></li></ul></li></ul></li></ul></li></ul></li></ul></div></div></div>
+<div class="treecol">{tree_html(("B","CAST"),"CAST · Optbinning")}</div></div></div>
 <div class="callout bad"><p>En A, el <b>primer/segundo corte</b> ya es <code>saldo_activo = MISSING</code>. En B la raíz es <b>segmentación</b> y luego <b>mora/entidades</b>.</p></div>
-<div class="foot">7 · Árboles CAST</div></section><section class="slide"><h2>Árboles · Escenario NO_CAST (no castigados, 0.6&nbsp;MM)</h2><div class="lgnd">Hojas coloreadas por puntaje_mod: <span class="sw" style="background:rgb(74,176,70)"></span>menor riesgo · <span class="sw" style="background:rgb(224,176,70)"></span>medio · <span class="sw" style="background:rgb(224,60,70)"></span>mayor riesgo</div>
+<div class="foot">7 · Árboles CAST</div>"""))
+
+slides.append(slide(f"""<h2>Árboles · Escenario NO_CAST (no castigados, 0.6&nbsp;MM)</h2>{LEG}
 <div class="grid2">
 <div><div class="treehd"><span class="tag a">MODELO A · Solo árbol</span></div>
-<div class="treecol"><ul class="tree"><li><span class="root">NO_CAST · Solo árbol</span><ul><li><span class="cond">segmentación ≤ 4</span><ul><li><span class="cond">segmentación ≤ 4</span><ul><li><span class="cond">segmentación ≤ 2</span><ul><li><span class="leaf" style="background:rgb(128,176,70)">827</span></li></ul></li><li><span class="cond">segmentación > 2</span><ul><li><span class="cond">meses últ. castigo ≤ 6</span><ul><li><span class="leaf" style="background:rgb(189,176,70)">755</span></li></ul></li><li><span class="cond">meses últ. castigo > 6</span><ul><li><span class="cond">meses últ. castigo ≤ 14</span><ul><li><span class="leaf" style="background:rgb(176,176,70)">770</span></li></ul></li><li><span class="cond">meses últ. castigo > 14</span><ul><li><span class="leaf" style="background:rgb(175,176,70)">772</span></li></ul></li></ul></li></ul></li></ul></li><li><span class="cond">segmentación > 4</span><ul><li><span class="cond">ahorro prom 4m ≤ 42</span><ul><li><span class="cond">meses 1er castigo ≤ 20</span><ul><li><span class="leaf" style="background:rgb(224,213,70)">703</span></li></ul></li><li><span class="cond">meses 1er castigo > 20</span><ul><li><span class="cond">deuda cast. ≤ 506</span><ul><li><span class="leaf" style="background:rgb(204,176,70)">738</span></li></ul></li><li><span class="cond">deuda cast. > 506</span><ul><li><span class="leaf" style="background:rgb(217,176,70)">722</span></li></ul></li></ul></li></ul></li><li><span class="cond">ahorro prom 4m > 42</span><ul><li><span class="leaf" style="background:rgb(189,176,70)">755</span></li></ul></li></ul></li></ul></li><li><span class="cond">segmentación > 4</span><ul><li><span class="cond">meses 1er castigo ≤ 10</span><ul><li><span class="leaf" style="background:rgb(224,120,70)">519</span></li></ul></li><li><span class="cond">meses 1er castigo > 10</span><ul><li><span class="cond">ahorro prom 4m ≤ 54</span><ul><li><span class="cond">meses últ. castigo ≤ 18</span><ul><li><span class="cond">deuda cast. ≤ 423</span><ul><li><span class="leaf" style="background:rgb(224,194,70)">671</span></li></ul></li><li><span class="cond">deuda cast. > 423</span><ul><li><span class="leaf" style="background:rgb(224,187,70)">658</span></li></ul></li></ul></li><li><span class="cond">meses últ. castigo > 18</span><ul><li><span class="leaf" style="background:rgb(224,200,70)">681</span></li></ul></li></ul></li><li><span class="cond">ahorro prom 4m > 54</span><ul><li><span class="leaf" style="background:rgb(224,212,70)">703</span></li></ul></li></ul></li></ul></li></ul></li></ul></div></div>
+<div class="treecol">{tree_html(("A","NOCAST"),"NO_CAST · Solo árbol")}</div></div>
 <div><div class="treehd"><span class="tag b">MODELO B · Optbinning</span></div>
-<div class="treecol"><ul class="tree"><li><span class="root">NO_CAST · Optbinning</span><ul><li><span class="cond">segmentación ≤ 4</span><ul><li><span class="cond">segmentación ≤ 4</span><ul><li><span class="cond">segmentación ≤ 2</span><ul><li><span class="leaf" style="background:rgb(128,176,70)">827</span></li></ul></li><li><span class="cond">segmentación > 2</span><ul><li><span class="cond">meses últ. castigo ≤ 6</span><ul><li><span class="leaf" style="background:rgb(189,176,70)">755</span></li></ul></li><li><span class="cond">meses últ. castigo > 6</span><ul><li><span class="cond">meses últ. castigo ≤ 14</span><ul><li><span class="leaf" style="background:rgb(176,176,70)">770</span></li></ul></li><li><span class="cond">meses últ. castigo > 14</span><ul><li><span class="leaf" style="background:rgb(175,176,70)">772</span></li></ul></li></ul></li></ul></li></ul></li><li><span class="cond">segmentación > 4</span><ul><li><span class="cond">ahorro prom 4m ≤ 42</span><ul><li><span class="cond">meses 1er castigo ≤ 20</span><ul><li><span class="leaf" style="background:rgb(224,213,70)">703</span></li></ul></li><li><span class="cond">meses 1er castigo > 20</span><ul><li><span class="cond">deuda cast. ≤ 506</span><ul><li><span class="leaf" style="background:rgb(204,176,70)">738</span></li></ul></li><li><span class="cond">deuda cast. > 506</span><ul><li><span class="leaf" style="background:rgb(217,176,70)">722</span></li></ul></li></ul></li></ul></li><li><span class="cond">ahorro prom 4m > 42</span><ul><li><span class="leaf" style="background:rgb(189,176,70)">755</span></li></ul></li></ul></li></ul></li><li><span class="cond">segmentación > 4</span><ul><li><span class="cond">meses 1er castigo ≤ 10</span><ul><li><span class="leaf" style="background:rgb(224,120,70)">519</span></li></ul></li><li><span class="cond">meses 1er castigo > 10</span><ul><li><span class="cond">ahorro prom 4m ≤ 54</span><ul><li><span class="cond">meses últ. castigo ≤ 18</span><ul><li><span class="cond">deuda cast. ≤ 423</span><ul><li><span class="leaf" style="background:rgb(224,194,70)">671</span></li></ul></li><li><span class="cond">deuda cast. > 423</span><ul><li><span class="leaf" style="background:rgb(224,187,70)">658</span></li></ul></li></ul></li><li><span class="cond">meses últ. castigo > 18</span><ul><li><span class="leaf" style="background:rgb(224,200,70)">681</span></li></ul></li></ul></li><li><span class="cond">ahorro prom 4m > 54</span><ul><li><span class="leaf" style="background:rgb(224,212,70)">703</span></li></ul></li></ul></li></ul></li></ul></li></ul></div></div></div>
+<div class="treecol">{tree_html(("B","NOCAST"),"NO_CAST · Optbinning")}</div></div></div>
 <div class="callout"><p>Aquí <b>ambos coinciden</b>: <b>segmentación + meses desde castigo + ahorro</b>. Sin variables de castigo (no aplican) y sin artefactos. Buena señal de estabilidad.</p></div>
-<div class="foot">8 · Árboles NO_CAST</div></section><section class="slide"><h2>Veredicto comparativo</h2>
+<div class="foot">8 · Árboles NO_CAST</div>"""))
+
+# 9 veredicto
+slides.append(slide("""<h2>Veredicto comparativo</h2>
 <table>
 <tr><th>Criterio</th><th>Modelo B · Optbinning</th><th>Modelo A · Solo árbol</th></tr>
 <tr><td class="l">Coherencia de negocio</td><td class="best">Alta — 100% coherente</td><td>Media — inconsistencias</td></tr>
@@ -162,20 +436,32 @@ deduplicados por <b>subject_id</b>.</p>
 <tr><td class="l">Volumen de leads (top 15%)</td><td>127,997</td><td>128,623 <span class="note">(+0.5%)</span></td></tr>
 <tr><td class="l">Robustez para producción 3&nbsp;MM</td><td class="best">Alta</td><td>Media</td></tr></table>
 <div class="verdict"><div class="big">A <em>igual volumen</em>, se recomienda implementar el <em>Modelo B (Optbinning + Árbol)</em>; usar A solo como benchmark.</div></div>
-<div class="foot">9 · Veredicto</div></section><section class="slide"><div class="logo">1<span class="n">N</span></div><h2>Recomendación e implementación</h2>
+<div class="foot">9 · Veredicto</div>"""))
+
+# 10 proximos pasos
+slides.append(f"""<section class="slide">{LOGO}<h2>Recomendación e implementación</h2>
 <div class="grid3">
 <div class="card win"><h3 class="green">1 · Modelo base</h3><p>Adoptar <b>Optbinning + Árbol</b> con direcciones de negocio y descarte automático de variables.</p></div>
 <div class="card"><h3>2 · Recuperar poder</h3><p>Evaluar <b>reincorporar rk_ing (ingreso, ↑)</b> a B para subir volumen sin perder coherencia, ahora que descartamos el artefacto.</p></div>
 <div class="card"><h3>3 · Activación</h3><p>Usar la <b>hoja de Estrategia</b> (top segmentos, sin duplicados) y el CSV de leads. Calibrar el corte 10–30% según campaña.</p></div></div>
 <div class="callout" style="margin-top:20px"><p><b>Quick win:</b> el corte <b>top 15%</b> de B entrega <b>~128 mil leads de riesgo controlado</b>, 100% explicables, listos para desplegar.</p></div>
 <div class="verdict" style="background:var(--green-d)"><div class="big">Misma cosecha de leads, base más limpia → menos pérdida y mejor tasa de aprobación.</div></div>
-<div class="foot">10 · Próximos pasos</div></section></div>
-<div class="counter" id="counter">1 / 10</div>
+<div class="foot">10 · Próximos pasos</div></section>""")
+
+HTML = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comparación de Modelos — Rebancarización Castigados</title><style>{CSS}</style></head>
+<body><div class="deck" id="deck">{''.join(slides)}</div>
+<div class="counter" id="counter">1 / {len(slides)}</div>
 <div class="nav"><button onclick="go(-1)">‹</button><button onclick="go(1)">›</button></div>
 <script>
 const slides=[...document.querySelectorAll('.slide')];let i=0;
-function show(n){slides[i].classList.remove('active');i=(n+slides.length)%slides.length;
-slides[i].classList.add('active');document.getElementById('counter').textContent=(i+1)+' / '+slides.length;}
-function go(d){show(i+d);}
-document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' ')go(1);if(e.key==='ArrowLeft')go(-1);});
-</script></body></html>
+function show(n){{slides[i].classList.remove('active');i=(n+slides.length)%slides.length;
+slides[i].classList.add('active');document.getElementById('counter').textContent=(i+1)+' / '+slides.length;}}
+function go(d){{show(i+d);}}
+document.addEventListener('keydown',e=>{{if(e.key==='ArrowRight'||e.key===' ')go(1);if(e.key==='ArrowLeft')go(-1);}});
+</script></body></html>"""
+
+with open("comparacion_modelos.html", "w", encoding="utf-8") as f:
+    f.write(HTML)
+print(f"OK -> comparacion_modelos.html ({len(slides)} slides, {len(HTML)} chars)")
