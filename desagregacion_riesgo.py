@@ -325,33 +325,98 @@ def escribir_cuadro(ws, r0, c0, titulo, df_tab, vfil, vcol,
     return r0 + 4 + len(df_tab.index)
 
 
-def tabla_reglas(ws, r0, c0, df_sc, X, tree, feats, vmin, vmax):
-    """Una fila por hoja del árbol: n, score medio, banda CORTES modal, color."""
-    leaf = tree.apply(X)
-    df_sc = df_sc.copy()
-    df_sc["_leaf"] = leaf
-    df_sc["_banda"] = [asignar_banda(s, t) for s, t in
-                       zip(df_sc[SCORE_COL], df_sc.get(NOM_VAR, pd.Series(index=df_sc.index)))]
-    g = df_sc.groupby("_leaf")
-    res = pd.DataFrame({
-        "n": g.size(),
-        "score_medio": g[SCORE_COL].mean(),
-        "banda_modal": g["_banda"].agg(lambda s: s.mode().iloc[0] if not s.mode().empty else ""),
-    }).sort_values("score_medio", ascending=not SCORE_ALTO_ES_MENOR_RIESGO)
+def _fmt_intervalo(lo, hi):
+    """Formatea el rango de una variable en una hoja, manejando el sentinel (Missing)."""
+    UMB = -1e7
+    if hi < UMB:                       # todo por debajo del sentinel -> solo Missing
+        return "Missing"
+    if lo < UMB:                       # el límite inferior es el sentinel -> Missing excluido
+        lo = -np.inf
+    if lo == -np.inf and hi == np.inf:
+        return "(todos)"
+    if lo == -np.inf:
+        return f"≤ {hi:,.0f}"
+    if hi == np.inf:
+        return f"> {lo:,.0f}"
+    return f"({lo:,.0f}, {hi:,.0f}]"
+
+
+def reglas_por_hoja(tree, feats):
+    """Reconstruye, por cada hoja, el rango (lo, hi] de cada variable usada en su camino."""
+    t = tree.tree_
+    out = {}
+
+    def rec(node, conds):
+        if t.children_left[node] == -1:               # hoja
+            out[node] = {k: v for k, v in conds.items()}
+            return
+        f = feats[t.feature[node]]
+        thr = t.threshold[node]
+        lo, hi = conds.get(f, (-np.inf, np.inf))
+        izq = conds.copy(); izq[f] = (lo, min(hi, thr))
+        rec(t.children_left[node], izq)
+        der = conds.copy(); der[f] = (max(lo, thr), hi)
+        rec(t.children_right[node], der)
+
+    rec(0, {})
+    return out
+
+
+def escribir_tabla_arbol(ws, r0, c0, df_sc, X, tree, feats, vmin, vmax):
+    """CUADRO DEL ÁRBOL COMPLETO: una fila por hoja, columnas = condiciones por variable."""
+    leafmap = reglas_por_hoja(tree, feats)
+    usadas = [f for f in feats if any(f in cond for cond in leafmap.values())]
+
+    df = df_sc.copy()
+    df["_leaf"] = tree.apply(X)
+    sit = df[NOM_VAR] if NOM_VAR in df.columns else pd.Series(index=df.index, dtype=object)
+    df["_cortes"] = [asignar_banda(s, t) for s, t in zip(df[SCORE_COL], sit)]
+    try:
+        df["_quint"] = pd.qcut(df[SCORE_COL], 5, labels=["G5", "G4", "G3", "G2", "G1"])
+    except ValueError:
+        df["_quint"] = pd.qcut(df[SCORE_COL].rank(method="first"), 5,
+                               labels=["G5", "G4", "G3", "G2", "G1"])
+
+    total = len(df)
+    filas = []
+    for lid, sub in df.groupby("_leaf"):
+        cond = leafmap.get(lid, {})
+        fila = {f: _fmt_intervalo(*cond.get(f, (-np.inf, np.inf))) for f in usadas}
+        fila["n"] = len(sub)
+        fila["%"] = round(100 * len(sub) / total, 1)
+        fila["score_medio"] = sub[SCORE_COL].mean()
+        fila["CORTES"] = sub["_cortes"].mode().iloc[0] if not sub["_cortes"].mode().empty else ""
+        fila["quintil"] = sub["_quint"].mode().iloc[0] if not sub["_quint"].mode().empty else ""
+        filas.append(fila)
+
+    tab = pd.DataFrame(filas).sort_values(
+        "score_medio", ascending=not SCORE_ALTO_ES_MENOR_RIESGO).reset_index(drop=True)
 
     bold = Font(bold=True)
-    ws.cell(r0, c0, "Resumen por hoja del árbol").font = Font(bold=True, size=12)
-    headers = ["Hoja", "n", "score_medio", "banda (CORTES)"]
-    for j, h in enumerate(headers):
-        c = ws.cell(r0 + 1, c0 + j, h); c.font = bold; c.border = BORDER
-    for i, (leaf_id, row) in enumerate(res.iterrows()):
-        ws.cell(r0 + 2 + i, c0, int(leaf_id)).border = BORDER
-        ws.cell(r0 + 2 + i, c0 + 1, int(row["n"])).border = BORDER
-        cs = ws.cell(r0 + 2 + i, c0 + 2, round(row["score_medio"], 0))
-        cs.border = BORDER
-        cs.fill = PatternFill("solid", fgColor=hex_color(norm_score(row["score_medio"], vmin, vmax)))
-        ws.cell(r0 + 2 + i, c0 + 3, row["banda_modal"]).border = BORDER
-    return r0 + 3 + len(res)
+    ws.cell(r0, c0, "CUADRO DEL ÁRBOL COMPLETO (una fila = una hoja)").font = Font(bold=True, size=12)
+    cols = usadas + ["n", "%", "score_medio", "CORTES", "quintil"]
+    for j, h in enumerate(cols):
+        c = ws.cell(r0 + 1, c0 + j, h)
+        c.font = bold; c.border = BORDER
+        c.alignment = Alignment(horizontal="center", wrap_text=True)
+    for i in range(len(tab)):
+        for j, h in enumerate(cols):
+            cell = ws.cell(r0 + 2 + i, c0 + j)
+            cell.border = BORDER
+            val = tab.iloc[i][h]
+            if h == "score_medio":
+                cell.value = round(float(val), 0)
+                cell.fill = PatternFill("solid", fgColor=hex_color(norm_score(val, vmin, vmax)))
+                cell.alignment = Alignment(horizontal="center")
+            elif h in ("n", "%"):
+                cell.value = float(val) if h == "%" else int(val)
+                cell.alignment = Alignment(horizontal="center")
+            else:
+                cell.value = str(val)
+                cell.alignment = Alignment(horizontal="center")
+    for j, h in enumerate(cols):
+        ws.column_dimensions[get_column_letter(c0 + j)].width = 18 if h in usadas else 12
+    return r0 + 3 + len(tab)
 
 
 # =============================================================================
@@ -393,7 +458,7 @@ def procesar_escenario(wb, nombre_hoja, df_sc, metodologia):
                            colorear="cantidad") + 2
     fila = escribir_cuadro(ws, fila, 1, "CUADRO POR RIESGO (prom puntaje_mod)", riesgo,
                            vfil, vcol, colorear="riesgo", vmin=vmin, vmax=vmax) + 2
-    tabla_reglas(ws, fila, 1, df_sc, X, tree, feats, vmin, vmax)
+    escribir_tabla_arbol(ws, fila, 1, df_sc, X, tree, feats, vmin, vmax)
 
 
 # =============================================================================
