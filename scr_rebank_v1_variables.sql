@@ -88,16 +88,6 @@ WITH base AS (
     FROM awsdatacatalog.e_perm_aws.t_rsk_segmentacion_gdp
     GROUP BY CAST(key_value AS VARCHAR), CAST(codmes AS VARCHAR)
 )
--- --------------------------------------------------------------- RM_CLIENTE
-, rm AS (   -- sexo, estado_civil  (mes de fecproceso = codmes_ejec)
-    SELECT
-        CAST(key_value AS VARCHAR)                  AS key_value,
-        SUBSTRING(CAST(fecproceso AS VARCHAR), 1, 6) AS codmes_ejec,
-        MAX(sexo)         AS sexo,
-        MAX(estado_civil) AS estado_civil
-    FROM awsdatacatalog.e_perm_aws.t_rm_cliente
-    GROUP BY CAST(key_value AS VARCHAR), SUBSTRING(CAST(fecproceso AS VARCHAR), 1, 6)
-)
 -- -------------------------------------------------------------- PROFESIONES
 , prof AS (   -- nivel_profesional, tipinstitucion  (codmes = codmes_ejec - 3)
     SELECT
@@ -310,9 +300,7 @@ SELECT
     pr.motivo_principalidad,
     COALESCE(vd.nro_entidades_castigo_vida, 0)            AS nro_entidades_castigo_vida,
     COALESCE(vd.tipo_entidad_castigo_vida, 'SIN CASTIGO') AS tipo_entidad_castigo_vida,
-    -- ===== rm_cliente / profesiones / PEA num =====
-    rmc.sexo,
-    rmc.estado_civil,
+    -- ===== profesiones / PEA num =====
     prf.nivel_profesional,
     prf.tipinstitucion,
     pf.edad_num,
@@ -338,7 +326,6 @@ LEFT JOIN seg       sg ON sg.key_value = a.key_value AND sg.codmes       = a.m_s
 LEFT JOIN t360      t  ON t.key_value  = a.key_value AND t.codmes_ejec   = a.codmes_ejec
 LEFT JOIN princ     pr ON pr.key_value = a.key_value AND pr.codmes_ejec  = a.codmes_ejec
 LEFT JOIN vida      vd ON vd.key_value = a.key_value AND vd.codmes_ejec  = a.codmes_ejec
-LEFT JOIN rm        rmc ON rmc.key_value = a.key_value AND rmc.codmes_ejec = a.codmes_ejec
 LEFT JOIN prof      prf ON prf.key_value = a.key_value AND prf.codmes      = a.m_prof
 LEFT JOIN rcc_num   rn ON rn.key_value = a.key_value AND rn.codmes_ejec  = a.codmes_ejec
 LEFT JOIN cde          ON cde.key_value = a.key_value AND cde.codmes_ejec = a.codmes_ejec
