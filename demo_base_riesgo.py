@@ -40,8 +40,9 @@ base = (700 + 0.02 * rk_ing - 0.0006 * deuda - 0.008 * max_mora
 puntaje = np.clip(np.round(base), 160, 985).astype(int)
 
 df = pd.DataFrame({
+    "subject_id": np.arange(1, n + 1),
     "puntaje_mod": puntaje, "sit_laboral_mod": sit, "edad_num": edad,
-    "rk_ing_num": rk_ing, "DEUDA_CAS": deuda, "monto_castigado_total": monto_total,
+    "rk_ing_num": rk_ing, "deuda_cas": deuda, "monto_castigado_total": monto_total,
     "monto_castigado_ibk": monto_ibk, "monto_castigado_otros": monto_otros,
     "nro_entidades_castigo": nro_ent, "max_dias_mora_castigo": max_mora,
     "meses_desde_ultimo_castigo": m_ult, "meses_desde_primer_castigo": m_pri,
