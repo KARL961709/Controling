@@ -713,7 +713,7 @@ WITH PEA AS (
         flg_cliente_plazo_fijo
     FROM AwsDataCatalog.e_perm_aws.t_360_cliente
     WHERE frecuencia = 1
-      AND cod_mes IN ('202604','202603','202602','202601','202512','202511')  -- @U6M (anclaje 202604)
+      AND cod_mes IN ('202606','202605','202604','202603','202602','202601')  -- @U6M (anclaje 202606)
 )
 , t360_feats AS (
     SELECT
@@ -721,48 +721,48 @@ WITH PEA AS (
         nro_documento,
         max(codunicocli) AS codunicocli,
         -- ===================== SALDOS: UM / prom U3M / prom U6M =====================
-        max(case when cod_mes='202604' then saldo_fdp_tot_txs end)                              AS saldo_fdp_tot_txs_um,
-        avg(case when cod_mes in ('202604','202603','202602') then saldo_fdp_tot_txs end)       AS saldo_fdp_tot_txs_u3m,
+        max(case when cod_mes='202606' then saldo_fdp_tot_txs end)                              AS saldo_fdp_tot_txs_um,
+        avg(case when cod_mes in ('202606','202605','202604') then saldo_fdp_tot_txs end)       AS saldo_fdp_tot_txs_u3m,
         avg(saldo_fdp_tot_txs)                                                                  AS saldo_fdp_tot_txs_u6m,
-        max(case when cod_mes='202604' then saldo_prom_tot_txs end)                             AS saldo_prom_tot_txs_um,
-        avg(case when cod_mes in ('202604','202603','202602') then saldo_prom_tot_txs end)      AS saldo_prom_tot_txs_u3m,
+        max(case when cod_mes='202606' then saldo_prom_tot_txs end)                             AS saldo_prom_tot_txs_um,
+        avg(case when cod_mes in ('202606','202605','202604') then saldo_prom_tot_txs end)      AS saldo_prom_tot_txs_u3m,
         avg(saldo_prom_tot_txs)                                                                 AS saldo_prom_tot_txs_u6m,
-        max(case when cod_mes='202604' then saldo_fdp_tot_planilla end)                         AS saldo_fdp_tot_planilla_um,
-        avg(case when cod_mes in ('202604','202603','202602') then saldo_fdp_tot_planilla end)  AS saldo_fdp_tot_planilla_u3m,
+        max(case when cod_mes='202606' then saldo_fdp_tot_planilla end)                         AS saldo_fdp_tot_planilla_um,
+        avg(case when cod_mes in ('202606','202605','202604') then saldo_fdp_tot_planilla end)  AS saldo_fdp_tot_planilla_u3m,
         avg(saldo_fdp_tot_planilla)                                                             AS saldo_fdp_tot_planilla_u6m,
-        max(case when cod_mes='202604' then saldo_prom_tot_planilla end)                        AS saldo_prom_tot_planilla_um,
-        avg(case when cod_mes in ('202604','202603','202602') then saldo_prom_tot_planilla end) AS saldo_prom_tot_planilla_u3m,
+        max(case when cod_mes='202606' then saldo_prom_tot_planilla end)                        AS saldo_prom_tot_planilla_um,
+        avg(case when cod_mes in ('202606','202605','202604') then saldo_prom_tot_planilla end) AS saldo_prom_tot_planilla_u3m,
         avg(saldo_prom_tot_planilla)                                                            AS saldo_prom_tot_planilla_u6m,
-        max(case when cod_mes='202604' then saldo_fdp_tot_tc end)                               AS saldo_fdp_tot_tc_um,
-        avg(case when cod_mes in ('202604','202603','202602') then saldo_fdp_tot_tc end)        AS saldo_fdp_tot_tc_u3m,
+        max(case when cod_mes='202606' then saldo_fdp_tot_tc end)                               AS saldo_fdp_tot_tc_um,
+        avg(case when cod_mes in ('202606','202605','202604') then saldo_fdp_tot_tc end)        AS saldo_fdp_tot_tc_u3m,
         avg(saldo_fdp_tot_tc)                                                                   AS saldo_fdp_tot_tc_u6m,
-        max(case when cod_mes='202604' then saldo_prom_tot_tc end)                              AS saldo_prom_tot_tc_um,
-        avg(case when cod_mes in ('202604','202603','202602') then saldo_prom_tot_tc end)       AS saldo_prom_tot_tc_u3m,
+        max(case when cod_mes='202606' then saldo_prom_tot_tc end)                              AS saldo_prom_tot_tc_um,
+        avg(case when cod_mes in ('202606','202605','202604') then saldo_prom_tot_tc end)       AS saldo_prom_tot_tc_u3m,
         avg(saldo_prom_tot_tc)                                                                  AS saldo_prom_tot_tc_u6m,
-        max(case when cod_mes='202604' then saldo_prom_tot_pasivo end)                          AS saldo_prom_tot_pasivo_um,
-        avg(case when cod_mes in ('202604','202603','202602') then saldo_prom_tot_pasivo end)   AS saldo_prom_tot_pasivo_u3m,
+        max(case when cod_mes='202606' then saldo_prom_tot_pasivo end)                          AS saldo_prom_tot_pasivo_um,
+        avg(case when cod_mes in ('202606','202605','202604') then saldo_prom_tot_pasivo end)   AS saldo_prom_tot_pasivo_u3m,
         avg(saldo_prom_tot_pasivo)                                                              AS saldo_prom_tot_pasivo_u6m,
         max(saldo_prom_tot_pasivo)                                                              AS saldo_prom_tot_pasivo_max_u6m,
         -- ===================== FLAGS (0/1/null): último mes + tuvo en U6M =====================
-        max(case when cod_mes='202604' then flg_colaborador end)                          AS flg_colaborador_um,
+        max(case when cod_mes='202606' then flg_colaborador end)                          AS flg_colaborador_um,
         max(case when cast(flg_colaborador as varchar)='1' then 1 else 0 end)             AS flg_colaborador_u6m,
-        max(case when cod_mes='202604' then flg_cliente_cts end)                          AS flg_cliente_cts_um,
+        max(case when cod_mes='202606' then flg_cliente_cts end)                          AS flg_cliente_cts_um,
         max(case when cast(flg_cliente_cts as varchar)='1' then 1 else 0 end)             AS flg_cliente_cts_u6m,
-        max(case when cod_mes='202604' then flg_cliente_inversion end)                    AS flg_cliente_inversion_um,
+        max(case when cod_mes='202606' then flg_cliente_inversion end)                    AS flg_cliente_inversion_um,
         max(case when cast(flg_cliente_inversion as varchar)='1' then 1 else 0 end)       AS flg_cliente_inversion_u6m,
-        max(case when cod_mes='202604' then flg_cliente_millonaria end)                   AS flg_cliente_millonaria_um,
+        max(case when cod_mes='202606' then flg_cliente_millonaria end)                   AS flg_cliente_millonaria_um,
         max(case when cast(flg_cliente_millonaria as varchar)='1' then 1 else 0 end)      AS flg_cliente_millonaria_u6m,
-        max(case when cod_mes='202604' then flg_cliente_alcancia end)                     AS flg_cliente_alcancia_um,
+        max(case when cod_mes='202606' then flg_cliente_alcancia end)                     AS flg_cliente_alcancia_um,
         max(case when cast(flg_cliente_alcancia as varchar)='1' then 1 else 0 end)        AS flg_cliente_alcancia_u6m,
-        max(case when cod_mes='202604' then flg_cliente_planilla end)                     AS flg_cliente_planilla_um,
+        max(case when cod_mes='202606' then flg_cliente_planilla end)                     AS flg_cliente_planilla_um,
         max(case when cast(flg_cliente_planilla as varchar)='1' then 1 else 0 end)        AS flg_cliente_planilla_u6m,
-        max(case when cod_mes='202604' then flg_cliente_planilla_act_sal end)             AS flg_cliente_planilla_act_sal_um,
+        max(case when cod_mes='202606' then flg_cliente_planilla_act_sal end)             AS flg_cliente_planilla_act_sal_um,
         max(case when cast(flg_cliente_planilla_act_sal as varchar)='1' then 1 else 0 end) AS flg_cliente_planilla_act_sal_u6m,
-        max(case when cod_mes='202604' then flg_cliente_planilla_abon end)                AS flg_cliente_planilla_abon_um,
+        max(case when cod_mes='202606' then flg_cliente_planilla_abon end)                AS flg_cliente_planilla_abon_um,
         max(case when cast(flg_cliente_planilla_abon as varchar)='1' then 1 else 0 end)   AS flg_cliente_planilla_abon_u6m,
-        max(case when cod_mes='202604' then flg_cliente_planilla_depo end)                AS flg_cliente_planilla_depo_um,
+        max(case when cod_mes='202606' then flg_cliente_planilla_depo end)                AS flg_cliente_planilla_depo_um,
         max(case when cast(flg_cliente_planilla_depo as varchar)='1' then 1 else 0 end)   AS flg_cliente_planilla_depo_u6m,
-        max(case when cod_mes='202604' then flg_cliente_plazo_fijo end)                   AS flg_cliente_plazo_fijo_um,
+        max(case when cod_mes='202606' then flg_cliente_plazo_fijo end)                   AS flg_cliente_plazo_fijo_um,
         max(case when cast(flg_cliente_plazo_fijo as varchar)='1' then 1 else 0 end)      AS flg_cliente_plazo_fijo_u6m
     FROM t360_base
     GROUP BY cod_tipo_documento, nro_documento
@@ -781,7 +781,7 @@ WITH PEA AS (
     LEFT JOIN (
         SELECT DISTINCT codunicocli, motivo_principalidad
         FROM AwsDataCatalog.e_perm_aws.t_nds_principalidad
-        WHERE fch_periodo = date '2026-04-30'          -- @FCH_PRINCIPALIDAD
+        WHERE fch_periodo = date '2026-06-30'          -- @FCH_PRINCIPALIDAD (anclaje 202606)
     ) pr ON f.codunicocli = pr.codunicocli
 )
 , variables_rcc AS (                        -- nro_entidades y tipo_entidad de castigo (U24M)
