@@ -1,0 +1,115 @@
+﻿#,Variable,Descripcion,Tipo,Base / Tabla origen,Esquema,Llave de join,Periodo / Filtro,Ventana,Desfase (vs codmes_pea=202606),Particularidad
+1,subject_id,Identificador del cliente (tipo_doc-num_doc). Clave primaria de la base,texto,ds_rtd_rskvol_indicadores_pea (PEA),e_perm_aws,-,p_fecinformacion=20260616,foto,0,Clave; se parte en cod_tip_doc y key_value
+2,cod_tip_doc,Código de tipo de documento,texto,derivado de subject_id,-,-,-,-,0,"split_part(subject_id,'-',1)"
+3,key_value,Número de documento (clave de joins),texto,derivado de subject_id,-,-,-,-,0,"substring(subject_id,3)"
+4,p_fecinformacion,Fecha de información de la PEA (yyyymmdd),texto,PEA,e_perm_aws,-,=20260616,foto,0,Define el ancla temporal
+5,codmes_pea,Periodo de la PEA (yyyymm) = ancla del query,texto,derivado,-,-,=202606,foto,0,"substring(p_fecinformacion,1,6)"
+6,DEUDA_CAS,Saldo castigado asignado al cliente,numérico,t_fact_report_rcc_rsk (CTEs c/d/e/f),e_perm_aws,subject_id,codmes=202604 / ventana 24m,act / U24M,-2 / 24m,"Cascada: 0 si CAST_IBK_REP (c) o NO_CAST_IBK_U24M (d); s_cast_noibk si CAST_NOIBK actual (e); sld_u24 si NO-IBK U24M (f); si no, 0"
+7,sit_lab_ap,Situación laboral (PEA),texto,PEA,e_perm_aws,-,20260616,foto,0,-
+8,RNG_ANT_UREPORT,Rango antigüedad del último reporte de castigo no-IBK U24M (0-6M..19-24M),texto,df_castigo_u24M_noibk (t_fact_report_rcc_rsk),e_perm_aws,subject_id,cta 8113/8123/8133; condicion>30; ventana 24m ancla 20260401,U24M,hasta -1m,Solo aplica a la rama f (NO_CAST_NOIBK_U24M); ant_ureporte = meses vs 202604
+9,RNG_EDAD,Rango de edad,texto,PEA (edad),e_perm_aws,-,20260616,foto,0,-
+10,edad_num,Edad numérica (entra al árbol),entero,PEA (edad),e_perm_aws,-,20260616,foto,0,Valor crudo de 'edad'
+11,rk_ing,Rango de renta/ingreso,texto,PEA (renta),e_perm_aws,-,20260616,foto,0,-
+12,rk_ing_num,Renta/ingreso numérica (entra al árbol),numérico,PEA (renta),e_perm_aws,-,20260616,foto,0,Valor crudo de 'renta'
+13,ANTI_CAST,Antigüedad del castigo no-IBK (<5años / [5años+),texto,CTE e (dm_cast_noibk),e_perm_aws,subject_id,codmes=202604,act,-2,dm_cast_noibk = max por entidad de min(condicion); /360 ≈ años
+14,FLG_CAST_REP,Castigo reportado en cob_rcc (CASTIGOS_REP/NO_REP_CASTIGO),texto,T_cob_rcc_consulta_hist (df_rcc_castigos_act b),e_perm_aws,subject_id,p_periodo=202604; CTA 8113/8123/8133 u 811925/812925/813925,act,-2,Marca presencia de castigo reportado
+15,FLG_CAST_TOT,Tiene castigo en RCC en U24M (CASTIGOS_TOT/NO_CASTIGO),texto,t_fact_report_rcc_rsk (df_rcc_castigos_tot b1),e_perm_aws,tip_doc+key_value,cta 8113/8123/8133; condicion>30; ventana 24m ancla 20260401,U24M,0 / 24m,-
+16,FLG_CAST_AP,Segmento principal de castigo (usado para los escenarios),texto,CTEs c/d/e/f,e_perm_aws,subject_id,varios,act / U24M,-2 / 24m,"Jerarquía: CAST_IBK_REP(c) > NO_CAST_IBK_U24M(d) > CAST_NOIBK_REP<5/>=5años(e, por dm/360) > NO_CAST_NOIBK_U24M(f) > NO_REP_CASTIGO"
+17,RNG_ANT_CAST,Rango de antigüedad del castigo (buckets de días/360),texto,CTEs e/f (dm_cast_noibk / dm_nocast_noibku24m),e_perm_aws,subject_id,-,act / U24M,-2 / 24m,Rama e usa dm_cast_noibk; rama f usa dm_nocast_noibku24m
+18,RNG_DEUDA_CAST,Rango de saldo castigado (buckets en soles),texto,CTEs e/f (s_cast_noibk / sld_u24),e_perm_aws,subject_id,-,act / U24M,-2 / 24m,-
+19,FLG_F,Marca de fallecido ('Fallecido' o null),texto,reniec_inhabilitados_csv,disc_model_owner,'1-'||key_value,estado='F',foto,0,Join solo para DNI (tip_doc='1')
+20,GRUPO_SCORE,Grupo/nivel del score del modelo (concepto_nivel),texto,t_rsk_maestro_score,e_perm_aws,key_value+tipdoc,periodo=202605; nom_modelo in (Score Orig. TC Bank/No Bank 2024),foto,-1,Banda del score del modelo aplicado
+21,segmentacion_gdp,Segmentación GDP (según maestro_score),texto,t_rsk_maestro_score,e_perm_aws,key_value+tipdoc,periodo=202605; nom_modelo in (Score Orig. TC Bank/No Bank 2024),foto,-1,-
+22,nom_modelo,Nombre del modelo aplicado,texto,t_rsk_maestro_score,e_perm_aws,key_value+tipdoc,periodo=202605; nom_modelo in (Score Orig. TC Bank/No Bank 2024),foto,-1,Bank o No Bank 2024
+23,sit_laboral_mod,Situación laboral según el modelo,texto,t_rsk_maestro_score,e_perm_aws,key_value+tipdoc,periodo=202605; nom_modelo in (Score Orig. TC Bank/No Bank 2024),foto,-1,-
+24,fuente_ingreso_mod,Fuente de ingreso según el modelo,texto,t_rsk_maestro_score,e_perm_aws,key_value+tipdoc,periodo=202605; nom_modelo in (Score Orig. TC Bank/No Bank 2024),foto,-1,-
+25,puntaje_mod,Puntaje/score del modelo — OBJETIVO del árbol (proxy de riesgo),numérico,t_rsk_maestro_score,e_perm_aws,key_value+tipdoc,periodo=202605; nom_modelo in (Score Orig. TC Bank/No Bank 2024),foto,-1,Mayor score = menor riesgo
+26,flg_far_mto_trx_presencial_12m_c216,Feature INCA: indicador FAR de monto/trx presencial 12m (c216),numérico,t_inca_rf (join t_mst_inter_ibk_base_cliente),e_perm_aws,key_value+cod_tip_doc; cod_mes_join=202604,process_date=202604,12m,-2,party_id→key_value vía base_cliente; agregado con MAX
+27,trf_tip_segmentacion_gdp,Tipo de segmentación GDP (origen app),texto,scr_origenapp1_rsk,e_perm_aws,cod_mes(=codmes_pea)+cod_tip_doc+key_value,cod_mes=202606,foto,0,Join relativo a codmes_pea
+28,segmentacion_gdp_v2,Segmentación GDP (tabla trimestral),texto,t_rsk_segmentacion_gdp,e_perm_aws,codmes+key_value+tipdoc,codmes=202603,trimestral,-3,Última foto trimestral disponible
+29,puntaje_var,Puntaje máximo entre TODOS los modelos del cliente,numérico,t_rsk_maestro_score,e_perm_aws,key_value+tipdoc,periodo=202605 (todos los modelos),foto,-1,MAX(puntaje); sin filtrar nom_modelo
+30,nom_modelo_var,Modelo correspondiente al puntaje_var,texto,t_rsk_maestro_score,e_perm_aws,key_value+tipdoc,periodo=202605 (todos los modelos),foto,-1,"max_by(nom_modelo, puntaje)"
+31,pmod_202604,Máx puntaje del mes (solo Bank/No Bank) — 202604,numérico/texto,t_rsk_maestro_score (ms_3m),e_perm_aws,key_value+tipdoc,periodo=202604,mensual,-2,MAX por mes
+32,pmod_202603,Máx puntaje del mes (solo Bank/No Bank) — 202603,numérico/texto,t_rsk_maestro_score (ms_3m),e_perm_aws,key_value+tipdoc,periodo=202603,mensual,-3,MAX por mes
+33,pmod_202602,Máx puntaje del mes (solo Bank/No Bank) — 202602,numérico/texto,t_rsk_maestro_score (ms_3m),e_perm_aws,key_value+tipdoc,periodo=202602,mensual,-4,MAX por mes
+34,nmod_202604,Modelo del máx (Bank/No Bank) — 202604,numérico/texto,t_rsk_maestro_score (ms_3m),e_perm_aws,key_value+tipdoc,periodo=202604,mensual,-2,max_by
+35,nmod_202603,Modelo del máx (Bank/No Bank) — 202603,numérico/texto,t_rsk_maestro_score (ms_3m),e_perm_aws,key_value+tipdoc,periodo=202603,mensual,-3,max_by
+36,nmod_202602,Modelo del máx (Bank/No Bank) — 202602,numérico/texto,t_rsk_maestro_score (ms_3m),e_perm_aws,key_value+tipdoc,periodo=202602,mensual,-4,max_by
+37,pvar_202604,Máx puntaje del mes (todos los modelos) — 202604,numérico/texto,t_rsk_maestro_score (ms_3m),e_perm_aws,key_value+tipdoc,periodo=202604,mensual,-2,MAX por mes
+38,pvar_202603,Máx puntaje del mes (todos los modelos) — 202603,numérico/texto,t_rsk_maestro_score (ms_3m),e_perm_aws,key_value+tipdoc,periodo=202603,mensual,-3,MAX por mes
+39,pvar_202602,Máx puntaje del mes (todos los modelos) — 202602,numérico/texto,t_rsk_maestro_score (ms_3m),e_perm_aws,key_value+tipdoc,periodo=202602,mensual,-4,MAX por mes
+40,nvar_202604,Modelo del máx (todos) — 202604,numérico/texto,t_rsk_maestro_score (ms_3m),e_perm_aws,key_value+tipdoc,periodo=202604,mensual,-2,max_by
+41,nvar_202603,Modelo del máx (todos) — 202603,numérico/texto,t_rsk_maestro_score (ms_3m),e_perm_aws,key_value+tipdoc,periodo=202603,mensual,-3,max_by
+42,nvar_202602,Modelo del máx (todos) — 202602,numérico/texto,t_rsk_maestro_score (ms_3m),e_perm_aws,key_value+tipdoc,periodo=202602,mensual,-4,max_by
+43,min_puntaje_mod_3m,Mín entre 3 meses del máx mensual (solo Bank/No Bank),numérico,t_rsk_maestro_score (ms_3m),e_perm_aws,key_value+tipdoc,periodo in 202602-202604,3m,-4 a -2,"Por mes MAX, entre meses MIN (resultado _mod)"
+44,nom_mod_3m,Modelo del min_puntaje_mod_3m,texto,ms_3m,e_perm_aws,key_value+tipdoc,202602-202604,3m,-4 a -2,"min_by(nmod,pmod)"
+45,min_puntaje_var_3m,Mín entre 3 meses del máx mensual (todos los modelos),numérico,ms_3m,e_perm_aws,key_value+tipdoc,202602-202604,3m,-4 a -2,Resultado _var
+46,nom_mod_var_3m,Modelo del min_puntaje_var_3m,texto,ms_3m,e_perm_aws,key_value+tipdoc,202602-202604,3m,-4 a -2,"min_by(nvar,pvar)"
+47,monto_castigado_total,Suma de saldo castigado (mes 202604),numérico,t_fact_report_rcc_rsk (rcc_castigo_num),e_perm_aws,key_value+tip_doc,cta 8113/8123/8133; codmes=202604,act,-2,SUM(saldo) del mes; tabla filtra ventana 24m ancla 20260401
+48,monto_castigado_ibk,Saldo castigado en IBK (00002),numérico,t_fact_report_rcc_rsk (rcc_castigo_num),e_perm_aws,key_value+tip_doc,codmes=202604; entidad=00002,act,-2,-
+49,monto_castigado_otros,Saldo castigado en entidades no-IBK,numérico,t_fact_report_rcc_rsk (rcc_castigo_num),e_perm_aws,key_value+tip_doc,codmes=202604; entidad<>00002,act,-2,-
+50,nro_entidades_castigo,Nro de entidades distintas con castigo (202604),entero,t_fact_report_rcc_rsk (rcc_castigo_num),e_perm_aws,key_value+tip_doc,codmes=202604,act,-2,COUNT(DISTINCT entidad)
+51,max_dias_mora_castigo,Máximo de condición (días de mora) del castigo (202604),entero,t_fact_report_rcc_rsk (rcc_castigo_num),e_perm_aws,key_value+tip_doc,codmes=202604,act,-2,MAX(condicion)
+52,meses_desde_ultimo_castigo,Meses desde el último mes con castigo (vs 202604),entero,t_fact_report_rcc_rsk (rcc_castigo_num),e_perm_aws,key_value+tip_doc,ventana 24m ancla 20260401,U24M,-2,"date_diff(MAX(codmes),202604)"
+53,meses_desde_primer_castigo,Meses desde el primer mes con castigo (vs 202604),entero,t_fact_report_rcc_rsk (rcc_castigo_num),e_perm_aws,key_value+tip_doc,ventana 24m ancla 20260401,U24M,-2,"date_diff(MIN(codmes),202604)"
+54,saldo_pasivo_actual,Saldo fdp total pasivo (último mes 202606),numérico,t_360_cliente (pasivo_num),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,MAX del mes 202606
+55,saldo_prom_pasivo,Saldo promedio total pasivo (último mes 202606),numérico,t_360_cliente (pasivo_num),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,MAX del mes 202606
+56,saldo_activo_actual,Saldo fdp total activo (último mes 202606),numérico,t_360_cliente (pasivo_num),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,MAX del mes 202606
+57,prom_saldo_pasivo_u4m,Promedio del saldo fdp pasivo U4M (202603-202606),numérico,t_360_cliente (pasivo_num),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U4M,0,AVG 4 meses
+58,max_saldo_pasivo_u6m,Máximo saldo fdp pasivo en U6M,numérico,t_360_cliente (pasivo_num),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,MAX 6 meses
+59,nro_meses_con_pasivo_u6m,Nro de meses con pasivo>0 en U6M,entero,t_360_cliente (pasivo_num),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,COUNT distinct meses con saldo>0
+60,saldo_fdp_tot_txs_um,Saldo fin de período total transaccional (TXS) — último mes (202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,MAX del mes 202606
+61,saldo_fdp_tot_txs_u3m,Saldo fin de período total transaccional (TXS) — promedio U3M (202604-202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U3M,0,AVG 3 meses
+62,saldo_fdp_tot_txs_u6m,Saldo fin de período total transaccional (TXS) — promedio U6M (202601-202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,AVG 6 meses
+63,saldo_prom_tot_txs_um,Saldo promedio total transaccional (TXS) — último mes (202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,MAX del mes 202606
+64,saldo_prom_tot_txs_u3m,Saldo promedio total transaccional (TXS) — promedio U3M (202604-202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U3M,0,AVG 3 meses
+65,saldo_prom_tot_txs_u6m,Saldo promedio total transaccional (TXS) — promedio U6M (202601-202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,AVG 6 meses
+66,saldo_fdp_tot_planilla_um,Saldo fin de período total planilla — último mes (202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,MAX del mes 202606
+67,saldo_fdp_tot_planilla_u3m,Saldo fin de período total planilla — promedio U3M (202604-202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U3M,0,AVG 3 meses
+68,saldo_fdp_tot_planilla_u6m,Saldo fin de período total planilla — promedio U6M (202601-202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,AVG 6 meses
+69,saldo_prom_tot_planilla_um,Saldo promedio total planilla — último mes (202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,MAX del mes 202606
+70,saldo_prom_tot_planilla_u3m,Saldo promedio total planilla — promedio U3M (202604-202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U3M,0,AVG 3 meses
+71,saldo_prom_tot_planilla_u6m,Saldo promedio total planilla — promedio U6M (202601-202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,AVG 6 meses
+72,saldo_fdp_tot_tc_um,Saldo fin de período total tarjeta de crédito (TC) — último mes (202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,MAX del mes 202606
+73,saldo_fdp_tot_tc_u3m,Saldo fin de período total tarjeta de crédito (TC) — promedio U3M (202604-202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U3M,0,AVG 3 meses
+74,saldo_fdp_tot_tc_u6m,Saldo fin de período total tarjeta de crédito (TC) — promedio U6M (202601-202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,AVG 6 meses
+75,saldo_prom_tot_tc_um,Saldo promedio total tarjeta de crédito (TC) — último mes (202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,MAX del mes 202606
+76,saldo_prom_tot_tc_u3m,Saldo promedio total tarjeta de crédito (TC) — promedio U3M (202604-202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U3M,0,AVG 3 meses
+77,saldo_prom_tot_tc_u6m,Saldo promedio total tarjeta de crédito (TC) — promedio U6M (202601-202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,AVG 6 meses
+78,saldo_prom_tot_pasivo_um,Saldo promedio total pasivo — último mes (202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,MAX del mes 202606
+79,saldo_prom_tot_pasivo_u3m,Saldo promedio total pasivo — promedio U3M (202604-202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U3M,0,AVG 3 meses
+80,saldo_prom_tot_pasivo_u6m,Saldo promedio total pasivo — promedio U6M (202601-202606),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,AVG 6 meses
+81,saldo_prom_tot_pasivo_max_u6m,Saldo promedio total pasivo — máximo en U6M,numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,MAX 6 meses
+82,flg_colaborador_um,Cliente colaborador IBK — último mes (202606),0/1/null,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,Valor del mes 202606
+83,flg_colaborador_u6m,Cliente colaborador IBK — tuvo en U6M,0/1,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,1 si tuvo en algún mes de U6M
+84,flg_cliente_cts_um,Cliente con CTS — último mes (202606),0/1/null,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,Valor del mes 202606
+85,flg_cliente_cts_u6m,Cliente con CTS — tuvo en U6M,0/1,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,1 si tuvo en algún mes de U6M
+86,flg_cliente_inversion_um,Cliente con inversión — último mes (202606),0/1/null,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,Valor del mes 202606
+87,flg_cliente_inversion_u6m,Cliente con inversión — tuvo en U6M,0/1,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,1 si tuvo en algún mes de U6M
+88,flg_cliente_millonaria_um,Cliente cuenta millonaria — último mes (202606),0/1/null,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,Valor del mes 202606
+89,flg_cliente_millonaria_u6m,Cliente cuenta millonaria — tuvo en U6M,0/1,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,1 si tuvo en algún mes de U6M
+90,flg_cliente_alcancia_um,Cliente con alcancía — último mes (202606),0/1/null,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,Valor del mes 202606
+91,flg_cliente_alcancia_u6m,Cliente con alcancía — tuvo en U6M,0/1,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,1 si tuvo en algún mes de U6M
+92,flg_cliente_planilla_um,Cliente con planilla — último mes (202606),0/1/null,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,Valor del mes 202606
+93,flg_cliente_planilla_u6m,Cliente con planilla — tuvo en U6M,0/1,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,1 si tuvo en algún mes de U6M
+94,flg_cliente_planilla_act_sal_um,Cliente planilla activa con saldo — último mes (202606),0/1/null,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,Valor del mes 202606
+95,flg_cliente_planilla_act_sal_u6m,Cliente planilla activa con saldo — tuvo en U6M,0/1,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,1 si tuvo en algún mes de U6M
+96,flg_cliente_planilla_abon_um,Cliente planilla con abono — último mes (202606),0/1/null,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,Valor del mes 202606
+97,flg_cliente_planilla_abon_u6m,Cliente planilla con abono — tuvo en U6M,0/1,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,1 si tuvo en algún mes de U6M
+98,flg_cliente_planilla_depo_um,Cliente planilla con depósito — último mes (202606),0/1/null,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,Valor del mes 202606
+99,flg_cliente_planilla_depo_u6m,Cliente planilla con depósito — tuvo en U6M,0/1,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,1 si tuvo en algún mes de U6M
+100,flg_cliente_plazo_fijo_um,Cliente con plazo fijo — último mes (202606),0/1/null,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM,0,Valor del mes 202606
+101,flg_cliente_plazo_fijo_u6m,Cliente con plazo fijo — tuvo en U6M,0/1,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,1 si tuvo en algún mes de U6M
+102,saldo_pasivo_componentes_u3m,Suma de saldos prom U3M (planilla + txs + tc),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U3M,0,Derivado: planilla_u3m+txs_u3m+tc_u3m
+103,ratio_tc_pasivo_u3m,Ratio TC / pasivo (U3M),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U3M,0,"tc_u3m / nullif(pasivo_u3m,0); null si pasivo=0"
+104,ratio_planilla_pasivo_u3m,Ratio planilla / pasivo (U3M),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U3M,0,"planilla_u3m / nullif(pasivo_u3m,0)"
+105,ratio_txs_pasivo_u3m,Ratio transaccional / pasivo (U3M),numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U3M,0,"txs_u3m / nullif(pasivo_u3m,0)"
+106,var_pasivo_um_vs_u6m,Variación del pasivo: (UM - U6M)/U6M,numérico,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,UM vs U6M,0,null si pasivo_u6m=0
+107,flg_tiene_pasivo_u6m,Marca: tuvo saldo pasivo>0 en U6M,0/1,t_360_cliente (t360_feats),e_perm_aws,cod_tipo_documento+nro_documento,frecuencia=1; cod_mes 202601-202606,U6M,0,1 si saldo_prom_tot_pasivo_u6m>0
+108,motivo_principalidad,Motivo de principalidad del cliente,texto,t_nds_principalidad (join por codunicocli),e_perm_aws,codunicocli,fch_periodo=2026-06-30,foto,0,DISTINCT por codunicocli; anclaje 202606
+109,nro_entidades_castigo_vida,Nro entidades distintas con castigo 'vida' (U24M),entero,t_fact_report_rcc_rsk (variables_rcc),e_perm_aws,tip_doc+key_value,cod_cuenta 81..(302/925); tipo_credito 11/12/13/99; codmes>=202403 y <=202604,vida / U24M,0 / 24m,"COALESCE(...,0): 0 = sin castigo. Conteo distinct de entidades"
+110,tipo_entidad_castigo_vida,Tipo de entidad del castigo vida (BIG FOUR / OTROS / SIN CASTIGO),texto,t_fact_report_rcc_rsk (variables_rcc),e_perm_aws,tip_doc+key_value,BIG FOUR si entidad in 00001/00002/00004/00006; codmes>=202404,vida / U24M,0 / 24m,"COALESCE(...,'SIN CASTIGO') para clientes sin castigo"
+111,sexo,Sexo del cliente,texto,t_rm_cliente,e_perm_aws,tipdoc+key_value,fecproceso=20260616,foto,0,MAX
+112,estado_civil,Estado civil del cliente,texto,t_rm_cliente,e_perm_aws,tipdoc+key_value,fecproceso=20260616,foto,0,MAX
+113,nivel_profesional,Nivel profesional,texto,t_profesiones_hist,e_perm_aws,tipdoc+key_value,codmes=202603,foto,-3,MAX
+114,tipinstitucion,Tipo de institución,texto,t_profesiones_hist,e_perm_aws,tipdoc+key_value,codmes=202603,foto,-3,MAX
