@@ -60,6 +60,13 @@ def aplicar_un_escenario(df, nombre, modelo, cfg, estrategia_rank):
     SIGN    = cfg["SIGN"]
     APETITO = cfg["APETITO"]
 
+    # rank robusto: numera TODAS las hojas por riesgo (1 = menor riesgo).
+    # Sirve para RD y SCORE aunque el estrategia_rank guardado venga vacío
+    # (en RD el apetito suele dejar 0 segmentos -> rank guardado = {}).
+    if not estrategia_rank:
+        hojas = sorted(leaf_val, key=lambda l: SIGN * leaf_val[l])
+        estrategia_rank = {f"{nombre}#{l}": i + 1 for i, l in enumerate(hojas)}
+
     valor = np.array([leaf_val.get(l, np.nan) for l in leaf], dtype=float)
     out = pd.DataFrame({
         cfg.get("SUBJECT_COL", "subject_id"):
