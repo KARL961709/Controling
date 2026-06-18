@@ -275,14 +275,14 @@ def _parts(leaves, apetito_def=None):
 
 
 def _block(k, nombre, p):
-    return f"""<div class="scn{' on' if k==0 else ''}" id="scn{k}">
+    return f"""<div class="scn" id="scn{k}">
   <div class="tabs">
-    <button class="on" onclick="tab({k},0,this)">📋 Segmentos + Optimizador</button>
-    <button onclick="tab({k},1,this)">🌳 Árbol (ramificación)</button>
+    <button class="on" onclick="tab({k},0,this)">Segmentos + Optimizador</button>
+    <button onclick="tab({k},1,this)">Árbol (ramificación)</button>
   </div>
   <section class="view on" id="v0{k}">
     <div class="opt">
-      <h2>🎯 Optimizador de apetito — {nombre}</h2>
+      <h2>Optimizador de apetito — {nombre}</h2>
       <div class="h">Un segmento entra si su score promedio ≥ apetito. Score promedio = proxy de riesgo.</div>
       <div class="slider"><span>apetito ≥</span>
         <input type="range" id="thr{k}" min="{p['smin']}" max="{p['smax']}" step="1" value="{p['deff']}"
@@ -314,19 +314,92 @@ def _block(k, nombre, p):
 </div>"""
 
 
+QCOL = {"G1": "#1a9850", "G2": "#a6d96a", "G3": "#fee08b", "G4": "#fdae61", "G5": "#d73027"}
+QS = ["G1", "G2", "G3", "G4", "G5"]
+APET = 730
+
+
+def _stats(nombre, leaves):
+    total = sum(l["n"] for l in leaves)
+    savg = sum(l["sc"] * l["n"] for l in leaves) / total
+    qd = {}
+    for l in leaves:
+        qd[l["q"]] = qd.get(l["q"], 0) + l["n"]
+    ln = sum(l["n"] for l in leaves if l["sc"] >= APET)
+    lavg = (sum(l["sc"] * l["n"] for l in leaves if l["sc"] >= APET) / ln) if ln else 0
+    return {"nombre": nombre, "total": total, "nleaves": len(leaves), "savg": savg,
+            "qd": qd, "leads": ln, "pct": 100 * ln / total, "lavg": lavg,
+            "pg5": 100 * qd.get("G5", 0) / total, "smin": min(l["sc"] for l in leaves),
+            "smax": max(l["sc"] for l in leaves)}
+
+
+def _resumen(S):
+    th = "".join(f"<th>{h}</th>" for h in
+                 ["Escenario", "Clientes", "Segmentos", "Score medio", f"Leads (≥{APET})",
+                  f"% leads", "Score prom. leads", "% en G5 (alto riesgo)"])
+    tr = ""
+    for s in S:
+        tr += (f"<tr><td><b>{s['nombre']}</b></td><td class='num'>{s['total']:,}</td>"
+               f"<td class='num'>{s['nleaves']}</td><td class='num'>{s['savg']:.0f}</td>"
+               f"<td class='num'>{s['leads']:,}</td><td class='num'>{s['pct']:.1f}%</td>"
+               f"<td class='num'>{s['lavg']:.0f}</td><td class='num'>{s['pg5']:.1f}%</td></tr>")
+    bars = ""
+    for s in S:
+        segs = ""
+        for q in QS:
+            n = s["qd"].get(q, 0)
+            if not n:
+                continue
+            w = 100 * n / s["total"]
+            lab = f"{q} {w:.0f}%" if w >= 6 else ""
+            segs += f'<div title="{q}: {n:,} ({w:.1f}%)" style="width:{w}%;background:{QCOL[q]};color:#1a3a16;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">{lab}</div>'
+        bars += (f'<div style="margin:10px 0"><div style="font-size:13.5px;margin-bottom:4px">'
+                 f'<b>{s["nombre"]}</b> <span style="color:#5b6f6a">· score medio {s["savg"]:.0f} · {s["total"]:,} clientes</span></div>'
+                 f'<div style="display:flex;height:26px;border-radius:6px;overflow:hidden;border:1px solid #e6efec">{segs}</div></div>')
+    # comentarios automáticos
+    best = max(S, key=lambda x: x["savg"]); worst = min(S, key=lambda x: x["savg"])
+    mole = max(S, key=lambda x: x["pct"]); leale = min(S, key=lambda x: x["pct"])
+    risk = max(S, key=lambda x: x["pg5"])
+    com = [
+        f"<b>{best['nombre']}</b> es el de mejor perfil (score medio {best['savg']:.0f}); "
+        f"<b>{worst['nombre']}</b> el más riesgoso (score medio {worst['savg']:.0f}).",
+        f"Con apetito ≥ {APET}, <b>{mole['nombre']}</b> aporta la mayor proporción de leads "
+        f"({mole['pct']:.1f}% de su base) y <b>{leale['nombre']}</b> la menor ({leale['pct']:.1f}%).",
+        f"<b>{risk['nombre']}</b> concentra más riesgo: {risk['pg5']:.1f}% de su base cae en G5 (score más bajo).",
+        "En todos los escenarios el driver dominante es la <b>categoría de score (cat_score)</b>; "
+        "luego ordenan edad, días de mora del castigo, ingreso y saldos.",
+        "Recordatorio: el objetivo es un <b>score</b> (proxy de riesgo), no default observado; "
+        "los saldos pasivo/transaccional tienen alto % de missing. Validar con resultado real y estabilidad (OOT).",
+    ]
+    coms = "".join(f"<li>{c}</li>" for c in com)
+    return (f'<div class="scn on" id="scncmp"><div style="padding:20px 4vw 60px">'
+            f'<h2 style="color:#007a72;font-size:22px;margin-bottom:14px">Resumen y comparación de escenarios</h2>'
+            f'<table style="margin-bottom:26px"><thead><tr>{th}</tr></thead><tbody>{tr}</tbody></table>'
+            f'<h3 style="color:#23433c;font-size:17px;margin-bottom:6px">Distribución por quintil de riesgo</h3>'
+            f'<div style="font-size:12.5px;color:#5b6f6a;margin-bottom:6px">'
+            f'<span style="color:#1a9850">■</span> G1 menor riesgo … <span style="color:#d73027">■</span> G5 mayor riesgo</div>'
+            f'{bars}'
+            f'<h3 style="color:#23433c;font-size:17px;margin:22px 0 6px">Comentarios</h3>'
+            f'<ul style="line-height:1.8;font-size:15px;color:#2c463f;margin-left:20px">{coms}</ul>'
+            f'</div></div>')
+
+
 def build_multi(scenarios, salida, titulo="Segmentación de riesgo"):
-    """scenarios = lista de (nombre, leaves). Genera 1 HTML con selector de escenarios."""
-    opts, blocks, scn = "", "", []
+    """scenarios = lista de (nombre, leaves). Genera 1 HTML: comparación + cada escenario."""
+    opts = '<option value="scncmp">Resumen / Comparación</option>'
+    blocks, scn, S = "", [], []
     for k, (nombre, leaves) in enumerate(scenarios):
-        p = _parts(leaves, 730)
-        opts += f'<option value="{k}">{nombre}  ·  {p["total"]:,} clientes · {p["nleaves"]} segmentos</option>'
+        p = _parts(leaves, APET)
+        opts += f'<option value="scn{k}">{nombre}  ·  {p["total"]:,} clientes · {p["nleaves"]} segmentos</option>'
         blocks += _block(k, nombre, p)
         scn.append(f'{{seg:{p["seg"]},total:{p["total"]}}}')
+        S.append(_stats(nombre, leaves))
     html = (TPL_MULTI.replace("@@TITLE@@", titulo).replace("@@OPTIONS@@", opts)
-            .replace("@@BLOCKS@@", blocks).replace("@@SCN@@", "[" + ",".join(scn) + "]"))
+            .replace("@@CMP@@", _resumen(S)).replace("@@BLOCKS@@", blocks)
+            .replace("@@SCN@@", "[" + ",".join(scn) + "]"))
     with open(salida, "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"OK {salida} | {len(scenarios)} escenarios")
+    print(f"OK {salida} | {len(scenarios)} escenarios + comparación")
 
 
 TPL_MULTI = r"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
@@ -380,17 +453,18 @@ TPL_MULTI = r"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
  .leaf:hover .rule{display:block} .leaf:hover{box-shadow:0 4px 12px #00a49955;border-color:#00a499}
  .hl{outline:3px solid #f1c40f}
 </style></head><body>
-<header><h1>🌳 @@TITLE@@</h1>
+<header><h1>@@TITLE@@</h1>
   <div class="s">Selecciona el escenario y explora segmentos, optimizador de apetito y el árbol.</div>
-  <div class="selwrap"><span>Escenario:</span><select onchange="showScn(+this.value)">@@OPTIONS@@</select></div>
+  <div class="selwrap"><span>Vista:</span><select onchange="showScn(this.value)">@@OPTIONS@@</select></div>
 </header>
+@@CMP@@
 @@BLOCKS@@
 <script>
  const SCN=@@SCN@@;
  const smin=k=>Math.min(...SCN[k].seg.map(s=>s[0])), smax=k=>Math.max(...SCN[k].seg.map(s=>s[0]));
  function pool(k,thr){let n=0,sw=0;for(const[s,c]of SCN[k].seg)if(s>=thr){n+=c;sw+=s*c;}return{n:n,pct:100*n/SCN[k].total,avg:n?sw/n:0};}
  function fmtN(x){return Math.round(x).toLocaleString('es-PE');}
- function showScn(k){document.querySelectorAll('.scn').forEach((d,i)=>d.classList.toggle('on',i===k));}
+ function showScn(id){document.querySelectorAll('.scn').forEach(d=>d.classList.toggle('on',d.id===id));}
  function tab(k,i,b){const blk=document.getElementById('scn'+k);
    blk.querySelectorAll('.view').forEach((v,j)=>v.classList.toggle('on',j===i));
    blk.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');}
@@ -432,7 +506,7 @@ TPL_MULTI = r"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
    document.getElementById('kps'+k).innerHTML=`<span class="${dhi>=0?'up':'dn'}">${dhi>=0?'+':''}${fmtN(dhi)} leads</span> · score prom ${hi.avg.toFixed(0)}`;
    chart(k,thr);
  }
- SCN.forEach((_,k)=>upd(k)); showScn(0);
+ SCN.forEach((_,k)=>upd(k)); showScn('scncmp');
 </script></body></html>"""
 
 
