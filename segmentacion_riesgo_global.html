@@ -64,13 +64,18 @@
     <div class="h">Mueve el apetito (score mínimo). Un segmento entra si su score promedio ≥ apetito. Score promedio = proxy de riesgo (mayor = menos riesgo).</div>
     <div class="slider">
       <span>apetito ≥</span>
-      <input type="range" id="thr" min="584" max="978" step="1" value="730" oninput="upd()">
-      <b id="thrv">730</b>
+      <input type="range" id="thr" min="584" max="978" step="1" value="730"
+             oninput="document.getElementById('thrn').value=this.value;upd()">
+      <input type="number" id="thrn" value="730" style="width:90px;font-size:20px;font-weight:800;color:#007a72;border:2px solid #bfe0da;border-radius:8px;padding:4px 8px;text-align:center"
+             oninput="document.getElementById('thr').value=this.value;upd()">
+      <span style="margin-left:18px">± </span>
+      <input type="number" id="pct" value="5" min="0" step="0.5" style="width:64px;font-size:18px;font-weight:700;border:2px solid #cfdcd8;border-radius:8px;padding:4px 6px;text-align:center" oninput="upd()">
+      <span>%</span>
     </div>
     <div class="kpis">
       <div class="kc base"><div class="t">Apetito actual</div><div class="v" id="k0n">–</div><div class="d" id="k0s"></div></div>
-      <div class="kc"><div class="t">Si bajo el apetito −5%</div><div class="v" id="kmn">–</div><div class="d" id="kms"></div></div>
-      <div class="kc"><div class="t">Si subo el apetito +5%</div><div class="v" id="kpn">–</div><div class="d" id="kps"></div></div>
+      <div class="kc"><div class="t" id="kmt">Si bajo el apetito −5%</div><div class="v" id="kmn">–</div><div class="d" id="kms"></div></div>
+      <div class="kc"><div class="t" id="kpt">Si subo el apetito +5%</div><div class="v" id="kpn">–</div><div class="d" id="kps"></div></div>
     </div>
     <svg id="chart" viewBox="0 0 1000 300" preserveAspectRatio="none"></svg>
   </div>
@@ -128,15 +133,19 @@
      `<text x="500" y="296" text-anchor="middle" font-size="12" fill="#5b6f6a">apetito (score mínimo) →</text>`;
  }
  function upd(){
-   const thr=+document.getElementById('thr').value; document.getElementById('thrv').textContent=thr;
-   const b=pool(thr), lo=pool(Math.round(thr*0.95)), hi=pool(Math.round(thr*1.05));
+   const thr=+document.getElementById('thrn').value||0;
+   const p=(+document.getElementById('pct').value||0)/100;
+   const tlo=thr*(1-p), thi=thr*(1+p);
+   const b=pool(thr), lo=pool(tlo), hi=pool(thi);
    document.getElementById('k0n').textContent=fmtN(b.n)+' leads';
    document.getElementById('k0s').textContent=b.pct.toFixed(1)+'% base · score prom '+b.avg.toFixed(0);
-   const dlo=lo.n-b.n, dhi=hi.n-b.n;
+   const dlo=lo.n-b.n, dhi=hi.n-b.n, pp=(p*100);
+   document.getElementById('kmt').textContent=`Si bajo el apetito −${pp}% (≥ ${tlo.toFixed(0)})`;
+   document.getElementById('kpt').textContent=`Si subo el apetito +${pp}% (≥ ${thi.toFixed(0)})`;
    document.getElementById('kmn').textContent=fmtN(lo.n)+' leads';
-   document.getElementById('kms').innerHTML=`<span class="up">+${fmtN(dlo)} leads</span> · score prom ${lo.avg.toFixed(0)}`;
+   document.getElementById('kms').innerHTML=`<span class="${dlo>=0?'up':'dn'}">${dlo>=0?'+':''}${fmtN(dlo)} leads</span> · score prom ${lo.avg.toFixed(0)}`;
    document.getElementById('kpn').textContent=fmtN(hi.n)+' leads';
-   document.getElementById('kps').innerHTML=`<span class="dn">${fmtN(dhi)} leads</span> · score prom ${hi.avg.toFixed(0)}`;
+   document.getElementById('kps').innerHTML=`<span class="${dhi>=0?'up':'dn'}">${dhi>=0?'+':''}${fmtN(dhi)} leads</span> · score prom ${hi.avg.toFixed(0)}`;
    chart(thr);
  }
  upd();
