@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""HTML 2 pestañas: (1) segmentos desagrupados por riesgo; (2) árbol cat_score -> demás variables."""
-from build_arbol_html import leaves, TOTAL, color, DISP, CALNUM, INF
+"""HTML 2 pestañas: (1) segmentos + curva de optimización interactiva; (2) árbol con reglas reales."""
+from build_arbol_html import leaves, TOTAL, color, DISP, INF
 
 def regla(l, sin_cat=False):
     return " · ".join(f"{DISP.get(v,v)} {s}" if v != "puntuacion_cal_cat" else f"cat_score {s}"
@@ -15,8 +15,7 @@ def best_split(ls, exclude):
     vars_all = set().union(*[set(l["iv"]) for l in ls]) - exclude
     cands = []
     for var in vars_all:
-        act = sum(1 for l in ls if var in l["iv"])
-        bounds = set()
+        act = sum(1 for l in ls if var in l["iv"]); bounds = set()
         for l in ls:
             lo, hi = l["iv"].get(var, (-INF, INF))
             if lo > -INF: bounds.add(lo)
@@ -28,8 +27,7 @@ def best_split(ls, exclude):
                 nl = sum(l["n"] for l in left); nr = sum(l["n"] for l in right)
                 cands.append((act, -abs(nl - nr), var, t, left, right))
     if not cands: return None
-    cands.sort(reverse=True)
-    _, _, var, t, left, right = cands[0]
+    cands.sort(reverse=True); _, _, var, t, left, right = cands[0]
     return var, t, left, right
 
 def sub(ls):
@@ -38,7 +36,7 @@ def sub(ls):
         l = ls[0]; rg = regla(l, sin_cat=True)
         return (f'<div class="leaf" data-rule="{rg}"><span class="chip" style="background:{color(l["sc"])}">{l["sc"]:.0f}</span>'
                 f'<span class="meta">n={l["n"]:,} · {100*l["n"]/TOTAL:.1f}% · {l["q"]}</span>'
-                f'<div class="rule">{rg}</div></div>')
+                f'<div class="rule">➜ {rg}</div></div>')
     sp = best_split(ls, {"puntuacion_cal_cat"})
     if sp is None: return "".join(sub([l]) for l in ls)
     var, t, lft, rgt = sp
@@ -48,10 +46,11 @@ def sub(ls):
             f'<div class="branch"><div class="cond no">{blab(var,t,"R")}</div>{sub(rgt)}</div>')
     return f'<details class="node">{head}<div class="kids">{kids}</div></details>'
 
-# --- raíz: cat_score 1..6 (mejor a peor) ---
+# raíz: agrupada por la REGLA REAL de cat_score
 grp = {}
 for l in leaves:
-    grp.setdefault(CALNUM[l["conds"]["puntuacion_cal_cat"]], []).append(l)
+    grp.setdefault(l["conds"]["puntuacion_cal_cat"], []).append(l)
+def cl(lbl): return lbl.replace("<= ", "≤ ")
 orden = sorted(grp, key=lambda k: -sum(x["sc"]*x["n"] for x in grp[k]) / sum(x["n"] for x in grp[k]))
 TREE = ""
 for k in orden:
@@ -59,11 +58,11 @@ for k in orden:
     chip = f'<span class="chip" style="background:{color(sc)}">{sc:.0f}</span>'
     op = "open" if k == orden[0] else ""
     TREE += (f'<details class="node root" {op}><summary><span class="tw">▸</span>'
-             f'<b style="font-size:15px">cat_score = {k}</b> {chip}'
+             f'<b style="font-size:15px">cat_score {cl(k)}</b> {chip}'
              f'<span class="meta">n={n:,} · {100*n/TOTAL:.1f}% · score medio {sc:.0f}</span></summary>'
              f'<div class="kids">{sub(g)}</div></details>')
 
-# --- pestaña 1: 74 segmentos, menor a mayor riesgo ---
+# pestaña 1: 74 segmentos
 rows = ""
 for i, l in enumerate(sorted(leaves, key=lambda x: -x["sc"]), 1):
     c = color(l["sc"])
@@ -71,6 +70,8 @@ for i, l in enumerate(sorted(leaves, key=lambda x: -x["sc"]), 1):
              f'<td><span class="chip" style="background:{c}">{l["sc"]:.0f}</span></td>'
              f'<td><span class="q">{l["q"]}</span></td><td class="num">{l["n"]:,}</td>'
              f'<td class="num">{100*l["n"]/TOTAL:.1f}%</td><td class="rg">{regla(l)}</td></tr>')
+
+SEG = "[" + ",".join(f"[{l['sc']:.2f},{l['n']}]" for l in leaves) + "]"
 
 HTML = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -87,7 +88,7 @@ HTML = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
  .bar{{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}}
  .legend{{display:flex;align-items:center;gap:8px;font-size:13px;color:#33514a}}
  .grad{{width:150px;height:12px;border-radius:6px;background:linear-gradient(90deg,#1a9850,#ffffbf,#d73027)}}
- input.f{{border:1px solid #cfdcd8;border-radius:18px;padding:8px 14px;font-size:13px;min-width:220px;margin-left:auto}}
+ input.f{{border:1px solid #cfdcd8;border-radius:18px;padding:8px 14px;font-size:13px;min-width:200px;margin-left:auto}}
  table{{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;font-size:13.5px}}
  th{{background:#007a72;color:#fff;text-align:left;padding:10px}}
  td{{padding:7px 10px;border-bottom:1px solid #f0f4f3;vertical-align:top}}
@@ -96,6 +97,17 @@ HTML = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
  .q{{background:#eef3f1;border-radius:10px;padding:2px 9px;font-size:12px;font-weight:700;color:#33514a}}
  .rg{{font-family:Consolas,monospace;font-size:12px;color:#33514a;line-height:1.5}}
  tr.hide{{display:none}}
+ /* optimizador */
+ .opt{{background:#fff;border-radius:14px;padding:20px 24px;margin-bottom:22px;box-shadow:0 4px 14px #0000000f}}
+ .opt h2{{color:#007a72;font-size:19px;margin-bottom:4px}} .opt .h{{color:#5b6f6a;font-size:13.5px;margin-bottom:16px}}
+ .slider{{display:flex;align-items:center;gap:14px;margin-bottom:18px}}
+ .slider input{{flex:1}} .slider b{{font-size:24px;color:#007a72;min-width:120px}}
+ .kpis{{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}}
+ .kc{{border-radius:12px;padding:14px 16px;border:1px solid #e6efec}}
+ .kc.base{{background:#eef7f5;border-color:#bfe0da}}
+ .kc .t{{font-size:13px;color:#5b6f6a;margin-bottom:6px}} .kc .v{{font-size:26px;font-weight:800;color:#23433c}}
+ .kc .d{{font-size:13px;margin-top:4px;font-weight:600}} .up{{color:#1a9850}} .dn{{color:#d73027}}
+ svg{{width:100%;height:300px;background:#fbfdfc;border-radius:10px;border:1px solid #eef2f1}}
  details.node{{margin:4px 0}} details.root{{margin:8px 0}}
  details.root>summary{{background:#eef7f5;border-color:#bfe0da}}
  .kids{{margin-left:24px;border-left:2px dashed #b9ccc7;padding-left:16px}}
@@ -108,7 +120,7 @@ HTML = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
  .cond.yes{{background:#e3f4ec;color:#1a7a4a}} .cond.no{{background:#fdecea;color:#b23b30}}
  .meta{{font-size:12.5px;color:#5b6f6a}}
  .leaf{{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #e6efec;border-radius:10px;padding:6px 11px;margin:5px 0;flex-wrap:wrap}}
- .leaf .rule{{flex-basis:100%;font-family:Consolas,monospace;font-size:11.5px;color:#46615b;display:none}}
+ .leaf .rule{{flex-basis:100%;font-family:Consolas,monospace;font-size:11.5px;color:#1a7a4a;display:none}}
  .leaf:hover .rule{{display:block}} .leaf:hover{{box-shadow:0 4px 12px #00a49955;border-color:#00a499}}
  .hl{{outline:3px solid #f1c40f}}
 </style></head><body>
@@ -116,12 +128,27 @@ HTML = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
   <h1>🌳 Segmentación de riesgo — Escenario Global</h1>
   <div class="s">2.28 M clientes · 74 segmentos · objetivo = score · de menor a mayor riesgo</div>
   <div class="tabs">
-    <button class="on" onclick="tab(0,this)">📋 Segmentos (lista)</button>
+    <button class="on" onclick="tab(0,this)">📋 Segmentos + Optimizador</button>
     <button onclick="tab(1,this)">🌳 Árbol (ramificación)</button>
   </div>
 </header>
 
 <section class="view on" id="v0">
+  <div class="opt">
+    <h2>🎯 Optimizador de apetito</h2>
+    <div class="h">Mueve el apetito (score mínimo). Un segmento entra si su score promedio ≥ apetito. Score promedio = proxy de riesgo (mayor = menos riesgo).</div>
+    <div class="slider">
+      <span>apetito ≥</span>
+      <input type="range" id="thr" min="584" max="978" step="1" value="730" oninput="upd()">
+      <b id="thrv">730</b>
+    </div>
+    <div class="kpis">
+      <div class="kc base"><div class="t">Apetito actual</div><div class="v" id="k0n">–</div><div class="d" id="k0s"></div></div>
+      <div class="kc"><div class="t">Si bajo el apetito −5%</div><div class="v" id="kmn">–</div><div class="d" id="kms"></div></div>
+      <div class="kc"><div class="t">Si subo el apetito +5%</div><div class="v" id="kpn">–</div><div class="d" id="kps"></div></div>
+    </div>
+    <svg id="chart" viewBox="0 0 1000 300" preserveAspectRatio="none"></svg>
+  </div>
   <div class="bar"><span class="legend">menor riesgo <span class="grad"></span> mayor riesgo</span>
     <input class="f" placeholder="filtrar… (ej. edad, mora)" oninput="filt('#v0 tbody tr',this.value)"></div>
   <table><thead><tr><th>#</th><th>score</th><th>Q</th><th>n</th><th>%</th><th>Regla del segmento</th></tr></thead>
@@ -130,7 +157,7 @@ HTML = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 
 <section class="view" id="v1">
   <div class="bar">
-    <span class="legend">la raíz es <b>cat_score</b>; dentro de cada categoría se ramifican las demás variables</span>
+    <span class="legend">raíz = <b>cat_score</b> (reglas reales); dentro de cada categoría se ramifican las demás variables</span>
     <button onclick="setAll(true)" style="border:1px solid #cfdcd8;background:#fff;border-radius:18px;padding:8px 14px;cursor:pointer">Expandir todo</button>
     <button onclick="setAll(false)" style="border:1px solid #cfdcd8;background:#fff;border-radius:18px;padding:8px 14px;cursor:pointer">Colapsar todo</button>
     <input class="f" placeholder="resaltar variable…" oninput="hlt(this.value)"></div>
@@ -138,6 +165,11 @@ HTML = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 </section>
 
 <script>
+ const SEG={SEG}, TOTAL={TOTAL};
+ const SMIN=Math.min(...SEG.map(s=>s[0])), SMAX=Math.max(...SEG.map(s=>s[0]));
+ function pool(thr){{let n=0,sw=0; for(const[s,c]of SEG) if(s>=thr){{n+=c;sw+=s*c;}}
+   return {{n:n, pct:100*n/TOTAL, avg:n?sw/n:0}};}}
+ function fmtN(x){{return x.toLocaleString('es-PE');}}
  function tab(i,b){{document.querySelectorAll('.view').forEach((v,k)=>v.classList.toggle('on',k===i));
    document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');}}
  function filt(sel,t){{t=t.trim().toLowerCase();
@@ -146,6 +178,43 @@ HTML = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
  function hlt(t){{t=t.trim().toLowerCase();
    document.querySelectorAll('#tree .leaf').forEach(l=>l.classList.toggle('hl',t&&(l.dataset.rule||'').toLowerCase().includes(t)));
    if(t)setAll(true);}}
+ function chart(thr){{
+   const W=1000,H=300,L=60,R=950,T=20,B=260;
+   const xs=s=>L+(s-SMIN)/(SMAX-SMIN)*(R-L);
+   const maxN=TOTAL;
+   const ys=n=>B-(n/maxN)*(B-T);
+   let pts=[],step=(SMAX-SMIN)/120;
+   for(let s=SMIN;s<=SMAX+1e-6;s+=step){{pts.push([xs(s),ys(pool(s).n)]);}}
+   const poly=pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+   const area='60,260 '+poly+' '+xs(SMAX).toFixed(1)+',260';
+   const mx=xs(thr);
+   let ticks='';
+   for(let k=0;k<=4;k++){{const v=maxN*k/4, y=ys(v);
+     ticks+=`<line x1="60" y1="${{y}}" x2="950" y2="${{y}}" stroke="#eef2f1"/>`+
+            `<text x="54" y="${{y+4}}" text-anchor="end" font-size="11" fill="#9fb0ab">${{(v/1e6).toFixed(1)}}M</text>`;}}
+   for(const v of [SMIN,650,730,820,SMAX]){{const x=xs(v);
+     ticks+=`<text x="${{x}}" y="278" text-anchor="middle" font-size="11" fill="#9fb0ab">${{Math.round(v)}}</text>`;}}
+   document.getElementById('chart').innerHTML=
+     ticks+
+     `<polygon points="${{area}}" fill="#00a49922"/>`+
+     `<polyline points="${{poly}}" fill="none" stroke="#007a72" stroke-width="2.5"/>`+
+     `<line x1="${{mx}}" y1="20" x2="${{mx}}" y2="260" stroke="#d73027" stroke-width="2" stroke-dasharray="5,4"/>`+
+     `<circle cx="${{mx}}" cy="${{ys(pool(thr).n)}}" r="5" fill="#d73027"/>`+
+     `<text x="500" y="296" text-anchor="middle" font-size="12" fill="#5b6f6a">apetito (score mínimo) →</text>`;
+ }}
+ function upd(){{
+   const thr=+document.getElementById('thr').value; document.getElementById('thrv').textContent=thr;
+   const b=pool(thr), lo=pool(Math.round(thr*0.95)), hi=pool(Math.round(thr*1.05));
+   document.getElementById('k0n').textContent=fmtN(b.n)+' leads';
+   document.getElementById('k0s').textContent=b.pct.toFixed(1)+'% base · score prom '+b.avg.toFixed(0);
+   const dlo=lo.n-b.n, dhi=hi.n-b.n;
+   document.getElementById('kmn').textContent=fmtN(lo.n)+' leads';
+   document.getElementById('kms').innerHTML=`<span class="up">+${{fmtN(dlo)}} leads</span> · score prom ${{lo.avg.toFixed(0)}}`;
+   document.getElementById('kpn').textContent=fmtN(hi.n)+' leads';
+   document.getElementById('kps').innerHTML=`<span class="dn">${{fmtN(dhi)}} leads</span> · score prom ${{hi.avg.toFixed(0)}}`;
+   chart(thr);
+ }}
+ upd();
 </script>
 </body></html>"""
 
