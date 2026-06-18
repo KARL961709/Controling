@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Desagregación de Riesgo — Escenario Global</title>
+<style>
+  :root{
+    --ibk:#00a499; --ibk-d:#007a72; --ink:#10241f; --muted:#6b7d78;
+    --g1:#1a9850; --g2:#a6d96a; --g4:#fdae61; --g5:#d73027; --bg:#f4f7f6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#0c1513;color:var(--ink)}
+  .deck{height:100vh;width:100vw;overflow:hidden;position:relative}
+  .slide{position:absolute;inset:0;padding:46px 64px 70px;background:var(--bg);
+         display:none;flex-direction:column;animation:fade .35s ease}
+  .slide.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  h1{font-size:46px;color:var(--ibk-d);line-height:1.1}
+  h2{font-size:30px;color:var(--ibk-d);border-left:7px solid var(--ibk);padding-left:14px;margin-bottom:22px}
+  .sub{color:var(--muted);font-size:19px;margin-top:10px}
+  .tag{display:inline-block;background:var(--ibk);color:#fff;padding:5px 14px;border-radius:20px;font-size:14px;font-weight:600;letter-spacing:.5px}
+  .grid{display:grid;gap:18px}
+  .kpis{grid-template-columns:repeat(5,1fr)}
+  .card{background:#fff;border-radius:14px;padding:22px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
+  .kpi .n{font-size:40px;font-weight:700;color:var(--ibk-d)}
+  .kpi .l{font-size:14px;color:var(--muted);margin-top:6px}
+  .bar-row{display:flex;align-items:center;gap:14px;margin:9px 0}
+  .bar-lab{width:280px;font-size:15px;text-align:right;color:#23433c}
+  .bar-track{flex:1;background:#e3ece9;border-radius:8px;height:26px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:8px;display:flex;align-items:center;justify-content:flex-end;
+            padding-right:10px;color:#fff;font-size:13px;font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;background:#fff;border-radius:10px;overflow:hidden}
+  th{background:var(--ibk-d);color:#fff;padding:9px 10px;text-align:left;font-weight:600}
+  td{padding:8px 10px;border-bottom:1px solid #eef2f1}
+  tr:last-child td{border-bottom:none}
+  .pill{display:inline-block;padding:2px 9px;border-radius:12px;color:#fff;font-weight:700;font-size:12px}
+  .reg{font-family:"Consolas",monospace;font-size:12.5px;color:#23433c}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  ul{margin-left:22px;line-height:1.7;font-size:18px}
+  li b{color:var(--ibk-d)}
+  .note{background:#fff7e6;border-left:5px solid #fdae61;padding:14px 18px;border-radius:8px;font-size:15.5px;line-height:1.6}
+  .scroll{overflow:auto;flex:1}
+  .nav{position:absolute;bottom:18px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:18px;z-index:5}
+  .nav button{background:var(--ibk);color:#fff;border:none;width:42px;height:42px;border-radius:50%;font-size:18px;cursor:pointer}
+  .dots{display:flex;gap:8px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#cfdcd8;cursor:pointer}
+  .dot.on{background:var(--ibk)}
+  .counter{position:absolute;top:22px;right:30px;color:var(--muted);font-size:14px}
+  .foot{position:absolute;bottom:20px;right:30px;color:#9fb0ab;font-size:12px}
+  .legend{display:flex;gap:18px;margin-top:10px;font-size:14px;color:#23433c}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 1 PORTADA -->
+  <section class="slide active">
+    <span class="tag">DESAGREGACIÓN DE RIESGO · ÁRBOL DE ESTRATEGIAS</span>
+    <h1 style="margin-top:26px">Escenario Global<br>Toda la base</h1>
+    <p class="sub">Objetivo: <b>score</b> (mayor = menor riesgo) · Metodología: Optbinning + Árbol monótono (WoE) · Profundidad máx. 6</p>
+    <div style="margin-top:auto" class="legend">
+      <span><i class="sw" style="background:var(--g1)"></i>G1 menor riesgo</span>
+      <span><i class="sw" style="background:var(--g2)"></i>G2</span>
+      <span><i class="sw" style="background:var(--g4)"></i>G4</span>
+      <span><i class="sw" style="background:var(--g5)"></i>G5 mayor riesgo</span>
+    </div>
+  </section>
+
+  <!-- 2 RESUMEN -->
+  <section class="slide">
+    <h2>Resumen ejecutivo</h2>
+    <div class="grid kpis">
+      <div class="card kpi"><div class="n">2.28 M</div><div class="l">Clientes en la base</div></div>
+      <div class="card kpi"><div class="n">712</div><div class="l">Score medio global</div></div>
+      <div class="card kpi"><div class="n">74</div><div class="l">Segmentos (hojas del árbol)</div></div>
+      <div class="card kpi"><div class="n">18</div><div class="l">Variables usadas en el árbol</div></div>
+      <div class="card kpi"><div class="n">20.5%</div><div class="l">Cumple apetito (score ≥ 730)</div></div>
+    </div>
+    <div class="card" style="margin-top:24px">
+      <p style="font-size:18px;line-height:1.7">
+      El árbol parte la cartera en <b>74 segmentos</b> ordenables por riesgo. El driver dominante es la
+      <b>categoría de score (puntuacion_cal_cat)</b>; a partir de ahí mandan <b>ingreso</b>, <b>edad</b>,
+      <b>días de mora del castigo</b> y los <b>saldos pasivo/transaccional</b>. Solo <b>~468 mil clientes (20.5%)</b>
+      alcanzan el apetito de score ≥ 730; el grueso de la base (≈80%) queda por debajo.
+      </p>
+    </div>
+  </section>
+
+  <!-- 3 MAPA DE RIESGO -->
+  <section class="slide">
+    <h2>Mapa de riesgo — distribución por quintil</h2>
+    <div class="bar-row"><div class="bar-lab">G1 · score 865–978</div><div class="bar-track"><div class="bar-fill" style="width:36%;background:var(--g1)">13.6% · 311 K</div></div></div>
+    <div class="bar-row"><div class="bar-lab">G2 · score 698–785</div><div class="bar-track"><div class="bar-fill" style="width:73%;background:var(--g2);color:#1a3a16">27.5% · 628 K</div></div></div>
+    <div class="bar-row"><div class="bar-lab">G4 · score 673–693</div><div class="bar-track"><div class="bar-fill" style="width:57%;background:var(--g4)">21.4% · 489 K</div></div></div>
+    <div class="bar-row"><div class="bar-lab">G5 · score 584–669</div><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--g5)">37.4% · 853 K</div></div></div>
+    <div class="note" style="margin-top:26px">
+      <b>Lectura:</b> casi <b>6 de cada 10 clientes</b> caen en G4–G5 (score &lt; 695). El quintil <b>G3 no aparece</b>:
+      la frontera entre el grupo “sano” (G1–G2) y el de riesgo (G4–G5) es abrupta y la marca, sobre todo,
+      la categoría de score &gt; 6.
+    </div>
+  </section>
+
+  <!-- 4 DRIVERS -->
+  <section class="slide">
+    <h2>Principales drivers (poder predictivo · IV)</h2>
+    <div class="scroll">
+    <div class="bar-row"><div class="bar-lab">puntuacion_cal_cat</div><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--ibk)">48.4</div></div></div>
+    <div class="bar-row"><div class="bar-lab">saldo_prom_pasivo_u6m *</div><div class="bar-track"><div class="bar-fill" style="width:79%;background:var(--ibk)">38.3</div></div></div>
+    <div class="bar-row"><div class="bar-lab">saldo_prom_pasivo_u3m *</div><div class="bar-track"><div class="bar-fill" style="width:78%;background:var(--ibk)">37.6</div></div></div>
+    <div class="bar-row"><div class="bar-lab">prom_saldo_pasivo_u4m *</div><div class="bar-track"><div class="bar-fill" style="width:77%;background:var(--ibk)">37.4</div></div></div>
+    <div class="bar-row"><div class="bar-lab">saldo_pasivo_componentes *</div><div class="bar-track"><div class="bar-fill" style="width:74%;background:var(--ibk)">35.9</div></div></div>
+    <div class="bar-row"><div class="bar-lab">saldo_prom_txs_u6m *</div><div class="bar-track"><div class="bar-fill" style="width:72%;background:var(--ibk)">34.9</div></div></div>
+    <div class="bar-row"><div class="bar-lab">edad_num</div><div class="bar-track"><div class="bar-fill" style="width:63%;background:var(--ibk-d)">30.3</div></div></div>
+    <div class="bar-row"><div class="bar-lab">max_dias_mora_castigo</div><div class="bar-track"><div class="bar-fill" style="width:27%;background:var(--ibk-d)">13.1</div></div></div>
+    <div class="bar-row"><div class="bar-lab">rk_ing_num (ingreso)</div><div class="bar-track"><div class="bar-fill" style="width:27%;background:var(--ibk-d)">13.0</div></div></div>
+    <div class="bar-row"><div class="bar-lab">monto_castigado_total</div><div class="bar-track"><div class="bar-fill" style="width:14%;background:#94b3ad">6.8</div></div></div>
+    </div>
+    <div class="note">* Los saldos pasivo/transaccional tienen <b>~60% de missing</b> (clientes sin ese producto) y están muy
+      correlacionados entre sí: su IV está inflado por el grupo missing. El árbol usa solo 1–2 de ellos, no todos.</div>
+  </section>
+
+  <!-- 5 SEGMENTOS CLAVE -->
+  <section class="slide">
+    <h2>Segmentos clave</h2>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>Tipo</th><th>Regla del segmento</th><th>n</th><th>%</th><th>Score</th><th>Q</th></tr></thead>
+      <tbody>
+        <tr><td>🟢 Mejor</td><td class="reg">puntuacion_cal_cat ≤ 2</td><td>3,655</td><td>0.2%</td><td>977</td><td><span class="pill" style="background:var(--g1)">G1</span></td></tr>
+        <tr><td>🟢</td><td class="reg">cat (2,4] · rk_ing &gt; 3,328 · saldo_txs_u3m &gt; 61</td><td>5,535</td><td>0.2%</td><td>920</td><td><span class="pill" style="background:var(--g1)">G1</span></td></tr>
+        <tr><td>🟢</td><td class="reg">cat (4,4] · max_dias_mora &gt; 3,192 · rk_ing ≤ 3,328</td><td>31,235</td><td>1.4%</td><td>906</td><td><span class="pill" style="background:var(--g1)">G1</span></td></tr>
+        <tr><td>🟢</td><td class="reg">cat (4,6] · deuda_cas &gt; 156 · nro_entidades ≤ 2</td><td>38,025</td><td>1.7%</td><td>866</td><td><span class="pill" style="background:var(--g1)">G1</span></td></tr>
+        <tr><td>🟡 Medio</td><td class="reg">cat &gt; 6 · edad &gt; 66 · max_dias_mora &gt; 2,534</td><td>80,248</td><td>3.5%</td><td>749</td><td><span class="pill" style="background:var(--g2);color:#1a3a16">G2</span></td></tr>
+        <tr><td>🟡</td><td class="reg">cat &gt; 6 · edad (54,60] · flg_far &gt; 4</td><td>116,825</td><td>5.1%</td><td>710</td><td><span class="pill" style="background:var(--g2);color:#1a3a16">G2</span></td></tr>
+        <tr><td>🟡</td><td class="reg">cat &gt; 6 · edad (50,54] · saldo_pasivo_u6m ≤ 67</td><td>152,030</td><td>6.7%</td><td>698</td><td><span class="pill" style="background:var(--g2);color:#1a3a16">G2</span></td></tr>
+        <tr><td>🟠 Grande</td><td class="reg">cat &gt; 6 · max_dias_mora ≤ 3,192 · edad ≤ 50</td><td>380,739</td><td>16.7%</td><td>693</td><td><span class="pill" style="background:var(--g4)">G4</span></td></tr>
+        <tr><td>🔴 Más grande</td><td class="reg">cat &gt; 6 · max_dias_mora &gt; 3,192 · edad 36–50 · saldo_comp ≤ 35</td><td>462,011</td><td>20.3%</td><td>664</td><td><span class="pill" style="background:var(--g5)">G5</span></td></tr>
+        <tr><td>🔴 Peor</td><td class="reg">cat &gt; 6 · mora &gt; 3,192 · meses_1er ≤ 20 · edad ≤ 28 · saldo_txs ≤ 3</td><td>18,127</td><td>0.8%</td><td>584</td><td><span class="pill" style="background:var(--g5)">G5</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="sub" style="margin-top:14px">Los dos segmentos más grandes (37% de la base) viven en cat &gt; 6 + edad joven + mora alta → score 664–693.</p>
+  </section>
+
+  <!-- 6 LECTURAS -->
+  <section class="slide">
+    <h2>Lecturas y recomendaciones</h2>
+    <div class="two">
+      <div class="card">
+        <h3 style="color:var(--ibk-d);margin-bottom:10px">Hallazgos</h3>
+        <ul>
+          <li>La <b>categoría de score</b> domina: cat ≤ 4 ≈ score alto; cat &gt; 6 concentra el riesgo.</li>
+          <li>Dentro del riesgo, <b>edad</b> y <b>días de mora del castigo</b> ordenan finamente.</li>
+          <li>El <b>ingreso (rk_ing)</b> y los <b>saldos pasivo</b> rescatan buenos clientes dentro de categorías medias.</li>
+          <li>Solo <b>20.5%</b> cumple apetito (score ≥ 730): foco de leads.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--ibk-d);margin-bottom:10px">Cuidados metodológicos</h3>
+        <ul>
+          <li>Saldos pasivo/txs con <b>~60% missing</b> e IV correlacionado: interpretar con cautela.</li>
+          <li>El target es un <b>score</b>, no default observado → validar contra RD real cuando exista.</li>
+          <li>Sin <b>OOT</b>: confirmar estabilidad de los segmentos en un periodo posterior.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="counter" id="counter"></div>
+<div class="foot">Escenario Global · Desagregación de riesgo</div>
+<div class="nav">
+  <button onclick="go(-1)">‹</button>
+  <div class="dots" id="dots"></div>
+  <button onclick="go(1)">›</button>
+</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  const dots=document.getElementById('dots');
+  let i=0;
+  slides.forEach((_,k)=>{const d=document.createElement('div');d.className='dot'+(k===0?' on':'');
+    d.onclick=()=>show(k);dots.appendChild(d);});
+  function show(k){i=(k+slides.length)%slides.length;
+    slides.forEach((s,n)=>s.classList.toggle('active',n===i));
+    [...dots.children].forEach((d,n)=>d.classList.toggle('on',n===i));
+    document.getElementById('counter').textContent=(i+1)+' / '+slides.length;}
+  function go(d){show(i+d);}
+  document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')go(1);if(e.key==='ArrowLeft')go(-1);});
+  show(0);
+</script>
+</body>
+</html>
