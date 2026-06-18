@@ -1,0 +1,65 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resumen de riesgo — Escenario Global</title>
+<style>
+ *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Roboto,Arial,sans-serif}
+ body{background:#f4f7f6;color:#10241f;padding:30px 8vw 60px}
+ h1{color:#007a72;font-size:30px} .sub{color:#5b6f6a;margin:6px 0 24px;font-size:16px}
+ .flow{display:flex;align-items:center;gap:10px;margin-bottom:24px;font-size:14px;color:#5b6f6a}
+ .flow .ar{flex:1;height:10px;border-radius:6px;background:linear-gradient(90deg,#1a9850,#ffffbf,#d73027)}
+ .card{background:#fff;border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 4px 14px #0000000f}
+ .hd{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+ .q{color:#10241f;font-weight:800;border-radius:8px;padding:4px 12px;font-size:16px;margin-right:10px}
+ .tit{font-size:20px;font-weight:700;color:#23433c}
+ .kpi{font-size:15px;color:#33514a}
+ .perfil{margin:12px 0 14px;font-size:15.5px;line-height:1.55;color:#2c463f;background:#f1f7f5;padding:10px 14px;border-radius:8px}
+ table{width:100%;border-collapse:collapse;font-size:13.5px}
+ th{text-align:left;color:#5b6f6a;font-weight:600;border-bottom:2px solid #e6efec;padding:6px 8px}
+ td{padding:6px 8px;border-bottom:1px solid #f0f4f3}
+ .rg{font-family:Consolas,monospace;font-size:12px;color:#33514a}
+</style></head><body>
+ <h1>Mapa de riesgo — Escenario Global</h1>
+ <div class="sub">2.28 M clientes · 74 segmentos · objetivo = score · ordenado de <b>menor</b> a <b>mayor</b> riesgo</div>
+ <div class="flow"><span>menor riesgo</span><span class="ar"></span><span>mayor riesgo</span></div>
+ 
+    <div class="card" style="border-left:10px solid #80c681">
+      <div class="hd">
+        <div><span class="q" style="background:#80c681">G1</span>
+          <span class="tit">Riesgo MUY BAJO</span></div>
+        <div class="kpi"><b>311,152</b> clientes · <b>13.6%</b> · score 864–978</div>
+      </div>
+      <div class="perfil">Categoría de score buena (cat ≤ 5). Mejores clientes: mayor categoría, suelen tener más ingreso y edad.</div>
+      <table><thead><tr><th>Segmentos más grandes</th><th>n</th><th>%</th><th>score</th></tr></thead>
+        <tbody><tr><td class="rg">edad <= 54 · pasivo_u6m <= 67 · cat_score (4, 6] · seg_gdp <= 4</td><td>40,407</td><td>1.8%</td><td><b style="color:#9ad18e">867</b></td></tr><tr><td class="rg">deuda_cas > 156 · nro_ent_cast <= 2 · pasivo_u6m <= 67 · cat_score (4, 6] · seg_gdp > 4</td><td>38,025</td><td>1.7%</td><td><b style="color:#9cd28f">866</b></td></tr><tr><td class="rg">dias_mora > 3,192 · ingreso(rk) <= 3,328 · pasivo_u3m <= 267 · cat_score (4, 4]</td><td>31,235</td><td>1.4%</td><td><b style="color:#6cbd78">906</b></td></tr></tbody></table>
+    </div>
+    <div class="card" style="border-left:10px solid #f2c090">
+      <div class="hd">
+        <div><span class="q" style="background:#f2c090">G2</span>
+          <span class="tit">Riesgo BAJO</span></div>
+        <div class="kpi"><b>628,144</b> clientes · <b>27.5%</b> · score 678–785</div>
+      </div>
+      <div class="perfil">Categoría de score 6 PERO rescatados por edad alta (&gt;54) o pocos días de mora del castigo.</div>
+      <table><thead><tr><th>Segmentos más grandes</th><th>n</th><th>%</th><th>score</th></tr></thead>
+        <tbody><tr><td class="rg">edad (50, 54] · pasivo_u6m <= 67 · cat_score > 6</td><td>152,030</td><td>6.7%</td><td><b style="color:#eea87f">698</b></td></tr><tr><td class="rg">deuda_cas > 156 · edad (54, 60] · cat_score > 6 · seg_gdp > 4</td><td>116,825</td><td>5.1%</td><td><b style="color:#f0b488">710</b></td></tr><tr><td class="rg">deuda_cas > 156 · dias_mora > 2,534 · edad (60, 66] · ingreso(rk) <= 3,072 · txs_prom_u3m <= 91 · cat_score > 6</td><td>90,873</td><td>4.0%</td><td><b style="color:#f3c393">724</b></td></tr></tbody></table>
+    </div>
+    <div class="card" style="border-left:10px solid #ec9e78">
+      <div class="hd">
+        <div><span class="q" style="background:#ec9e78">G4</span>
+          <span class="tit">Riesgo MEDIO</span></div>
+        <div class="kpi"><b>488,632</b> clientes · <b>21.4%</b> · score 674–693</div>
+      </div>
+      <div class="perfil">Categoría 6, edad ≤ 50 y mora del castigo moderada (≤ 3,192 días). Zona de frontera.</div>
+      <table><thead><tr><th>Segmentos más grandes</th><th>n</th><th>%</th><th>score</th></tr></thead>
+        <tbody><tr><td class="rg">nro_ent_cast <= 2 · dias_mora <= 3,192 · edad <= 50 · cat_score > 6</td><td>380,739</td><td>16.7%</td><td><b style="color:#eda27b">693</b></td></tr><tr><td class="rg">nro_ent_cast > 2 · dias_mora <= 3,192 · edad <= 50 · pasivo_comp <= 35 · cat_score > 6 · flg_far <= 0</td><td>83,624</td><td>3.7%</td><td><b style="color:#e98e6c">674</b></td></tr><tr><td class="rg">nro_ent_cast > 2 · dias_mora <= 3,192 · edad <= 50 · cat_score > 6 · flg_far > 0</td><td>24,269</td><td>1.1%</td><td><b style="color:#eb9773">683</b></td></tr></tbody></table>
+    </div>
+    <div class="card" style="border-left:10px solid #e5795c">
+      <div class="hd">
+        <div><span class="q" style="background:#e5795c">G5</span>
+          <span class="tit">Riesgo ALTO</span></div>
+        <div class="kpi"><b>852,747</b> clientes · <b>37.4%</b> · score 584–669</div>
+      </div>
+      <div class="perfil">Categoría 6 + mora alta (&gt; 3,192 días) + clientes jóvenes. Núcleo del riesgo.</div>
+      <table><thead><tr><th>Segmentos más grandes</th><th>n</th><th>%</th><th>score</th></tr></thead>
+        <tbody><tr><td class="rg">dias_mora > 3,192 · meses_1er_cast > 20 · edad (36, 50] · pasivo_comp <= 35 · cat_score > 6</td><td>462,011</td><td>20.3%</td><td><b style="color:#e78364">664</b></td></tr><tr><td class="rg">dias_mora > 4,090 · meses_1er_cast > 20 · edad (32, 36] · ingreso(rk) > 1,382 · cat_score > 6</td><td>96,843</td><td>4.2%</td><td><b style="color:#e47459">649</b></td></tr><tr><td class="rg">dias_mora > 3,192 · meses_1er_cast > 20 · edad (36, 50] · pasivo_comp > 35 · cat_score > 6</td><td>51,046</td><td>2.2%</td><td><b style="color:#e88968">669</b></td></tr></tbody></table>
+    </div>
+</body></html>
