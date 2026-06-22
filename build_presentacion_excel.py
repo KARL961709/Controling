@@ -21,12 +21,21 @@ import pandas as pd
 import matplotlib.cm as cm
 
 # ====================== CONFIG ======================
-EXCEL_IN  = "segmentacion_score.xlsx"      # tu Excel (una hoja por escenario)
+# Lista de escenarios. Cada uno: (ruta_excel, "Nombre a mostrar"[, hoja])
+#   - hoja (opcional): nombre de hoja o índice 0-based. Si se omite, el generador
+#     busca automáticamente la 1ra hoja que tenga el "CUADRO DEL ÁRBOL COMPLETO"
+#     (ignorando Índice/Estrategia/Leads), que normalmente es la 2da hoja.
+ESCENARIOS = [
+    ("segmentacion_score.xlsx", "Global (toda la base)"),
+    # ("segmentacion_24m.xlsx", "≤ 24 meses"),
+    # ("segmentacion_60m.xlsx", "≥ 60 meses"),
+    # ("otro.xlsx", "Mi escenario", 1),     # 1 = segunda hoja (0-based)
+]
 HTML_OUT  = "presentacion_segmentacion.html"
 TITULO    = "Segmentación de riesgo — Escenarios"
 OBJETIVO  = "SCORE"                        # "SCORE" (mayor=menor riesgo) | "RD" (mayor=mayor riesgo)
 APETITO   = 730                            # umbral base (730 score | 0.02 RD)
-# hojas que NO son escenarios (se ignoran)
+# hojas que NO son escenarios (se ignoran al autobuscar el cuadro)
 SKIP = {"índice", "indice", "estrategia", "leads"}
 # título del bloque a buscar en cada hoja
 TITULO_CUADRO = "CUADRO DEL ÁRBOL COMPLETO"
@@ -154,6 +163,31 @@ def leer_hoja(df):
         leaves.append(dict(conds=conds, regla=regla, n=n, score=score, pct=pct, quint=quint))
         r += 1
     return leaves if leaves else None
+
+
+def leer_excel(ruta, hoja=None):
+    """Abre un .xlsx y devuelve las leaves del 'CUADRO DEL ÁRBOL COMPLETO'.
+    - hoja=None  -> busca la 1ra hoja (no SKIP) que tenga el cuadro.
+    - hoja=int   -> usa esa hoja por índice 0-based.
+    - hoja=str   -> usa esa hoja por nombre.
+    """
+    libro = pd.read_excel(ruta, sheet_name=None, header=None)
+    if hoja is not None:
+        if isinstance(hoja, int):
+            nombres = list(libro.keys())
+            if hoja >= len(nombres):
+                return None
+            df = libro[nombres[hoja]]
+        else:
+            df = libro.get(hoja)
+        return leer_hoja(df) if df is not None else None
+    for nombre_h, df in libro.items():
+        if str(nombre_h).strip().lower() in SKIP:
+            continue
+        lv = leer_hoja(df)
+        if lv:
+            return lv
+    return None
 
 
 # ---------- 2) reconstruir árbol desde las reglas ----------
@@ -337,19 +371,17 @@ def kpis_quintil(leaves, total):
 
 
 def main():
-    try:
-        hojas = pd.read_excel(EXCEL_IN, sheet_name=None, header=None)
-    except Exception as e:
-        print(f"ERROR leyendo {EXCEL_IN}: {e}")
-        sys.exit(1)
-
     escenarios = []
-    for nombre, df in hojas.items():
-        if nombre.strip().lower() in SKIP:
+    for item in ESCENARIOS:
+        ruta, nombre = item[0], item[1]
+        hoja = item[2] if len(item) > 2 else None
+        try:
+            leaves = leer_excel(ruta, hoja)
+        except Exception as e:
+            print(f"  [error] {ruta} ({nombre}): {e}")
             continue
-        leaves = leer_hoja(df)
         if not leaves:
-            print(f"  [skip] '{nombre}': no se encontró el cuadro del árbol")
+            print(f"  [skip] {ruta} ({nombre}): no se encontró el cuadro del árbol")
             continue
         total = sum(lf["n"] for lf in leaves)
         scores = [lf["score"] for lf in leaves]
