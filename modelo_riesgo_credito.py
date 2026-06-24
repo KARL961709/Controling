@@ -70,8 +70,11 @@ def _try(modname: str):
 
 optbinning = _try("optbinning")
 lightgbm = _try("lightgbm")
+xgboost = _try("xgboost")
+catboost = _try("catboost")
 optuna = _try("optuna")
 shap = _try("shap")
+mpl = _try("matplotlib")
 
 RANDOM_STATE = 42
 np.random.seed(RANDOM_STATE)
@@ -114,6 +117,35 @@ class Config:
     n_features_max: int = 25                    # tope de variables en el modelo final
     optuna_trials: int = 40                     # iteraciones de optimizacion bayesiana
     cv_folds: int = 5                           # validacion cruzada temporal
+
+    # --- GBM challengers + control de over/under-fitting ---
+    gbm_models: Tuple[str, ...] = ("lightgbm", "xgboost", "catboost")
+    overfit_tol: float = 0.02                   # gap AUC(train)-AUC(val) tolerado
+    overfit_penalty: float = 1.0                # peso del castigo al gap (anti-overfit)
+
+    # --- calibracion ---
+    # SOLO se calibra si el EC del modelo supera este umbral (ya calibrado -> no se toca)
+    ec_calibration_threshold: float = 0.05
+    calibration_method: str = "isotonic"        # 'isotonic' | 'sigmoid' (Platt)
+
+    # --- explicabilidad SHAP ---
+    shap_max_features: int = 20                 # nro de variables a graficar
+    shap_sample: int = 5000                     # muestra para SHAP (coste)
+
+    # --- diccionario de variables (categoricas ya intuidas del dataset) ---
+    known_categoricals: Tuple[str, ...] = (
+        "desc_grupo_carrera",
+        "far_rubro_top2_frec_name_3m", "far_rubro_top1_monto_name_6m",
+        "far_rubro_top3_monto_name_6m", "far_rubro_top2_monto_name_3m",
+        "far_rubrofrec_9m", "spsa_rubro_top3_frec_name_9m",
+        "far_rubro_top2_monto_name_6m", "spsa_rubro_top2_frec_name_12m",
+        "far_rubro_top2_monto_name_9m", "far_rubro_top3_frec_name_1m",
+        "far_rubro_top1_monto_name_6m",
+    )
+    # flags / ordinales de baja cardinalidad que conviene tratar como categoricas
+    flag_cols: Tuple[str, ...] = (
+        "flag_bancarizado", "flg_clasi_dif_nor_1m", "lvl_edu_poten_open",
+    )
 
     # --- gobierno ---
     random_state: int = RANDOM_STATE
@@ -280,20 +312,26 @@ def split_train_oot(cfg: Config, df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
 
 
 def classify_features(cfg: Config, df: pd.DataFrame) -> Tuple[List[str], List[str]]:
-    """Separa features numericas vs categoricas, excluyendo blacklist y leakage."""
+    """Separa features numericas vs categoricas, excluyendo blacklist y leakage.
+    Usa el DICCIONARIO de categoricas conocidas (cfg.known_categoricals + flag_cols):
+    fuerza a categorica aunque vengan codificadas como numero (p.ej. flags/ordinales)."""
     bl = cfg.feature_blacklist()
     feats = [c for c in df.columns if c not in bl]
+    forced_cat = set(cfg.known_categoricals) | set(cfg.flag_cols)
     num, cat = [], []
     for c in feats:
-        if pd.api.types.is_numeric_dtype(df[c]):
-            num.append(c)
-        else:
-            if df[c].nunique(dropna=True) <= cfg.max_card_categorical:
+        is_forced = c in forced_cat
+        is_obj = not pd.api.types.is_numeric_dtype(df[c])
+        if is_forced or is_obj:
+            card = df[c].nunique(dropna=True)
+            if card <= cfg.max_card_categorical:
                 cat.append(c)
             else:
-                log.warning("  descartada por alta cardinalidad: %s (%d niveles)",
-                            c, df[c].nunique())
-    log.info("Features candidatas: %d numericas, %d categoricas", len(num), len(cat))
+                log.warning("  descartada por alta cardinalidad: %s (%d niveles)", c, card)
+        else:
+            num.append(c)
+    log.info("Features candidatas: %d numericas, %d categoricas (forzadas por diccionario: %d)",
+             len(num), len(cat), len(forced_cat & set(cat)))
     return num, cat
 
 
@@ -464,11 +502,15 @@ def filter_vif(cfg: Config, woe: pd.DataFrame) -> List[str]:
 
 
 # =============================================================================
-# 6. MODELOS:  (A) Scorecard regulatorio (LR/WOE)   (B) LightGBM challenger
+# 6. MODELOS
+#    (A) Scorecard regulatorio (LR/WOE)
+#    (B) Challengers GBM: LightGBM + XGBoost + CatBoost
+#        - hiperparametros con REGULARIZACION (L1/L2, min_child, depth, subsample...)
+#        - objetivo Optuna ANTI-OVERFIT: AUC(val) penalizando el gap AUC(train)-AUC(val)
+#          => evita sobreajuste sin caer en underfitting (gap pequeno + AUC alta)
 # =============================================================================
 def fit_scorecard_lr(cfg: Config, woe_tr: pd.DataFrame, y_tr: pd.Series, features: List[str]):
-    """Regresion logistica L2 sobre WOE. Interpretable, trazable, regulatoria.
-    Selecciona signo coherente (todos los coef deben ser >=0 sobre WOE 'good')."""
+    """Regresion logistica L2 sobre WOE. Interpretable, trazable, regulatoria."""
     from sklearn.linear_model import LogisticRegression
     X = woe_tr[features].fillna(0.0)
     model = LogisticRegression(penalty="l2", C=1.0, max_iter=1000,
@@ -479,52 +521,148 @@ def fit_scorecard_lr(cfg: Config, woe_tr: pd.DataFrame, y_tr: pd.Series, feature
     return model, coef
 
 
-def optimize_lightgbm(cfg: Config, X_tr, y_tr, X_va, y_va):
-    """Optimizacion bayesiana (Optuna) con early stopping y AUC de validacion.
-    Si Optuna no esta, usa hiperparametros por defecto razonables."""
-    import lightgbm as lgb
+# ---------------------------------------------------------------------------
+# Preparacion de la matriz segun la libreria (manejo nativo de categoricas)
+# ---------------------------------------------------------------------------
+def prepare_gbm_frame(model_type: str, X: pd.DataFrame, cat: List[str]) -> pd.DataFrame:
+    X = X.copy()
+    if model_type in ("lightgbm", "xgboost"):
+        # ambos aceptan dtype 'category' (xgboost con enable_categorical=True)
+        for c in cat:
+            X[c] = X[c].astype("category")
+    elif model_type == "catboost":
+        # CatBoost no admite NaN en categoricas: relleno y fuerzo str
+        for c in cat:
+            X[c] = X[c].astype("object").where(X[c].notna(), "__NA__").astype(str)
+    return X
 
-    def _params(trial=None):
-        if trial is None:
-            return dict(objective="binary", metric="auc", n_estimators=2000,
-                        learning_rate=0.03, num_leaves=31, max_depth=-1,
-                        min_child_samples=100, subsample=0.8, colsample_bytree=0.8,
-                        reg_alpha=0.0, reg_lambda=1.0, random_state=cfg.random_state,
-                        n_jobs=-1, verbose=-1)
+
+def gbm_predict(model_type: str, model, X: pd.DataFrame) -> np.ndarray:
+    return model.predict_proba(X)[:, 1]
+
+
+def _overfit_score(cfg: Config, y_tr, p_tr, y_va, p_va) -> float:
+    """AUC(val) penalizando el exceso de gap respecto a train.
+    score = AUC_val - penalty * max(0, (AUC_tr - AUC_val) - tol).
+    Premia generalizacion (gap chico) sin sacrificar discriminacion."""
+    a_tr = _safe_auc(np.asarray(y_tr), np.asarray(p_tr))
+    a_va = _safe_auc(np.asarray(y_va), np.asarray(p_va))
+    if np.isnan(a_tr) or np.isnan(a_va):
+        return -1.0
+    gap = max(0.0, (a_tr - a_va) - cfg.overfit_tol)
+    return a_va - cfg.overfit_penalty * gap
+
+
+def _space(model_type: str, trial, cfg: Config) -> dict:
+    """Espacios de busqueda REGULARIZADOS por libreria."""
+    rs = cfg.random_state
+    if model_type == "lightgbm":
         return dict(
-            objective="binary", metric="auc", n_estimators=3000,
+            objective="binary", metric="auc", n_estimators=4000,
             learning_rate=trial.suggest_float("learning_rate", 0.01, 0.1, log=True),
-            num_leaves=trial.suggest_int("num_leaves", 16, 128),
+            num_leaves=trial.suggest_int("num_leaves", 15, 63),          # acotado -> menos overfit
             max_depth=trial.suggest_int("max_depth", 3, 8),
             min_child_samples=trial.suggest_int("min_child_samples", 50, 500),
+            min_split_gain=trial.suggest_float("min_split_gain", 0.0, 0.5),
+            subsample=trial.suggest_float("subsample", 0.6, 1.0),
+            subsample_freq=1,
+            colsample_bytree=trial.suggest_float("colsample_bytree", 0.6, 1.0),
+            reg_alpha=trial.suggest_float("reg_alpha", 1e-3, 10.0, log=True),   # L1
+            reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 10.0, log=True), # L2
+            random_state=rs, n_jobs=-1, verbose=-1,
+        )
+    if model_type == "xgboost":
+        return dict(
+            objective="binary:logistic", eval_metric="auc", n_estimators=4000,
+            tree_method="hist", enable_categorical=True,
+            learning_rate=trial.suggest_float("learning_rate", 0.01, 0.1, log=True),
+            max_depth=trial.suggest_int("max_depth", 3, 8),
+            min_child_weight=trial.suggest_float("min_child_weight", 1.0, 300.0, log=True),
+            gamma=trial.suggest_float("gamma", 0.0, 5.0),                 # min loss reduction
             subsample=trial.suggest_float("subsample", 0.6, 1.0),
             colsample_bytree=trial.suggest_float("colsample_bytree", 0.6, 1.0),
             reg_alpha=trial.suggest_float("reg_alpha", 1e-3, 10.0, log=True),
             reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 10.0, log=True),
-            random_state=cfg.random_state, n_jobs=-1, verbose=-1,
+            random_state=rs, n_jobs=-1, verbosity=0,
         )
+    if model_type == "catboost":
+        return dict(
+            loss_function="Logloss", eval_metric="AUC", iterations=4000,
+            learning_rate=trial.suggest_float("learning_rate", 0.01, 0.1, log=True),
+            depth=trial.suggest_int("depth", 3, 8),
+            l2_leaf_reg=trial.suggest_float("l2_leaf_reg", 1.0, 30.0, log=True),  # L2
+            random_strength=trial.suggest_float("random_strength", 0.0, 2.0),
+            bagging_temperature=trial.suggest_float("bagging_temperature", 0.0, 1.0),
+            border_count=trial.suggest_int("border_count", 64, 254),
+            random_seed=rs, verbose=0, allow_writing_files=False,
+        )
+    raise ValueError(model_type)
 
-    cb = [lgb.early_stopping(100, verbose=False), lgb.log_evaluation(0)]
+
+def _default_space(model_type: str, cfg: Config) -> dict:
+    """Hiperparametros por defecto razonables (si Optuna no esta disponible)."""
+    class _T:  # trial dummy que devuelve el centro del rango
+        def suggest_float(self, n, a, b, log=False):
+            return (a * b) ** 0.5 if log else (a + b) / 2
+        def suggest_int(self, n, a, b):
+            return (a + b) // 2
+    return _space(model_type, _T(), cfg)
+
+
+def _fit_gbm(model_type: str, params: dict, Xtr, ytr, Xva, yva, cat: List[str]):
+    """Ajuste con EARLY STOPPING (controla nro de arboles -> anti-overfit)."""
+    if model_type == "lightgbm":
+        import lightgbm as lgb
+        m = lgb.LGBMClassifier(**params)
+        m.fit(Xtr, ytr, eval_set=[(Xva, yva)],
+              callbacks=[lgb.early_stopping(150, verbose=False), lgb.log_evaluation(0)])
+        return m
+    if model_type == "xgboost":
+        import xgboost as xgb
+        p = dict(params); p["early_stopping_rounds"] = 150
+        m = xgb.XGBClassifier(**p)
+        m.fit(Xtr, ytr, eval_set=[(Xva, yva)], verbose=False)
+        return m
+    if model_type == "catboost":
+        from catboost import CatBoostClassifier, Pool
+        cat_idx = [Xtr.columns.get_loc(c) for c in cat]
+        m = CatBoostClassifier(**params, od_type="Iter", od_wait=150, cat_features=cat_idx)
+        m.fit(Pool(Xtr, ytr, cat_features=cat_idx),
+              eval_set=Pool(Xva, yva, cat_features=cat_idx), use_best_model=True, verbose=0)
+        return m
+    raise ValueError(model_type)
+
+
+def optimize_gbm(cfg: Config, model_type: str, Xtr, ytr, Xva, yva, cat: List[str]):
+    """Optimizacion bayesiana anti-overfit para un GBM concreto.
+    Devuelve (modelo_ajustado, best_params)."""
+    Xtr = prepare_gbm_frame(model_type, Xtr, cat)
+    Xva = prepare_gbm_frame(model_type, Xva, cat)
 
     if optuna is None:
-        log.warning("Optuna no disponible -> LightGBM con hiperparametros por defecto")
-        m = lgb.LGBMClassifier(**_params())
-        m.fit(X_tr, y_tr, eval_set=[(X_va, y_va)], callbacks=cb)
-        return m, {}
+        log.warning("Optuna no disponible -> %s con hiperparametros por defecto", model_type)
+        params = _default_space(model_type, cfg)
+        return _fit_gbm(model_type, params, Xtr, ytr, Xva, yva, cat), {}
 
     def objective(trial):
-        m = lgb.LGBMClassifier(**_params(trial))
-        m.fit(X_tr, y_tr, eval_set=[(X_va, y_va)], callbacks=cb)
-        p = m.predict_proba(X_va)[:, 1]
-        return _safe_auc(y_va.values, p)
+        params = _space(model_type, trial, cfg)
+        m = _fit_gbm(model_type, params, Xtr, ytr, Xva, yva, cat)
+        p_tr = gbm_predict(model_type, m, Xtr)
+        p_va = gbm_predict(model_type, m, Xva)
+        return _overfit_score(cfg, ytr, p_tr, yva, p_va)
 
     study = optuna.create_study(direction="maximize",
                                 sampler=optuna.samplers.TPESampler(seed=cfg.random_state))
     study.optimize(objective, n_trials=cfg.optuna_trials, show_progress_bar=False)
-    log.info("Optuna best AUC(val)=%.4f", study.best_value)
-    best = lgb.LGBMClassifier(**_params(study.best_trial))
-    best.fit(X_tr, y_tr, eval_set=[(X_va, y_va)], callbacks=cb)
-    return best, study.best_params
+    best_params = _space(model_type, study.best_trial, cfg)
+    best = _fit_gbm(model_type, best_params, Xtr, ytr, Xva, yva, cat)
+    p_tr = gbm_predict(model_type, best, Xtr)
+    p_va = gbm_predict(model_type, best, Xva)
+    log.info("%-9s | score=%.4f | AUC_tr=%.4f AUC_val=%.4f (gap=%.4f)",
+             model_type, study.best_value, _safe_auc(ytr.values, p_tr),
+             _safe_auc(yva.values, p_va),
+             _safe_auc(ytr.values, p_tr) - _safe_auc(yva.values, p_va))
+    return best, study.best_trial.params
 
 
 # =============================================================================
@@ -551,6 +689,22 @@ def calibrate(cfg: Config, p_tr: np.ndarray, y_tr: np.ndarray,
         return _f
 
 
+def maybe_calibrate(cfg: Config, p_tr: np.ndarray, y_tr: np.ndarray,
+                    p_dict: Dict[str, np.ndarray]) -> Tuple[Dict[str, np.ndarray], float, bool]:
+    """Aplica calibracion SOLO si el EC del modelo (in-sample) supera el umbral.
+    Si EC <= umbral => el modelo ya esta bien calibrado y NO se toca (evita
+    introducir varianza/ruido innecesario). Devuelve (preds, ec, aplicada)."""
+    ec = ec_calibration(y_tr, p_tr)
+    if ec is None or np.isnan(ec) or ec <= cfg.ec_calibration_threshold:
+        log.info("Calibracion OMITIDA (EC=%.4f <= %.2f): el modelo ya esta calibrado",
+                 ec if ec is not None else float("nan"), cfg.ec_calibration_threshold)
+        return p_dict, ec, False
+    log.info("Calibracion APLICADA (EC=%.4f > %.2f) | metodo=%s",
+             ec, cfg.ec_calibration_threshold, cfg.calibration_method)
+    cal = calibrate(cfg, p_tr, y_tr, cfg.calibration_method)
+    return {k: cal(v) for k, v in p_dict.items()}, ec, True
+
+
 # =============================================================================
 # 8. ESTABILIDAD TEMPORAL DEL SCORE (PSI/CSI por periodo) y por segmento
 # =============================================================================
@@ -568,26 +722,102 @@ def stability_by_period(cfg: Config, df: pd.DataFrame, p: np.ndarray,
 
 
 # =============================================================================
-# 9. EXPLICABILIDAD (TreeSHAP) + importancia por permutacion
+# 9. EXPLICABILIDAD — SHAP dependence plots
+#    Por feature (en TRAIN):  eje X = valor de la variable (original o WOE),
+#    eje Y = valor SHAP, y una LINEA que une el PROMEDIO de SHAP por
+#    categoria/valor (por valor exacto cuando es WOE/categorica; por bin si es
+#    continua original). Para variables ORIGINALES se usa el GBM (TreeSHAP);
+#    para variables en WOE se usa el scorecard LR (LinearSHAP).
 # =============================================================================
-def explain(cfg: Config, model, X_sample: pd.DataFrame, outdir: str):
-    if shap is None:
-        log.warning("shap no disponible -> se omite explicabilidad SHAP")
-        return None
-    try:
+def _shap_values(model, X: pd.DataFrame, kind: str):
+    """Devuelve la matriz de SHAP (clase positiva) para tree o linear."""
+    if kind == "tree":
         explainer = shap.TreeExplainer(model)
-        sv = explainer.shap_values(X_sample)
-        vals = sv[1] if isinstance(sv, list) else sv
-        imp = pd.DataFrame({
-            "feature": X_sample.columns,
-            "mean_abs_shap": np.abs(vals).mean(axis=0),
-        }).sort_values("mean_abs_shap", ascending=False)
-        imp.to_csv(os.path.join(outdir, "shap_importance.csv"), index=False)
-        log.info("SHAP top-10:\n%s", imp.head(10).to_string(index=False))
-        return imp
-    except Exception as e:
-        log.warning("SHAP fallo: %s", e)
+        sv = explainer.shap_values(X)
+        return sv[1] if isinstance(sv, list) else sv
+    # linear (LR sobre WOE): background = la propia muestra
+    explainer = shap.LinearExplainer(model, X)
+    sv = explainer.shap_values(X)
+    return sv[1] if isinstance(sv, list) else sv
+
+
+def shap_dependence_plots(cfg: Config, model, X: pd.DataFrame, outdir: str,
+                          tag: str, kind: str = "tree", is_woe: bool = False):
+    """Genera un PNG por variable con scatter(valor, SHAP) + linea de SHAP medio.
+    - is_woe / categorica / baja cardinalidad -> linea por VALOR EXACTO.
+    - continua original                       -> linea por BIN (decil)."""
+    if shap is None:
+        log.warning("shap no disponible -> se omiten dependence plots (%s)", tag)
         return None
+    if mpl is None:
+        log.warning("matplotlib no disponible -> se omiten dependence plots (%s)", tag)
+        return None
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    try:
+        vals = _shap_values(model, X, kind)
+    except Exception as e:
+        log.warning("SHAP fallo (%s): %s", tag, e)
+        return None
+
+    imp = pd.DataFrame({"feature": X.columns,
+                        "mean_abs_shap": np.abs(vals).mean(axis=0)}
+                       ).sort_values("mean_abs_shap", ascending=False)
+    imp.to_csv(os.path.join(outdir, f"shap_importance_{tag}.csv"), index=False)
+
+    plot_dir = os.path.join(outdir, f"shap_dependence_{tag}")
+    os.makedirs(plot_dir, exist_ok=True)
+    top = imp.head(cfg.shap_max_features)["feature"].tolist()
+
+    for col in top:
+        j = X.columns.get_loc(col)
+        x_raw = X[col]
+        s = vals[:, j]
+        d = pd.DataFrame({"x": x_raw.values, "shap": s})
+
+        numeric = pd.api.types.is_numeric_dtype(x_raw)
+        discrete = is_woe or (not numeric) or (d["x"].nunique(dropna=True) <= 25)
+
+        fig, ax = plt.subplots(figsize=(7.2, 4.2))
+        if discrete:
+            # posiciones ordenadas por valor (o por categoria)
+            order = (sorted(d["x"].dropna().unique())
+                     if numeric else list(pd.Series(d["x"].dropna().unique()).astype(str)))
+            pos = {v: i for i, v in enumerate(order)}
+            xk = (d["x"] if numeric else d["x"].astype(str))
+            xpos = xk.map(pos).astype(float).values
+            jitter = (np.random.rand(len(xpos)) - 0.5) * 0.15
+            ax.scatter(xpos + jitter, d["shap"], s=7, alpha=0.25, color="#4C72B0")
+            # LINEA: SHAP promedio por valor/categoria exacto
+            means = d.assign(_k=xk).groupby("_k", observed=True)["shap"].mean().reindex(order)
+            ax.plot([pos[v] for v in order], means.values, color="#C44E52",
+                    marker="o", lw=2, label="SHAP promedio por valor/categoria")
+            ax.set_xticks(range(len(order)))
+            ax.set_xticklabels([str(v) for v in order], rotation=45, ha="right", fontsize=7)
+        else:
+            ax.scatter(d["x"], d["shap"], s=7, alpha=0.25, color="#4C72B0")
+            # LINEA: SHAP promedio por bin (decil) para variable continua original
+            d["bin"] = pd.qcut(d["x"], 10, duplicates="drop")
+            g = d.groupby("bin", observed=True)["shap"].mean()
+            centers = [iv.mid for iv in g.index]
+            ax.plot(centers, g.values, color="#C44E52", marker="o", lw=2,
+                    label="SHAP promedio por bin")
+
+        ax.axhline(0.0, color="gray", lw=0.8, ls="--")
+        xlabel = f"{col}  ({'WOE' if is_woe else 'valor original'})"
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel("valor SHAP")
+        ax.set_title(f"Dependence SHAP — {col} [{tag}]", fontsize=10)
+        ax.legend(fontsize=8, loc="best")
+        fig.tight_layout()
+        fname = os.path.join(plot_dir, f"{col}.png")
+        fig.savefig(fname, dpi=110)
+        plt.close(fig)
+
+    log.info("SHAP dependence (%s): %d graficos en %s", tag, len(top), plot_dir)
+    return imp
 
 
 # =============================================================================
@@ -671,41 +901,44 @@ def run(cfg: Config):
         "oot": lr_model.predict_proba(woe_oo.fillna(0))[:, 1],
     }
 
-    # --- 5B. challenger GBM (sobre features crudas; LightGBM maneja NA y no-lineal) ---
-    p_gbm = None
-    if lightgbm is not None:
-        Xtr = train[num + cat].copy()
-        Xte = test[num + cat].copy()
-        Xoo = oot[num + cat].copy()
-        for c in cat:  # LightGBM requiere category dtype
-            for X in (Xtr, Xte, Xoo):
-                X[c] = X[c].astype("category")
-        gbm, best_params = optimize_lightgbm(cfg, Xtr, y_tr, Xte, test[cfg.target])
-        json.dump(best_params, open(os.path.join(cfg.out_dir, "lgbm_best_params.json"), "w"),
+    # --- 5B. challengers GBM: LightGBM + XGBoost + CatBoost (features crudas) ---
+    avail = {"lightgbm": lightgbm, "xgboost": xgboost, "catboost": catboost}
+    Xtr, Xte, Xoo = train[num + cat], test[num + cat], oot[num + cat]
+    y_te = test[cfg.target]
+    gbm_models: Dict[str, object] = {}
+    gbm_preds: Dict[str, Dict[str, np.ndarray]] = {}
+    for mt in cfg.gbm_models:
+        if avail.get(mt) is None:
+            log.warning("%s no disponible -> challenger omitido", mt)
+            continue
+        log.info("--- Optimizando %s (anti-overfit, %d trials) ---", mt, cfg.optuna_trials)
+        model, best_params = optimize_gbm(cfg, mt, Xtr, y_tr, Xte, y_te, cat)
+        json.dump(best_params, open(os.path.join(cfg.out_dir, f"{mt}_best_params.json"), "w"),
                   indent=2, default=str)
-        p_gbm = {
-            "train": gbm.predict_proba(Xtr)[:, 1],
-            "test": gbm.predict_proba(Xte)[:, 1],
-            "oot": gbm.predict_proba(Xoo)[:, 1],
+        gbm_models[mt] = model
+        gbm_preds[mt] = {
+            part: gbm_predict(mt, model, prepare_gbm_frame(mt, X, cat))
+            for part, X in [("train", Xtr), ("test", Xte), ("oot", Xoo)]
         }
-        explain(cfg, gbm, Xte.sample(min(5000, len(Xte)), random_state=cfg.random_state),
-                cfg.out_dir)
-    else:
-        log.warning("LightGBM no disponible -> challenger GBM omitido")
 
-    # --- 6. calibracion (entrenada en train, aplicada a test/oot) ---
-    cal_lr = calibrate(cfg, p_lr["train"], y_tr.values, "isotonic")
-    p_lr_cal = {k: cal_lr(v) for k, v in p_lr.items()}
-    preds_by_part = {
-        "train": {"LR/WOE (raw)": p_lr["train"], "LR/WOE (cal)": p_lr_cal["train"]},
-        "test":  {"LR/WOE (raw)": p_lr["test"],  "LR/WOE (cal)": p_lr_cal["test"]},
-        "oot":   {"LR/WOE (raw)": p_lr["oot"],   "LR/WOE (cal)": p_lr_cal["oot"]},
-    }
-    if p_gbm is not None:
-        cal_gbm = calibrate(cfg, p_gbm["train"], y_tr.values, "isotonic")
-        for k in preds_by_part:
-            preds_by_part[k]["LightGBM (raw)"] = p_gbm[k]
-            preds_by_part[k]["LightGBM (cal)"] = cal_gbm(p_gbm[k])
+    # --- 6. calibracion CONDICIONAL (solo si EC del modelo > umbral=0.05) ---
+    preds_by_part = {"train": {}, "test": {}, "oot": {}}
+    cal_report = []
+
+    # 6.1 scorecard LR
+    p_lr_cal, ec_lr, applied_lr = maybe_calibrate(cfg, p_lr["train"], y_tr.values, p_lr)
+    cal_report.append({"modelo": "LR/WOE", "EC_train": ec_lr, "calibrado": applied_lr})
+    for part in preds_by_part:
+        preds_by_part[part]["LR/WOE"] = p_lr_cal[part]
+
+    # 6.2 cada GBM
+    for mt, preds in gbm_preds.items():
+        preds_cal, ec, applied = maybe_calibrate(cfg, preds["train"], y_tr.values, preds)
+        cal_report.append({"modelo": mt, "EC_train": ec, "calibrado": applied})
+        for part in preds_by_part:
+            preds_by_part[part][mt] = preds_cal[part]
+    pd.DataFrame(cal_report).to_csv(
+        os.path.join(cfg.out_dir, "reporte_calibracion.csv"), index=False)
 
     # --- 7. tabla de decision champion vs challenger ---
     bench = benchmark_table(cfg, parts, preds_by_part)
@@ -714,24 +947,46 @@ def run(cfg: Config):
     log.info("\n%s\nTABLA DE DECISION (foco en OOT):\n%s",
              "-" * 70, bench[bench["particion"] == "oot"].to_string(index=False))
 
-    # --- 8. estabilidad temporal del mejor challenger en OOT ---
-    if p_gbm is not None:
-        best_oot = preds_by_part["oot"]["LightGBM (cal)"]
-        full = pd.concat([train, test, oot])
-        full_p = np.concatenate([cal_gbm(p_gbm["train"]), cal_gbm(p_gbm["test"]), best_oot])
+    # --- 8. explicabilidad SHAP (en TRAIN, muestra) ---
+    #   (a) variables ORIGINALES: mejor GBM por Gini OOT (TreeSHAP)
+    #   (b) variables en WOE:      scorecard LR (LinearSHAP)
+    n_smp = min(cfg.shap_sample, len(Xtr))
+    smp_idx = Xtr.sample(n_smp, random_state=cfg.random_state).index
+    if gbm_models:
+        oot_gini = {mt: gini(oot[cfg.target].values, gbm_preds[mt]["oot"])
+                    for mt in gbm_models}
+        best_mt = max(oot_gini, key=oot_gini.get)
+        log.info("Mejor GBM por Gini OOT: %s (%.4f)", best_mt, oot_gini[best_mt])
+        shap_dependence_plots(
+            cfg, gbm_models[best_mt],
+            prepare_gbm_frame(best_mt, Xtr.loc[smp_idx], cat),
+            cfg.out_dir, tag=f"original_{best_mt}", kind="tree", is_woe=False)
+    shap_dependence_plots(
+        cfg, lr_model, woe_tr.loc[smp_idx].fillna(0.0),
+        cfg.out_dir, tag="woe_scorecard", kind="linear", is_woe=True)
+
+    # --- 9. estabilidad temporal del mejor challenger en OOT ---
+    if gbm_models:
+        full = pd.concat([train, test, oot]).reset_index(drop=True)
+        full_p = np.concatenate([preds_by_part["train"][best_mt],
+                                 preds_by_part["test"][best_mt],
+                                 preds_by_part["oot"][best_mt]])
         ref_mask = np.array([True] * len(train) + [False] * (len(test) + len(oot)))
-        stab = stability_by_period(cfg, full.reset_index(drop=True), full_p, ref_mask)
+        stab = stability_by_period(cfg, full, full_p, ref_mask)
         stab.to_csv(os.path.join(cfg.out_dir, "estabilidad_score_por_periodo.csv"), index=False)
 
-    # --- 9. gobierno: ficha de reproducibilidad ---
+    # --- 10. gobierno: ficha de reproducibilidad ---
     ficha = {
         "fecha_ejecucion": datetime.now().isoformat(timespec="seconds"),
         "config": asdict(cfg),
         "n_variables_finales": len(keep),
         "variables_finales": keep,
+        "calibracion": cal_report,
         "librerias": {
             "optbinning": optbinning is not None, "lightgbm": lightgbm is not None,
+            "xgboost": xgboost is not None, "catboost": catboost is not None,
             "optuna": optuna is not None, "shap": shap is not None,
+            "matplotlib": mpl is not None,
         },
         "benchmark_oot": bench[bench["particion"] == "oot"].to_dict(orient="records"),
     }
