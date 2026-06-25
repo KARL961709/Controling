@@ -110,6 +110,7 @@ class Config:
     max_iv: float = 1.50                        # IV excesivo => sospecha de leakage
     max_psi: float = 0.25                       # PSI train->oot maximo (estabilidad)
     max_corr: float = 0.80                      # |corr| WOE maxima admitida
+    corr_method: str = "spearman"               # spearman (rango) o pearson
     max_vif: float = 5.0                        # VIF maximo (multicolinealidad)
     max_card_categorical: int = 50              # cardinalidad maxima categorica
 
@@ -597,8 +598,9 @@ def filter_psi_woe_over_time(cfg: Config, woe_tr: pd.DataFrame, codmes: pd.Serie
 
 
 def filter_correlation(cfg: Config, woe: pd.DataFrame, iv_map: Dict[str, float]) -> List[str]:
-    """Ante pares muy correlacionados, conserva la de mayor IV."""
-    corr = woe.corr().abs()
+    """Ante pares muy correlacionados, conserva la de mayor IV.
+    Spearman por defecto (rango): capta monotonia no lineal entre WOE."""
+    corr = woe.corr(method=cfg.corr_method).abs()
     cols = list(woe.columns)
     drop = set()
     for i, a in enumerate(cols):
