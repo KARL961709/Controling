@@ -101,6 +101,8 @@ class Config:
     # --- particion temporal (si no hay split_col) ---
     oot_n_months: int = 4                       # ultimos K meses como OOT
     test_size: float = 0.25                     # holdout dentro de train
+    valid_size: float = 0.20                    # VALIDACION interna (de train) para tuning/early-stop
+                                                # TEST y OOT NUNCA se usan para optimizar
 
     # --- filtros de elegibilidad de variables (in-sample) ---
     max_missing_rate: float = 0.95              # descarta var con >95% nulos
@@ -593,29 +595,46 @@ def cat_psi(expected: pd.Series, actual: pd.Series) -> float:
     return float(np.sum((a - e) * np.log(a / e)))
 
 
-def select_features_gbm(cfg: Config, train: pd.DataFrame, oot: pd.DataFrame,
+def _train_stability_halves(cfg: Config, train: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Parte train en dos MITADES TEMPORALES (por codmes) para medir estabilidad
+    SIN tocar test/OOT. Si train tiene un solo periodo, usa mitades aleatorias."""
+    months = sorted(train[cfg.time_col].dropna().unique())
+    if len(months) >= 2:
+        mid = months[len(months) // 2]
+        early = train[train[cfg.time_col] < mid]
+        late = train[train[cfg.time_col] >= mid]
+        if len(early) and len(late):
+            return early, late
+    sh = train.sample(frac=1.0, random_state=cfg.random_state)
+    h = len(sh) // 2
+    return sh.iloc[:h], sh.iloc[h:]
+
+
+def select_features_gbm(cfg: Config, train: pd.DataFrame,
+                        early: pd.DataFrame, late: pd.DataFrame,
                         num: List[str], cat: List[str], iv_map: Dict[str, float],
                         y_tr: pd.Series, outdir: str) -> Tuple[List[str], List[str]]:
     """FEATURE ENGINEERING / SELECCION para los GBM: NO todas las variables entran.
-    Elimina por: (1) estabilidad PSI train->OOT, (2) redundancia por correlacion
-    (conserva mayor IV), (3) poda embebida por importancia (LightGBM) + tope.
+    Elimina por: (1) estabilidad PSI entre mitades temporales de TRAIN (NO usa
+    test/OOT), (2) redundancia por correlacion (conserva mayor IV), (3) poda
+    embebida por importancia (LightGBM) + tope.
     Guarda seleccion_variables_gbm.csv con el motivo de cada exclusion."""
     log_rows = []  # (variable, decision, motivo)
 
-    # (1) estabilidad PSI (numericas por cuantiles, categoricas por frecuencias)
+    # (1) estabilidad PSI medida DENTRO de train (early vs late), sin tocar test/OOT
     stable_num, stable_cat = [], []
     for c in num:
-        val = psi(train[c].values, oot[c].values)
+        val = psi(early[c].values, late[c].values)
         if np.isnan(val) or val <= cfg.max_psi:
             stable_num.append(c)
         else:
-            log_rows.append((c, "ELIMINADA", f"PSI={val:.3f}>{cfg.max_psi}"))
+            log_rows.append((c, "ELIMINADA", f"PSI_train={val:.3f}>{cfg.max_psi}"))
     for c in cat:
-        val = cat_psi(train[c], oot[c])
+        val = cat_psi(early[c], late[c])
         if val <= cfg.max_psi:
             stable_cat.append(c)
         else:
-            log_rows.append((c, "ELIMINADA", f"PSI_cat={val:.3f}>{cfg.max_psi}"))
+            log_rows.append((c, "ELIMINADA", f"PSI_cat_train={val:.3f}>{cfg.max_psi}"))
 
     # (2) redundancia entre numericas: |corr|>umbral -> se conserva la de mayor IV
     drop = set()
@@ -780,15 +799,18 @@ def _space(model_type: str, trial, cfg: Config) -> dict:
             random_state=rs, n_jobs=-1, verbosity=0,
         )
     if model_type == "catboost":
+        # CatBoost usa arboles SIMETRICOS (2^depth hojas) => depth y border_count
+        # son los que mas pesan en tiempo. Se acotan para optimizar rapido sin
+        # sacrificar calidad relevante; el early stopping recorta las iteraciones.
         return dict(
-            loss_function="Logloss", eval_metric="Logloss", iterations=4000,
-            learning_rate=trial.suggest_float("learning_rate", 0.01, 0.1, log=True),
-            depth=trial.suggest_int("depth", 3, 8),
+            loss_function="Logloss", eval_metric="Logloss", iterations=1500,
+            learning_rate=trial.suggest_float("learning_rate", 0.02, 0.12, log=True),
+            depth=trial.suggest_int("depth", 3, 6),                     # 8 era muy lento
             l2_leaf_reg=trial.suggest_float("l2_leaf_reg", 1.0, 30.0, log=True),  # L2
             random_strength=trial.suggest_float("random_strength", 0.0, 2.0),
             bagging_temperature=trial.suggest_float("bagging_temperature", 0.0, 1.0),
-            border_count=trial.suggest_int("border_count", 64, 254),
-            random_seed=rs, verbose=0, allow_writing_files=False,
+            border_count=trial.suggest_int("border_count", 32, 128),    # 254 era muy lento
+            random_seed=rs, verbose=0, allow_writing_files=False, thread_count=-1,
         )
     raise ValueError(model_type)
 
@@ -820,7 +842,7 @@ def _fit_gbm(model_type: str, params: dict, Xtr, ytr, Xva, yva, cat: List[str]):
     if model_type == "catboost":
         from catboost import CatBoostClassifier, Pool
         cat_idx = [Xtr.columns.get_loc(c) for c in cat]
-        m = CatBoostClassifier(**params, od_type="Iter", od_wait=150, cat_features=cat_idx)
+        m = CatBoostClassifier(**params, od_type="Iter", od_wait=60, cat_features=cat_idx)
         m.fit(Pool(Xtr, ytr, cat_features=cat_idx),
               eval_set=Pool(Xva, yva, cat_features=cat_idx), use_best_model=True, verbose=0)
         return m
@@ -1084,8 +1106,9 @@ def run(cfg: Config):
     woe_te = woe.transform(test)
     woe_oo = woe.transform(oot)
 
-    # --- 4. estabilidad + redundancia (sin usar target OOT) ---
-    keep = filter_by_psi(cfg, woe_tr, woe_oo)
+    # --- 4. estabilidad + redundancia (medidas DENTRO de train; sin tocar test/OOT) ---
+    tr_early, tr_late = _train_stability_halves(cfg, train)
+    keep = filter_by_psi(cfg, woe.transform(tr_early), woe.transform(tr_late))
     woe_tr, woe_te, woe_oo = woe_tr[keep], woe_te[keep], woe_oo[keep]
     iv_woe = {f"woe_{k}": v for k, v in iv_map.items()}
     keep = filter_correlation(cfg, woe_tr, iv_woe)
@@ -1107,8 +1130,8 @@ def run(cfg: Config):
 
     # --- 5B. SELECCION de variables para GBM (no todas entran) + entrenamiento ---
     if cfg.gbm_feature_selection:
-        gbm_num, gbm_cat = select_features_gbm(cfg, train, oot, num, cat, iv_map,
-                                               y_tr, cfg.out_dir)
+        gbm_num, gbm_cat = select_features_gbm(cfg, train, tr_early, tr_late, num, cat,
+                                               iv_map, y_tr, cfg.out_dir)
     else:
         gbm_num, gbm_cat = num, cat
     gbm_feats = gbm_num + gbm_cat
@@ -1116,6 +1139,18 @@ def run(cfg: Config):
     avail = {"lightgbm": lightgbm, "xgboost": xgboost, "catboost": catboost}
     Xtr, Xte, Xoo = train[gbm_feats], test[gbm_feats], oot[gbm_feats]
     y_te = test[cfg.target]
+
+    # VALIDACION para tuning: se separa DENTRO de train (fit interno + valid interno).
+    # El TEST y el OOT NO intervienen en la optimizacion ni en el early stopping:
+    # quedan reservados exclusivamente para PROBAR el modelo ya elegido.
+    from sklearn.model_selection import train_test_split as _tts
+    fit_idx, val_idx = _tts(Xtr.index, test_size=cfg.valid_size,
+                            random_state=cfg.random_state, stratify=y_tr)
+    X_fit, y_fit = Xtr.loc[fit_idx], y_tr.loc[fit_idx]
+    X_val, y_val = Xtr.loc[val_idx], y_tr.loc[val_idx]
+    log.info("Tuning con validacion INTERNA de train (fit=%d, valid=%d). "
+             "TEST y OOT NO se usan en la optimizacion.", len(fit_idx), len(val_idx))
+
     gbm_models: Dict[str, object] = {}
     gbm_preds: Dict[str, Dict[str, np.ndarray]] = {}
     for mt in cfg.gbm_models:
@@ -1123,7 +1158,8 @@ def run(cfg: Config):
             log.warning("%s no disponible -> challenger omitido", mt)
             continue
         log.info("--- Optimizando %s (anti-overfit, %d trials) ---", mt, cfg.optuna_trials)
-        model, best_params = optimize_gbm(cfg, mt, Xtr, y_tr, Xte, y_te, gbm_cat)
+        # se optimiza/ajusta con fit-interno y se valida con valid-interno (NO test)
+        model, best_params = optimize_gbm(cfg, mt, X_fit, y_fit, X_val, y_val, gbm_cat)
         json.dump(best_params, open(os.path.join(cfg.out_dir, f"{mt}_best_params.json"), "w"),
                   indent=2, default=str)
         gbm_models[mt] = model
@@ -1187,19 +1223,21 @@ def run(cfg: Config):
         comp.to_csv(os.path.join(cfg.out_dir, "ganador_vs_champion.csv"), index=False)
         log.info("\nGANADOR vs CHAMPION:\n%s", comp.to_string(index=False))
 
-    # --- 8. explicabilidad SHAP del GANADOR (en TRAIN, muestra) ---
-    #   (a) si el ganador es un GBM -> variables ORIGINALES (TreeSHAP)
-    #   (b) scorecard LR sobre WOE  -> siempre (LinearSHAP)
-    n_smp = min(cfg.shap_sample, len(Xtr))
-    smp_idx = Xtr.sample(n_smp, random_state=cfg.random_state).index
+    # --- 8. explicabilidad SHAP del GANADOR sobre el TEST (data independiente) ---
+    #   El test/OOT solo se usan para PROBAR el modelo y ver el SHAP (no para
+    #   entrenar ni tunear). Se explica sobre TEST, que el modelo no vio.
+    #   (a) ganador GBM -> variables ORIGINALES (TreeSHAP)
+    #   (b) scorecard LR -> WOE (LinearSHAP)
+    n_smp = min(cfg.shap_sample, len(Xte))
+    smp_idx = Xte.sample(n_smp, random_state=cfg.random_state).index
     if winner in gbm_models:
         shap_dependence_plots(
             cfg, gbm_models[winner],
-            prepare_gbm_frame(winner, Xtr.loc[smp_idx], gbm_cat),
-            cfg.out_dir, tag=f"original_{winner}", kind="tree", is_woe=False)
+            prepare_gbm_frame(winner, Xte.loc[smp_idx], gbm_cat),
+            cfg.out_dir, tag=f"original_{winner}_test", kind="tree", is_woe=False)
     shap_dependence_plots(
-        cfg, lr_model, woe_tr.loc[smp_idx].fillna(0.0),
-        cfg.out_dir, tag="woe_scorecard", kind="linear", is_woe=True)
+        cfg, lr_model, woe_te.loc[smp_idx].fillna(0.0),
+        cfg.out_dir, tag="woe_scorecard_test", kind="linear", is_woe=True)
 
     # --- 9. estabilidad temporal del score del GANADOR ---
     full = pd.concat([train, test, oot]).reset_index(drop=True)
