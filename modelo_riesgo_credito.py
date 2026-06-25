@@ -152,6 +152,12 @@ class Config:
     flag_cols: Tuple[str, ...] = (
         "flag_bancarizado", "flg_clasi_dif_nor_1m", "lvl_edu_poten_open",
     )
+    use_flags: bool = True                      # True: flags entran como features (categoricas)
+                                                # False: se excluyen del modelo
+
+    # --- regla de seleccion del ganador ---
+    select_metric: str = "Gini"                 # metrica de seleccion
+    select_partition: str = "train"             # GANA el mejor en TRAIN; luego se prueba en test/OOT
 
     # --- gobierno ---
     random_state: int = RANDOM_STATE
@@ -159,13 +165,15 @@ class Config:
     leak_cols: Tuple[str, ...] = field(default_factory=tuple)
 
     def feature_blacklist(self) -> set:
-        """Columnas que jamas pueden ser features."""
+        """Columnas que jamas pueden ser features (ids, target, tiempo, benchmark...)."""
         bl = set(self.id_cols) | {
             self.target, self.time_col, self.champion_prob, self.champion_score,
         }
         if self.split_col:
             bl.add(self.split_col)
         bl |= set(self.leak_cols)
+        if not self.use_flags:               # si NO se consideran flags, se excluyen
+            bl |= set(self.flag_cols)
         return bl
 
 
@@ -335,7 +343,9 @@ def classify_features(cfg: Config, df: pd.DataFrame) -> Tuple[List[str], List[st
     fuerza a categorica aunque vengan codificadas como numero (p.ej. flags/ordinales)."""
     bl = cfg.feature_blacklist()
     feats = [c for c in df.columns if c not in bl]
-    forced_cat = set(cfg.known_categoricals) | set(cfg.flag_cols)
+    forced_cat = set(cfg.known_categoricals)
+    if cfg.use_flags:
+        forced_cat |= set(cfg.flag_cols)
     num, cat = [], []
     for c in feats:
         is_forced = c in forced_cat
@@ -350,6 +360,52 @@ def classify_features(cfg: Config, df: pd.DataFrame) -> Tuple[List[str], List[st
             num.append(c)
     log.info("Features candidatas: %d numericas, %d categoricas (forzadas por diccionario: %d)",
              len(num), len(cat), len(forced_cat & set(cat)))
+    return num, cat
+
+
+def resolve_schema(cfg: Config, df: pd.DataFrame, outdir: str) -> Tuple[List[str], List[str]]:
+    """AUTO-IDENTIFICACION de roles por nombre de columna (no requiere editar nada).
+    Decide: target, ids, tiempo, particion, benchmark (excluidos como feature),
+    flags (segun cfg.use_flags), categoricas y numericas. Guarda roles_columnas.csv."""
+    present = set(df.columns)
+    roles: Dict[str, Tuple[str, str]] = {}
+
+    def put(c, r, why):
+        if c in present:
+            roles[c] = (r, why)
+
+    put(cfg.target, "TARGET", "variable objetivo (1=malo)")
+    put(cfg.time_col, "TIEMPO", "periodo YYYYMM (OOT / PSI / CSI)")
+    if cfg.split_col:
+        put(cfg.split_col, "PARTICION", "train/test/oot")
+    for c in cfg.id_cols:
+        put(c, "ID", "identificador (excluida)")
+    put(cfg.champion_prob, "BENCHMARK", "PD del modelo vigente -> champion (excluida como feature)")
+    put(cfg.champion_score, "BENCHMARK", "score del modelo vigente (excluida como feature)")
+
+    num, cat = classify_features(cfg, df)
+    for c in num:
+        roles[c] = ("FEATURE_NUM", "predictora numerica")
+    for c in cat:
+        es_flag = c in set(cfg.flag_cols)
+        roles[c] = ("FEATURE_CAT", "flag/ordinal" if es_flag else "categorica (diccionario)")
+
+    # columnas presentes en la data pero sin rol asignado (p.ej. excluidas por flags/cardinalidad)
+    for c in df.columns:
+        if c not in roles:
+            if (not cfg.use_flags) and c in set(cfg.flag_cols):
+                roles[c] = ("EXCLUIDA", "flag no considerado (use_flags=False)")
+            else:
+                roles[c] = ("EXCLUIDA", "alta cardinalidad / no elegible")
+
+    rep = (pd.DataFrame([(c, r, w) for c, (r, w) in roles.items()],
+                        columns=["columna", "rol", "motivo"])
+           .sort_values(["rol", "columna"]))
+    rep.to_csv(os.path.join(outdir, "roles_columnas.csv"), index=False)
+    resumen = rep["rol"].value_counts().to_dict()
+    log.info("AUTO-ESQUEMA -> %s | flags considerados: %s", resumen, cfg.use_flags)
+    log.info("  target=%s | tiempo=%s | split=%s | benchmark=%s/%s",
+             cfg.target, cfg.time_col, cfg.split_col, cfg.champion_prob, cfg.champion_score)
     return num, cat
 
 
@@ -372,12 +428,15 @@ class WoeEngine:
     def fit_optbinning(self, X: pd.DataFrame, y: pd.Series, num, cat):
         from optbinning import BinningProcess
         variables = num + cat
-        monotonic = "auto_asc_desc" if self.cfg.monotonic else None
+        # la monotonia se fija por variable via binning_fit_params (no en el constructor)
+        bf = None
+        if self.cfg.monotonic:
+            bf = {v: {"monotonic_trend": "auto_asc_desc"} for v in num}
         self.binning_process = BinningProcess(
             variable_names=variables,
             categorical_variables=cat,
             min_n_bins=2, max_n_bins=6, min_bin_size=0.05,
-            monotonic_trend=monotonic,
+            binning_fit_params=bf,
             selection_criteria={"iv": {"min": self.cfg.min_iv, "max": self.cfg.max_iv,
                                        "strategy": "highest"}},
         )
@@ -391,9 +450,20 @@ class WoeEngine:
                  len(self.selected), len(variables))
 
     def transform_optbinning(self, X: pd.DataFrame) -> pd.DataFrame:
-        variables = self.binning_process.get_support(names=True)
-        woe = self.binning_process.transform(X[list(variables)].values, metric="woe")
-        return pd.DataFrame(woe, columns=[f"woe_{v}" for v in variables], index=X.index)
+        # transform exige TODAS las variables del fit como input (no solo las
+        # seleccionadas); luego nos quedamos con las columnas seleccionadas.
+        all_vars = list(self.binning_process.variable_names)
+        selected = list(self.binning_process.get_support(names=True))
+        woe = self.binning_process.transform(X[all_vars].values, metric="woe")
+        if woe.shape[1] == len(selected):
+            cols = [f"woe_{v}" for v in selected]
+        elif woe.shape[1] == len(all_vars):
+            cols = [f"woe_{v}" for v in all_vars]
+        else:
+            cols = [f"woe_c{i}" for i in range(woe.shape[1])]
+        woe_df = pd.DataFrame(woe, columns=cols, index=X.index)
+        sel_cols = [f"woe_{v}" for v in selected if f"woe_{v}" in woe_df.columns]
+        return woe_df[sel_cols] if sel_cols else woe_df
 
     # ---- Fallback path (sin OptBinning) -------------------------------------
     @staticmethod
@@ -856,6 +926,27 @@ def benchmark_table(cfg: Config, parts: Dict[str, pd.DataFrame],
     return pd.DataFrame(rows)[cols].sort_values(["particion", "Gini"], ascending=[True, False])
 
 
+def select_winner(cfg: Config, parts: Dict[str, pd.DataFrame],
+                  preds_by_part: Dict[str, Dict[str, np.ndarray]],
+                  candidates: List[str]) -> Tuple[str, pd.DataFrame]:
+    """GANA el modelo con mejor Gini en la particion de seleccion (TRAIN por defecto).
+    Luego se PRUEBA en test y OOT (solo reporte, no re-seleccion).
+    El champion (prob_malo) se muestra como referencia pero NO compite por el puesto."""
+    rows = []
+    for name in candidates:
+        r = {"modelo": name}
+        for part in ("train", "test", "oot"):
+            y = parts[part][cfg.target].values
+            p = preds_by_part[part][name]
+            r[f"Gini_{part}"] = gini(y, p)
+            r[f"EC_{part}"] = ec_calibration(y, p)
+        rows.append(r)
+    tab = pd.DataFrame(rows).sort_values(f"{cfg.select_metric}_{cfg.select_partition}",
+                                         ascending=False).reset_index(drop=True)
+    winner = tab.iloc[0]["modelo"]
+    return winner, tab
+
+
 # =============================================================================
 # 11. ORQUESTACION
 # =============================================================================
@@ -867,10 +958,10 @@ def run(cfg: Config):
 
     # --- 1. data + particion ---
     df = load_data(cfg)
+    num, cat = resolve_schema(cfg, df, cfg.out_dir)   # auto-identifica roles + guarda csv
     parts = split_train_oot(cfg, df)
     train, test, oot = parts["train"], parts["test"], parts["oot"]
     y_tr = train[cfg.target]
-    num, cat = classify_features(cfg, df)
 
     # --- 2. filtro de elegibilidad por missing (in-sample) ---
     miss = train[num + cat].isna().mean()
@@ -963,45 +1054,59 @@ def run(cfg: Config):
     log.info("\nDIAGNOSTICO DE CALIBRACION (EC debe ser bajo en train/test/OOT):\n%s",
              pd.DataFrame(diag).to_string(index=False))
 
-    # --- 7. tabla de decision champion vs challenger ---
+    # --- 7. tabla de metricas champion vs challengers (todas las particiones) ---
     bench = benchmark_table(cfg, parts, preds_by_part)
     bench.to_csv(os.path.join(cfg.out_dir, "benchmark_champion_vs_challenger.csv"),
                  index=False)
-    log.info("\n%s\nTABLA DE DECISION (foco en OOT):\n%s",
-             "-" * 70, bench[bench["particion"] == "oot"].to_string(index=False))
 
-    # --- 8. explicabilidad SHAP (en TRAIN, muestra) ---
-    #   (a) variables ORIGINALES: mejor GBM por Gini OOT (TreeSHAP)
-    #   (b) variables en WOE:      scorecard LR (LinearSHAP)
+    # --- 7b. SELECCION DEL GANADOR: mejor Gini(train); luego se prueba en test/OOT ---
+    candidates = list(all_preds.keys())                 # LR/WOE + GBMs (sin champion)
+    winner, win_tab = select_winner(cfg, parts, preds_by_part, candidates)
+    win_tab.to_csv(os.path.join(cfg.out_dir, "seleccion_ganador.csv"), index=False)
+    log.info("\n%s\nSELECCION POR Gini(%s) — el ganador se PRUEBA en test/OOT:\n%s",
+             "=" * 70, cfg.select_partition, win_tab.to_string(index=False))
+    log.info(">>> GANADOR: %s  | Gini train=%.4f  test=%.4f  oot=%.4f",
+             winner,
+             win_tab.set_index("modelo").loc[winner, "Gini_train"],
+             win_tab.set_index("modelo").loc[winner, "Gini_test"],
+             win_tab.set_index("modelo").loc[winner, "Gini_oot"])
+
+    # comparacion del ganador contra el champion (prob_malo) en las 3 particiones
+    if cfg.champion_prob in df.columns:
+        comp = bench[bench["modelo"].isin([winner, "CHAMPION (prob_malo)"])]
+        comp.to_csv(os.path.join(cfg.out_dir, "ganador_vs_champion.csv"), index=False)
+        log.info("\nGANADOR vs CHAMPION:\n%s", comp.to_string(index=False))
+
+    # --- 8. explicabilidad SHAP del GANADOR (en TRAIN, muestra) ---
+    #   (a) si el ganador es un GBM -> variables ORIGINALES (TreeSHAP)
+    #   (b) scorecard LR sobre WOE  -> siempre (LinearSHAP)
     n_smp = min(cfg.shap_sample, len(Xtr))
     smp_idx = Xtr.sample(n_smp, random_state=cfg.random_state).index
-    if gbm_models:
-        oot_gini = {mt: gini(oot[cfg.target].values, gbm_preds[mt]["oot"])
-                    for mt in gbm_models}
-        best_mt = max(oot_gini, key=oot_gini.get)
-        log.info("Mejor GBM por Gini OOT: %s (%.4f)", best_mt, oot_gini[best_mt])
+    if winner in gbm_models:
         shap_dependence_plots(
-            cfg, gbm_models[best_mt],
-            prepare_gbm_frame(best_mt, Xtr.loc[smp_idx], cat),
-            cfg.out_dir, tag=f"original_{best_mt}", kind="tree", is_woe=False)
+            cfg, gbm_models[winner],
+            prepare_gbm_frame(winner, Xtr.loc[smp_idx], cat),
+            cfg.out_dir, tag=f"original_{winner}", kind="tree", is_woe=False)
     shap_dependence_plots(
         cfg, lr_model, woe_tr.loc[smp_idx].fillna(0.0),
         cfg.out_dir, tag="woe_scorecard", kind="linear", is_woe=True)
 
-    # --- 9. estabilidad temporal del mejor challenger en OOT ---
-    if gbm_models:
-        full = pd.concat([train, test, oot]).reset_index(drop=True)
-        full_p = np.concatenate([preds_by_part["train"][best_mt],
-                                 preds_by_part["test"][best_mt],
-                                 preds_by_part["oot"][best_mt]])
-        ref_mask = np.array([True] * len(train) + [False] * (len(test) + len(oot)))
-        stab = stability_by_period(cfg, full, full_p, ref_mask)
-        stab.to_csv(os.path.join(cfg.out_dir, "estabilidad_score_por_periodo.csv"), index=False)
+    # --- 9. estabilidad temporal del score del GANADOR ---
+    full = pd.concat([train, test, oot]).reset_index(drop=True)
+    full_p = np.concatenate([preds_by_part["train"][winner],
+                             preds_by_part["test"][winner],
+                             preds_by_part["oot"][winner]])
+    ref_mask = np.array([True] * len(train) + [False] * (len(test) + len(oot)))
+    stab = stability_by_period(cfg, full, full_p, ref_mask)
+    stab.to_csv(os.path.join(cfg.out_dir, "estabilidad_score_por_periodo.csv"), index=False)
 
     # --- 10. gobierno: ficha de reproducibilidad ---
     ficha = {
         "fecha_ejecucion": datetime.now().isoformat(timespec="seconds"),
         "config": asdict(cfg),
+        "ganador": winner,
+        "regla_seleccion": f"mejor {cfg.select_metric}({cfg.select_partition})",
+        "seleccion": win_tab.to_dict(orient="records"),
         "n_variables_finales": len(keep),
         "variables_finales": keep,
         "calibracion": {"post_hoc": cfg.post_hoc_calibration, "diagnostico": diag},
@@ -1021,7 +1126,95 @@ def run(cfg: Config):
 
 
 # =============================================================================
-# 12. MAIN
+# 12. DATA DEMO (mismas columnas del dataset real) — para PROBAR que corre
+# =============================================================================
+# Columnas exactas del dataset de la tabla (nivel cliente)
+SCHEMA_COLUMNS = [
+    "key_value", "split", "flag_bancarizado", "target_60_12m", "cnt_monto_cast",
+    "max_sld_peor_clsf_1m_12m", "ant_ult_prod_allsf", "min_sldtotfinpr12m",
+    "lvl_edu_poten_open", "max_sldpas12m", "nro_otr_emprep_12m", "ctd_entreport_12m",
+    "max_dif_ent_12m", "ratio_saldo_rt_t1_t12", "avg_emp_telc_1m_6m", "desc_grupo_carrera",
+    "dsv_sld_pc_pp_3m", "beta_sld_pc_pp_1a", "mdn_sld_totsbs_3i_6m", "flg_clasi_dif_nor_1m",
+    "meses_ult_inc_10_rat_dda_pp", "cod_cuc", "avg_prc_sald_otr_ent",
+    "dsv_entidadesdistrdlineatc_u1a", "prm_datraso_rd_1a", "min_sldpas_03m",
+    "rat_var_sld_tot_1m_3m", "prm_decrsld12m", "prm_rat_disp_ef_pn_6m", "prm_sld_cta_sld_12m",
+    "cnt_prop_insc", "cnt_prod_dist_sf_1m", "rat_nro_ent_1m_1m_24m", "ratio_comparacion_u1m_u12m",
+    "nro_edad", "mto_venta_fin_de_semana_pos_ult_6m", "mto_prom_inf_debito_efectivo_u1m",
+    "mto_venta_con_tarjeta_credito_pos_ult_1m", "mto_min_venta_rubro_grifos_pos_ult_6m",
+    "prm_rubro_restaurantes_pos_ult_6m", "far_rubro_top2_frec_name_3m", "monto_total_u6m",
+    "far_rubro_top1_monto_name_6m", "porc_prom_trx_inf_debito_efectivo_u3m",
+    "mto_prom_deb_farmacia_presencial_no_ibk_u12m", "far_rubro_top3_monto_name_6m",
+    "far_rubro_top2_monto_name_3m", "mto_ticket_semanal_vestido_calzado_u12m", "far_rubrofrec_9m",
+    "spsa_rubro_top3_frec_name_9m", "far_rubro_top2_monto_name_6m", "spsa_rubro_top2_frec_name_12m",
+    "far_rubro_top2_monto_name_9m", "far_mtomax_medicamento_1m", "mto_bienestar_persona_u1m",
+    "far_rubro_top3_frec_name_1m", "prob_malo", "score", "codmes_ejec",
+]
+_CAT_COLS_DEMO = [
+    "desc_grupo_carrera", "far_rubro_top2_frec_name_3m", "far_rubro_top1_monto_name_6m",
+    "far_rubro_top3_monto_name_6m", "far_rubro_top2_monto_name_3m", "far_rubrofrec_9m",
+    "spsa_rubro_top3_frec_name_9m", "far_rubro_top2_monto_name_6m",
+    "spsa_rubro_top2_frec_name_12m", "far_rubro_top2_monto_name_9m", "far_rubro_top3_frec_name_1m",
+]
+_FLAG_COLS_DEMO = ["flag_bancarizado", "flg_clasi_dif_nor_1m", "lvl_edu_poten_open"]
+
+
+def make_demo(n: int = 12000, seed: int = RANDOM_STATE) -> pd.DataFrame:
+    """Genera data sintetica con LAS MISMAS COLUMNAS del dataset real, con senal
+    realista (target ligado a algunas variables) y un champion prob_malo ruidoso.
+    Sirve para PROBAR el pipeline end-to-end sin la data productiva."""
+    rng = np.random.default_rng(seed)
+    rubros = ["FARMACIA", "RESTAURANTES", "GRIFOS", "SUPERMERCADO", "VESTIDO", "OTROS"]
+    meses = [202301, 202302, 202303, 202304, 202305, 202306,
+             202307, 202308, 202309, 202310, 202311, 202312]
+    df = pd.DataFrame({c: np.nan for c in SCHEMA_COLUMNS}, index=range(n))
+
+    df["key_value"] = np.arange(n)
+    df["cod_cuc"] = rng.integers(10**6, 10**7, n)
+    df["codmes_ejec"] = rng.choice(meses, n)
+    df["nro_edad"] = rng.integers(21, 75, n)
+
+    # features numericas (varias informativas)
+    num_cols = [c for c in SCHEMA_COLUMNS if c not in (
+        ["key_value", "cod_cuc", "codmes_ejec", "split", "target_60_12m",
+         "prob_malo", "score"] + _CAT_COLS_DEMO + _FLAG_COLS_DEMO)]
+    for c in num_cols:
+        df[c] = rng.normal(0, 1, n).round(4)
+    # inyecta nulos en algunas
+    for c in rng.choice(num_cols, 6, replace=False):
+        mask = rng.random(n) < 0.1
+        df.loc[mask, c] = np.nan
+
+    # categoricas y flags
+    for c in _CAT_COLS_DEMO:
+        df[c] = rng.choice(rubros, n)
+    df["flag_bancarizado"] = rng.integers(0, 2, n)
+    df["flg_clasi_dif_nor_1m"] = rng.integers(0, 2, n)
+    df["lvl_edu_poten_open"] = rng.integers(1, 5, n)
+    df["desc_grupo_carrera"] = rng.choice(["INGENIERIA", "SALUD", "ADMIN", "TECNICO", "OTRO"], n)
+
+    # logit del target ligado a algunas variables (senal real)
+    z = (-1.4
+         + 0.9 * df["prm_datraso_rd_1a"].fillna(0)
+         + 0.7 * df["max_sld_peor_clsf_1m_12m"].fillna(0)
+         - 0.5 * df["ant_ult_prod_allsf"].fillna(0)
+         + 0.4 * df["flg_clasi_dif_nor_1m"]
+         - 0.3 * df["flag_bancarizado"]
+         + 0.3 * df["rat_var_sld_tot_1m_3m"].fillna(0))
+    p = 1 / (1 + np.exp(-z))
+    df["target_60_12m"] = (rng.random(n) < p).astype(int)
+
+    # champion ruidoso (discrimina pero descalibrado, como el real)
+    df["prob_malo"] = np.clip(p * 1.5 + rng.normal(0, 0.05, n), 0, 1).round(4)
+    df["score"] = (1000 - 800 * df["prob_malo"]).round(1)
+
+    # particion temporal: ultimos 3 meses = oot ; resto train/test
+    df["split"] = np.where(df["codmes_ejec"] >= 202310, "oot",
+                           np.where(rng.random(n) < 0.75, "train", "test"))
+    return df
+
+
+# =============================================================================
+# 13. MAIN
 # =============================================================================
 if __name__ == "__main__":
     import argparse
@@ -1032,10 +1225,30 @@ if __name__ == "__main__":
     ap.add_argument("--target", default="target_60_12m")
     ap.add_argument("--trials", type=int, default=40, help="iteraciones Optuna")
     ap.add_argument("--oot-months", type=int, default=4)
+    ap.add_argument("--no-flags", action="store_true", help="excluye los flags del modelo")
+    ap.add_argument("--demo", action="store_true",
+                    help="genera data sintetica con las columnas reales y prueba el pipeline")
+    ap.add_argument("--demo-n", type=int, default=12000)
     args = ap.parse_args()
 
     cfg = Config(
         data_path=args.data, out_dir=args.out, target=args.target,
         optuna_trials=args.trials, oot_n_months=args.oot_months,
+        use_flags=not args.no_flags,
     )
+
+    if args.demo:
+        log.info("MODO DEMO: generando data sintetica (%d filas) con el esquema real",
+                 args.demo_n)
+        demo_path = os.path.join(cfg.out_dir, "demo_data.parquet")
+        os.makedirs(cfg.out_dir, exist_ok=True)
+        df_demo = make_demo(args.demo_n)
+        try:
+            df_demo.to_parquet(demo_path)
+            cfg.data_path = demo_path
+        except Exception:
+            demo_path = os.path.join(cfg.out_dir, "demo_data.csv")
+            df_demo.to_csv(demo_path, index=False)
+            cfg.data_path = demo_path
+
     run(cfg)
