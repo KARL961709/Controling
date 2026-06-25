@@ -123,11 +123,6 @@ class Config:
     optuna_trials: int = 40                     # iteraciones de optimizacion bayesiana
     cv_folds: int = 5                           # validacion cruzada temporal
 
-    # --- seleccion de variables especifica para los GBM (NO todas entran) ---
-    gbm_feature_selection: bool = True          # aplica eliminacion de variables a los GBM
-    embedded_prune: bool = True                 # poda embebida por importancia (LightGBM)
-    n_features_gbm_max: int = 60                # tope de variables para los GBM
-
     # --- GBM challengers + control de over/under-fitting + CALIBRACION nativa ---
     gbm_models: Tuple[str, ...] = ("lightgbm", "xgboost")   # CatBoost removido
     # La OPTIMIZACION usa LOG-LOSS (regla propia) => el modelo sale calibrado por
@@ -547,18 +542,50 @@ class WoeEngine:
 # =============================================================================
 # 5. FILTROS DE ESTABILIDAD Y REDUNDANCIA (PSI, correlacion, VIF)
 # =============================================================================
-def filter_by_psi(cfg: Config, woe_train: pd.DataFrame, woe_oot: pd.DataFrame) -> List[str]:
-    """Descarta variables inestables train->OOT (PSI alto). Solo informativo:
-    la decision se toma con train+oot de la *misma* var (no usa el target OOT)."""
-    keep, dropped = [], []
-    for c in woe_train.columns:
-        val = psi(woe_train[c].values, woe_oot[c].values)
-        if np.isnan(val) or val <= cfg.max_psi:
+def psi_discrete(ref: pd.Series, cur: pd.Series) -> float:
+    """PSI tratando cada valor WOE (= cada BIN) como una categoria.
+    Mide cuanto se mueve la PROPORCION de poblacion por bin entre dos muestras.
+    PSI = sum_bin (a_i - e_i) * ln(a_i / e_i).  (e=referencia, a=actual)"""
+    e = ref.value_counts(normalize=True)
+    a = cur.value_counts(normalize=True)
+    idx = e.index.union(a.index)
+    e = e.reindex(idx).fillna(1e-6).clip(lower=1e-6)
+    a = a.reindex(idx).fillna(1e-6).clip(lower=1e-6)
+    return float(np.sum((a - e) * np.log(a / e)))
+
+
+def filter_psi_woe_over_time(cfg: Config, woe_tr: pd.DataFrame, codmes: pd.Series,
+                             outdir: str) -> List[str]:
+    """Estabilidad CSI sobre los BINS WOE. Referencia = el periodo MAS MINIMO
+    (mes mas antiguo del train). Para cada variable se compara la distribucion de
+    sus bins WOE en cada mes posterior contra el mes minimo, y se toma el PSI
+    MAXIMO (el peor mes). Si ese maximo > max_psi (0.25) -> variable inestable.
+    NO usa test ni OOT. Guarda psi_variables.csv."""
+    months = sorted(pd.Series(codmes).dropna().unique())
+    keep, rows = [], []
+    if len(months) < 2:
+        log.info("PSI: train tiene 1 solo periodo -> no se evalua estabilidad temporal")
+        return list(woe_tr.columns)
+    ref_m = months[0]                                   # periodo MAS MINIMO = referencia
+    ref_mask = (codmes.values == ref_m)
+    for c in woe_tr.columns:
+        ref = woe_tr.loc[ref_mask, c]
+        max_psi, worst = 0.0, ref_m
+        for m in months[1:]:
+            val = psi_discrete(ref, woe_tr.loc[codmes.values == m, c])
+            if val > max_psi:
+                max_psi, worst = val, m
+        estable = max_psi <= cfg.max_psi
+        rows.append({"variable": c, "PSI_max": round(max_psi, 4),
+                     "mes_ref": ref_m, "mes_peor": worst,
+                     "decision": "SELECCIONADA" if estable else "ELIMINADA"})
+        if estable:
             keep.append(c)
-        else:
-            dropped.append((c, val))
-    if dropped:
-        log.info("PSI>%.2f -> descartadas %d variables inestables", cfg.max_psi, len(dropped))
+    pd.DataFrame(rows).sort_values("PSI_max", ascending=False).to_csv(
+        os.path.join(outdir, "psi_variables.csv"), index=False)
+    n_drop = len(woe_tr.columns) - len(keep)
+    log.info("PSI(bins WOE, ref=mes minimo %s): %d estables, %d descartadas (>%.2f)",
+             ref_m, len(keep), n_drop, cfg.max_psi)
     return keep
 
 
@@ -581,105 +608,6 @@ def filter_correlation(cfg: Config, woe: pd.DataFrame, iv_map: Dict[str, float])
         log.info("Correlacion>|%.2f| -> descartadas %d variables redundantes",
                  cfg.max_corr, len(drop))
     return keep
-
-
-def cat_psi(expected: pd.Series, actual: pd.Series) -> float:
-    """PSI sobre frecuencias de categorias (estabilidad de una variable categorica)."""
-    e = expected.astype("object").fillna("__NA__").value_counts(normalize=True)
-    a = actual.astype("object").fillna("__NA__").value_counts(normalize=True)
-    cats = e.index.union(a.index)
-    e = e.reindex(cats).fillna(1e-6).clip(lower=1e-6)
-    a = a.reindex(cats).fillna(1e-6).clip(lower=1e-6)
-    return float(np.sum((a - e) * np.log(a / e)))
-
-
-def _train_stability_halves(cfg: Config, train: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """Parte train en dos MITADES TEMPORALES (por codmes) para medir estabilidad
-    SIN tocar test/OOT. Si train tiene un solo periodo, usa mitades aleatorias."""
-    months = sorted(train[cfg.time_col].dropna().unique())
-    if len(months) >= 2:
-        mid = months[len(months) // 2]
-        early = train[train[cfg.time_col] < mid]
-        late = train[train[cfg.time_col] >= mid]
-        if len(early) and len(late):
-            return early, late
-    sh = train.sample(frac=1.0, random_state=cfg.random_state)
-    h = len(sh) // 2
-    return sh.iloc[:h], sh.iloc[h:]
-
-
-def select_features_gbm(cfg: Config, train: pd.DataFrame,
-                        early: pd.DataFrame, late: pd.DataFrame,
-                        num: List[str], cat: List[str], iv_map: Dict[str, float],
-                        y_tr: pd.Series, outdir: str) -> Tuple[List[str], List[str]]:
-    """FEATURE ENGINEERING / SELECCION para los GBM: NO todas las variables entran.
-    Elimina por: (1) estabilidad PSI entre mitades temporales de TRAIN (NO usa
-    test/OOT), (2) redundancia por correlacion (conserva mayor IV), (3) poda
-    embebida por importancia (LightGBM) + tope.
-    Guarda seleccion_variables_gbm.csv con el motivo de cada exclusion."""
-    log_rows = []  # (variable, decision, motivo)
-
-    # (1) estabilidad PSI medida DENTRO de train (early vs late), sin tocar test/OOT
-    stable_num, stable_cat = [], []
-    for c in num:
-        val = psi(early[c].values, late[c].values)
-        if np.isnan(val) or val <= cfg.max_psi:
-            stable_num.append(c)
-        else:
-            log_rows.append((c, "ELIMINADA", f"PSI_train={val:.3f}>{cfg.max_psi}"))
-    for c in cat:
-        val = cat_psi(early[c], late[c])
-        if val <= cfg.max_psi:
-            stable_cat.append(c)
-        else:
-            log_rows.append((c, "ELIMINADA", f"PSI_cat_train={val:.3f}>{cfg.max_psi}"))
-
-    # (2) redundancia entre numericas: |corr|>umbral -> se conserva la de mayor IV
-    drop = set()
-    if len(stable_num) > 1:
-        corr = train[stable_num].corr().abs()
-        for i, a in enumerate(stable_num):
-            if a in drop:
-                continue
-            for b in stable_num[i + 1:]:
-                if b in drop:
-                    continue
-                if corr.loc[a, b] > cfg.max_corr:
-                    worse = a if iv_map.get(a, 0) < iv_map.get(b, 0) else b
-                    other = b if worse == a else a
-                    drop.add(worse)
-                    log_rows.append((worse, "ELIMINADA",
-                                     f"corr>|{cfg.max_corr}| con {other} (menor IV)"))
-    keep_num = [c for c in stable_num if c not in drop]
-    keep_cat = stable_cat
-
-    # (3) poda embebida por importancia (metodo embebido) + tope n_features_gbm_max
-    feats = keep_num + keep_cat
-    if cfg.embedded_prune and lightgbm is not None and len(feats) > 1:
-        import lightgbm as lgb
-        Xq = prepare_gbm_frame("lightgbm", train[feats], keep_cat)
-        q = lgb.LGBMClassifier(n_estimators=400, learning_rate=0.05, num_leaves=31,
-                               min_child_samples=100, subsample=0.8, colsample_bytree=0.8,
-                               reg_lambda=1.0, random_state=cfg.random_state,
-                               n_jobs=-1, verbose=-1)
-        q.fit(Xq, y_tr)
-        imp = pd.Series(q.feature_importances_, index=feats).sort_values(ascending=False)
-        kept = imp[imp > 0].index.tolist()[:cfg.n_features_gbm_max]
-        for c in feats:
-            if c not in kept:
-                motivo = ("importancia=0 (embebido)" if imp.get(c, 0) == 0
-                          else f"fuera del top-{cfg.n_features_gbm_max} (embebido)")
-                log_rows.append((c, "ELIMINADA", motivo))
-        keep_num = [c for c in keep_num if c in kept]
-        keep_cat = [c for c in keep_cat if c in kept]
-
-    for c in keep_num + keep_cat:
-        log_rows.append((c, "SELECCIONADA", "pasa PSI + correlacion + embebido"))
-    pd.DataFrame(log_rows, columns=["variable", "decision", "motivo"]).to_csv(
-        os.path.join(outdir, "seleccion_variables_gbm.csv"), index=False)
-    log.info("Seleccion GBM: %d->%d variables (%d num, %d cat) tras PSI/corr/embebido",
-             len(num) + len(cat), len(keep_num) + len(keep_cat), len(keep_num), len(keep_cat))
-    return keep_num, keep_cat
 
 
 def filter_vif(cfg: Config, woe: pd.DataFrame) -> List[str]:
@@ -1105,8 +1033,8 @@ def run(cfg: Config):
     woe_oo = woe.transform(oot)
 
     # --- 4. estabilidad + redundancia (medidas DENTRO de train; sin tocar test/OOT) ---
-    tr_early, tr_late = _train_stability_halves(cfg, train)
-    keep = filter_by_psi(cfg, woe.transform(tr_early), woe.transform(tr_late))
+    # PSI sobre los BINS WOE, referencia = mes MINIMO del train (peor mes vs ref)
+    keep = filter_psi_woe_over_time(cfg, woe_tr, train[cfg.time_col], cfg.out_dir)
     woe_tr, woe_te, woe_oo = woe_tr[keep], woe_te[keep], woe_oo[keep]
     iv_woe = {f"woe_{k}": v for k, v in iv_map.items()}
     keep = filter_correlation(cfg, woe_tr, iv_woe)
