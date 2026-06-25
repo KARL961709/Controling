@@ -116,7 +116,10 @@ class Config:
     # --- modelado ---
     monotonic: bool = True                      # binning monotono (regulatorio)
     use_woe_for_lr: bool = True                 # LR sobre WOE (scorecard)
-    n_features_max: int = 25                    # tope de variables del scorecard (LR/WOE)
+    woe_for_all: bool = True                    # TODOS los modelos usan WOE (LR y GBMs)
+    min_n_bins: int = 5                         # bins minimos del WOE (si infeasible -> auto)
+    max_n_bins: int = 7                         # bins maximos del WOE
+    n_features_max: int = 25                    # tope de variables del modelo (WOE)
     optuna_trials: int = 40                     # iteraciones de optimizacion bayesiana
     cv_folds: int = 5                           # validacion cruzada temporal
 
@@ -126,7 +129,7 @@ class Config:
     n_features_gbm_max: int = 60                # tope de variables para los GBM
 
     # --- GBM challengers + control de over/under-fitting + CALIBRACION nativa ---
-    gbm_models: Tuple[str, ...] = ("lightgbm", "xgboost", "catboost")
+    gbm_models: Tuple[str, ...] = ("lightgbm", "xgboost")   # CatBoost removido
     # La OPTIMIZACION usa LOG-LOSS (regla propia) => el modelo sale calibrado por
     # construccion (sin parche post-hoc). El objetivo penaliza ademas:
     #   - el GAP de log-loss train-val (over/under-fitting)
@@ -425,63 +428,58 @@ class WoeEngine:
 
     def __init__(self, cfg: Config):
         self.cfg = cfg
-        self.binning_process = None
+        self.binnings: Dict[str, object] = {}     # variable -> OptimalBinning ajustado
         self.iv_table: Optional[pd.DataFrame] = None
         self._fallback_maps: Dict[str, pd.DataFrame] = {}
         self._fallback_iv: Dict[str, float] = {}
         self.selected: List[str] = []
 
-    # ---- OptBinning path -----------------------------------------------------
+    # ---- OptBinning path (VARIABLE POR VARIABLE, con fallback a auto) ---------
+    def _fit_one(self, name, x, y, dtype):
+        """Ajusta una variable pidiendo [min_n_bins, max_n_bins]. Si el problema
+        es INFEASIBLE (p.ej. binaria/pocos valores), REINTENTA en modo AUTO
+        (min_n_bins=2) para no colapsar la variable a 1 solo bin."""
+        from optbinning import OptimalBinning
+        mono = "auto_asc_desc" if (self.cfg.monotonic and dtype == "numerical") else "auto"
+        def _mk(minb):
+            return OptimalBinning(name=name, dtype=dtype, min_n_bins=minb,
+                                  max_n_bins=self.cfg.max_n_bins, min_bin_size=0.05,
+                                  monotonic_trend=mono)
+        ob = _mk(self.cfg.min_n_bins)
+        ob.fit(x, y)
+        n_bins = len(ob.splits) + 1 if dtype == "numerical" else len(getattr(ob, "splits", []) or []) + 1
+        if ob.status != "OPTIMAL" or n_bins < self.cfg.min_n_bins:
+            ob = _mk(2)                      # AUTO: deja que OptBinning decida
+            ob.fit(x, y)
+        return ob
+
     def fit_optbinning(self, X: pd.DataFrame, y: pd.Series, num, cat):
-        from optbinning import BinningProcess
-        variables = num + cat
-        # la monotonia se fija por variable via binning_fit_params (no en el constructor)
-        bf = None
-        if self.cfg.monotonic:
-            bf = {v: {"monotonic_trend": "auto_asc_desc"} for v in num}
-        self.binning_process = BinningProcess(
-            variable_names=variables,
-            categorical_variables=cat,
-            min_n_bins=2, max_n_bins=6, min_bin_size=0.05,
-            binning_fit_params=bf,
-            selection_criteria={"iv": {"min": self.cfg.min_iv, "max": self.cfg.max_iv,
-                                       "strategy": "highest"}},
-        )
-        # IMPORTANTE: pasar el DataFrame (NO .values). Con .values y columnas string,
-        # NumPy promueve todo a object y OptBinning trataria las numericas como
-        # categoricas (cada valor = una categoria) => memorizacion y sobreajuste.
-        self.binning_process.fit(X[variables], y.values)
-        summ = self.binning_process.summary()
-        self.iv_table = (summ[["name", "iv", "selected"]]
-                         .rename(columns={"name": "variable"})
+        rows = []
+        yv = y.values
+        for v in num:
+            ob = self._fit_one(v, X[v].values, yv, "numerical")
+            bt = ob.binning_table; bt.build()
+            self.binnings[v] = ob
+            rows.append((v, float(bt.iv)))
+        for v in cat:
+            ob = self._fit_one(v, X[v].astype("object").values, yv, "categorical")
+            bt = ob.binning_table; bt.build()
+            self.binnings[v] = ob
+            rows.append((v, float(bt.iv)))
+        self.iv_table = (pd.DataFrame(rows, columns=["variable", "iv"])
                          .sort_values("iv", ascending=False))
+        self.iv_table["selected"] = self.iv_table["iv"].between(self.cfg.min_iv, self.cfg.max_iv)
         self.selected = self.iv_table.loc[self.iv_table["selected"], "variable"].tolist()
-        log.info("OptBinning: %d/%d variables superan filtros IV/monotonia",
-                 len(self.selected), len(variables))
+        log.info("OptBinning (5-7 bins, auto si infeasible): %d/%d variables superan IV[%.2f,%.2f]",
+                 len(self.selected), len(num) + len(cat), self.cfg.min_iv, self.cfg.max_iv)
 
     def transform_optbinning(self, X: pd.DataFrame) -> pd.DataFrame:
-        # transform exige TODAS las variables del fit como input (no solo las
-        # seleccionadas). Se pasa el DataFrame (preserva dtypes) y se devuelven
-        # SOLO las columnas seleccionadas con nombres alineados.
-        all_vars = list(self.binning_process.variable_names)
-        selected = [str(v) for v in self.binning_process.get_support(names=True)]
-        out = self.binning_process.transform(X[all_vars], metric="woe")
-        if isinstance(out, pd.DataFrame):
-            out.index = X.index
-            out.columns = [f"woe_{c}" for c in out.columns]
-            return out
-        # fallback: salida en array. transform devuelve las columnas SELECCIONADAS
-        # en el orden de variable_names -> reconstruimos ese orden exacto.
-        sel_in_order = [v for v in all_vars if v in set(selected)]
-        if out.shape[1] == len(sel_in_order):
-            cols = [f"woe_{v}" for v in sel_in_order]
-        elif out.shape[1] == len(all_vars):
-            cols = [f"woe_{v}" for v in all_vars]
-        else:
-            cols = [f"woe_c{i}" for i in range(out.shape[1])]
-        woe_df = pd.DataFrame(out, columns=cols, index=X.index)
-        keep_cols = [f"woe_{v}" for v in sel_in_order if f"woe_{v}" in woe_df.columns]
-        return woe_df[keep_cols] if keep_cols else woe_df
+        out = {}
+        for v in self.selected:
+            ob = self.binnings[v]
+            xv = X[v].astype("object").values if ob.dtype == "categorical" else X[v].values
+            out[f"woe_{v}"] = ob.transform(xv, metric="woe")
+        return pd.DataFrame(out, index=X.index)
 
     # ---- Fallback path (sin OptBinning) -------------------------------------
     @staticmethod
@@ -1128,21 +1126,16 @@ def run(cfg: Config):
         "oot": lr_model.predict_proba(woe_oo.fillna(0))[:, 1],
     }
 
-    # --- 5B. SELECCION de variables para GBM (no todas entran) + entrenamiento ---
-    if cfg.gbm_feature_selection:
-        gbm_num, gbm_cat = select_features_gbm(cfg, train, tr_early, tr_late, num, cat,
-                                               iv_map, y_tr, cfg.out_dir)
-    else:
-        gbm_num, gbm_cat = num, cat
-    gbm_feats = gbm_num + gbm_cat
-
-    avail = {"lightgbm": lightgbm, "xgboost": xgboost, "catboost": catboost}
-    Xtr, Xte, Xoo = train[gbm_feats], test[gbm_feats], oot[gbm_feats]
-    y_te = test[cfg.target]
+    # --- 5B. GBM sobre la MISMA matriz WOE que el scorecard (todos usan WOE) ---
+    # No hay seleccion raw separada: el set WOE 'keep' (IV + PSI + correlacion + VIF)
+    # alimenta por igual a LR y a los GBMs. Las columnas WOE son todas numericas
+    # (sin categoricas nativas), por eso gbm_cat = [].
+    gbm_feats = keep
+    gbm_cat: List[str] = []
+    Xtr, Xte, Xoo = woe_tr.fillna(0.0), woe_te.fillna(0.0), woe_oo.fillna(0.0)
 
     # VALIDACION para tuning: se separa DENTRO de train (fit interno + valid interno).
-    # El TEST y el OOT NO intervienen en la optimizacion ni en el early stopping:
-    # quedan reservados exclusivamente para PROBAR el modelo ya elegido.
+    # El TEST y el OOT NO intervienen en la optimizacion ni en el early stopping.
     from sklearn.model_selection import train_test_split as _tts
     fit_idx, val_idx = _tts(Xtr.index, test_size=cfg.valid_size,
                             random_state=cfg.random_state, stratify=y_tr)
@@ -1151,20 +1144,20 @@ def run(cfg: Config):
     log.info("Tuning con validacion INTERNA de train (fit=%d, valid=%d). "
              "TEST y OOT NO se usan en la optimizacion.", len(fit_idx), len(val_idx))
 
+    avail = {"lightgbm": lightgbm, "xgboost": xgboost, "catboost": catboost}
     gbm_models: Dict[str, object] = {}
     gbm_preds: Dict[str, Dict[str, np.ndarray]] = {}
     for mt in cfg.gbm_models:
         if avail.get(mt) is None:
             log.warning("%s no disponible -> challenger omitido", mt)
             continue
-        log.info("--- Optimizando %s (anti-overfit, %d trials) ---", mt, cfg.optuna_trials)
-        # se optimiza/ajusta con fit-interno y se valida con valid-interno (NO test)
+        log.info("--- Optimizando %s sobre WOE (anti-overfit, %d trials) ---", mt, cfg.optuna_trials)
         model, best_params = optimize_gbm(cfg, mt, X_fit, y_fit, X_val, y_val, gbm_cat)
         json.dump(best_params, open(os.path.join(cfg.out_dir, f"{mt}_best_params.json"), "w"),
                   indent=2, default=str)
         gbm_models[mt] = model
         gbm_preds[mt] = {
-            part: gbm_predict(mt, model, prepare_gbm_frame(mt, X, gbm_cat))
+            part: gbm_predict(mt, model, X)
             for part, X in [("train", Xtr), ("test", Xte), ("oot", Xoo)]
         }
 
@@ -1224,17 +1217,14 @@ def run(cfg: Config):
         log.info("\nGANADOR vs CHAMPION:\n%s", comp.to_string(index=False))
 
     # --- 8. explicabilidad SHAP del GANADOR sobre el TEST (data independiente) ---
-    #   El test/OOT solo se usan para PROBAR el modelo y ver el SHAP (no para
-    #   entrenar ni tunear). Se explica sobre TEST, que el modelo no vio.
-    #   (a) ganador GBM -> variables ORIGINALES (TreeSHAP)
-    #   (b) scorecard LR -> WOE (LinearSHAP)
+    #   Todo el mundo usa WOE, asi que el eje X de los SHAP son los valores WOE
+    #   (linea de SHAP promedio por valor WOE). Se explica sobre TEST (no train).
     n_smp = min(cfg.shap_sample, len(Xte))
     smp_idx = Xte.sample(n_smp, random_state=cfg.random_state).index
     if winner in gbm_models:
         shap_dependence_plots(
-            cfg, gbm_models[winner],
-            prepare_gbm_frame(winner, Xte.loc[smp_idx], gbm_cat),
-            cfg.out_dir, tag=f"original_{winner}_test", kind="tree", is_woe=False)
+            cfg, gbm_models[winner], Xte.loc[smp_idx],
+            cfg.out_dir, tag=f"woe_{winner}_test", kind="tree", is_woe=True)
     shap_dependence_plots(
         cfg, lr_model, woe_te.loc[smp_idx].fillna(0.0),
         cfg.out_dir, tag="woe_scorecard_test", kind="linear", is_woe=True)
@@ -1284,7 +1274,7 @@ def modelar(csv: str,
             trials: int = 40,
             oot_months: int = 4,
             usar_flags: bool = False,
-            modelos: Tuple[str, ...] = ("lightgbm", "xgboost", "catboost")):
+            modelos: Tuple[str, ...] = ("lightgbm", "xgboost")):
     """Ejecuta TODO el pipeline a partir de un CSV. Solo necesitas la ruta.
 
     Hace, de punta a punta y sin que configures nada:
