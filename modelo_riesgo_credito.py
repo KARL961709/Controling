@@ -118,15 +118,21 @@ class Config:
     optuna_trials: int = 40                     # iteraciones de optimizacion bayesiana
     cv_folds: int = 5                           # validacion cruzada temporal
 
-    # --- GBM challengers + control de over/under-fitting ---
+    # --- GBM challengers + control de over/under-fitting + CALIBRACION nativa ---
     gbm_models: Tuple[str, ...] = ("lightgbm", "xgboost", "catboost")
-    overfit_tol: float = 0.02                   # gap AUC(train)-AUC(val) tolerado
-    overfit_penalty: float = 1.0                # peso del castigo al gap (anti-overfit)
+    # La OPTIMIZACION usa LOG-LOSS (regla propia) => el modelo sale calibrado por
+    # construccion (sin parche post-hoc). El objetivo penaliza ademas:
+    #   - el GAP de log-loss train-val (over/under-fitting)
+    #   - el error de calibracion EC en validacion (que mean(PD)~mean(RD))
+    overfit_tol: float = 0.0                     # gap log-loss(val)-log-loss(train) tolerado
+    overfit_penalty: float = 1.0                 # peso del castigo al gap (anti-overfit)
+    w_calib: float = 0.5                         # peso del castigo al EC de validacion
+    # Importante: NO se usa rebalanceo de clases (scale_pos_weight/is_unbalance):
+    # distorsiona el nivel de probabilidad y descalibra. Se mantiene la tasa real.
 
-    # --- calibracion ---
-    # SOLO se calibra si el EC del modelo supera este umbral (ya calibrado -> no se toca)
-    ec_calibration_threshold: float = 0.05
-    calibration_method: str = "isotonic"        # 'isotonic' | 'sigmoid' (Platt)
+    # --- calibracion post-hoc (DESACTIVADA por defecto: el modelo ya sale calibrado) ---
+    post_hoc_calibration: bool = False
+    calibration_method: str = "isotonic"         # solo si post_hoc_calibration=True
 
     # --- explicabilidad SHAP ---
     shap_max_features: int = 20                 # nro de variables a graficar
@@ -195,6 +201,17 @@ def brier(y: np.ndarray, p: np.ndarray) -> float:
     return float(np.mean((p[mask] - y[mask]) ** 2)) if mask.sum() else np.nan
 
 
+def logloss(y: np.ndarray, p: np.ndarray) -> float:
+    """Log-loss (regla de scoring ESTRICTAMENTE PROPIA): su minimo se alcanza
+    con probabilidades a la vez discriminantes y CALIBRADAS. Es la pieza clave
+    para que el modelo salga calibrado desde la optimizacion (sin parche)."""
+    from sklearn.metrics import log_loss
+    mask = ~np.isnan(p)
+    if mask.sum() == 0 or len(np.unique(y[mask])) < 2:
+        return np.nan
+    return float(log_loss(y[mask], np.clip(p[mask], 1e-6, 1 - 1e-6)))
+
+
 def ec_calibration(y: np.ndarray, p: np.ndarray) -> float:
     """Error de calibracion agregado EC = |mean(PD)/mean(RD) - 1|.
     Es la metrica usada en el entregable vigente (hoja Metricas)."""
@@ -253,6 +270,7 @@ def metric_panel(y: np.ndarray, p: np.ndarray) -> Dict[str, float]:
         "AUC": _safe_auc(y, p),
         "Gini": gini(y, p),
         "KS": ks_stat(y, p),
+        "LogLoss": logloss(y, p),
         "Brier": brier(y, p),
         "EC": ec_calibration(y, p),
         "ECE": ece,
@@ -541,16 +559,24 @@ def gbm_predict(model_type: str, model, X: pd.DataFrame) -> np.ndarray:
     return model.predict_proba(X)[:, 1]
 
 
-def _overfit_score(cfg: Config, y_tr, p_tr, y_va, p_va) -> float:
-    """AUC(val) penalizando el exceso de gap respecto a train.
-    score = AUC_val - penalty * max(0, (AUC_tr - AUC_val) - tol).
-    Premia generalizacion (gap chico) sin sacrificar discriminacion."""
-    a_tr = _safe_auc(np.asarray(y_tr), np.asarray(p_tr))
-    a_va = _safe_auc(np.asarray(y_va), np.asarray(p_va))
-    if np.isnan(a_tr) or np.isnan(a_va):
-        return -1.0
-    gap = max(0.0, (a_tr - a_va) - cfg.overfit_tol)
-    return a_va - cfg.overfit_penalty * gap
+def _selection_score(cfg: Config, y_tr, p_tr, y_va, p_va) -> float:
+    """Objetivo de seleccion ORIENTADO A CALIBRACION (no a AUC):
+        score = -logloss_val
+                - w_calib   * EC_val                       (nivel: mean(PD)~mean(RD))
+                - penalty   * max(0, logloss_val-logloss_tr - tol)   (anti-overfit)
+    - log-loss es regla propia: su optimo da probabilidades calibradas Y
+      discriminantes => el modelo sale calibrado por construccion.
+    - el termino EC asegura la calibracion 'en nivel' (la metrica del entregable).
+    - el gap log-loss train-val evita over/under-fitting.
+    Maximizar."""
+    ll_tr = logloss(np.asarray(y_tr), np.asarray(p_tr))
+    ll_va = logloss(np.asarray(y_va), np.asarray(p_va))
+    if np.isnan(ll_tr) or np.isnan(ll_va):
+        return -1e9
+    ec_va = ec_calibration(np.asarray(y_va), np.asarray(p_va))
+    ec_va = 0.0 if (ec_va is None or np.isnan(ec_va)) else ec_va
+    gap = max(0.0, (ll_va - ll_tr) - cfg.overfit_tol)
+    return -ll_va - cfg.w_calib * ec_va - cfg.overfit_penalty * gap
 
 
 def _space(model_type: str, trial, cfg: Config) -> dict:
@@ -558,7 +584,7 @@ def _space(model_type: str, trial, cfg: Config) -> dict:
     rs = cfg.random_state
     if model_type == "lightgbm":
         return dict(
-            objective="binary", metric="auc", n_estimators=4000,
+            objective="binary", metric="binary_logloss", n_estimators=4000,
             learning_rate=trial.suggest_float("learning_rate", 0.01, 0.1, log=True),
             num_leaves=trial.suggest_int("num_leaves", 15, 63),          # acotado -> menos overfit
             max_depth=trial.suggest_int("max_depth", 3, 8),
@@ -573,7 +599,7 @@ def _space(model_type: str, trial, cfg: Config) -> dict:
         )
     if model_type == "xgboost":
         return dict(
-            objective="binary:logistic", eval_metric="auc", n_estimators=4000,
+            objective="binary:logistic", eval_metric="logloss", n_estimators=4000,
             tree_method="hist", enable_categorical=True,
             learning_rate=trial.suggest_float("learning_rate", 0.01, 0.1, log=True),
             max_depth=trial.suggest_int("max_depth", 3, 8),
@@ -587,7 +613,7 @@ def _space(model_type: str, trial, cfg: Config) -> dict:
         )
     if model_type == "catboost":
         return dict(
-            loss_function="Logloss", eval_metric="AUC", iterations=4000,
+            loss_function="Logloss", eval_metric="Logloss", iterations=4000,
             learning_rate=trial.suggest_float("learning_rate", 0.01, 0.1, log=True),
             depth=trial.suggest_int("depth", 3, 8),
             l2_leaf_reg=trial.suggest_float("l2_leaf_reg", 1.0, 30.0, log=True),  # L2
@@ -649,7 +675,7 @@ def optimize_gbm(cfg: Config, model_type: str, Xtr, ytr, Xva, yva, cat: List[str
         m = _fit_gbm(model_type, params, Xtr, ytr, Xva, yva, cat)
         p_tr = gbm_predict(model_type, m, Xtr)
         p_va = gbm_predict(model_type, m, Xva)
-        return _overfit_score(cfg, ytr, p_tr, yva, p_va)
+        return _selection_score(cfg, ytr, p_tr, yva, p_va)
 
     study = optuna.create_study(direction="maximize",
                                 sampler=optuna.samplers.TPESampler(seed=cfg.random_state))
@@ -658,10 +684,10 @@ def optimize_gbm(cfg: Config, model_type: str, Xtr, ytr, Xva, yva, cat: List[str
     best = _fit_gbm(model_type, best_params, Xtr, ytr, Xva, yva, cat)
     p_tr = gbm_predict(model_type, best, Xtr)
     p_va = gbm_predict(model_type, best, Xva)
-    log.info("%-9s | score=%.4f | AUC_tr=%.4f AUC_val=%.4f (gap=%.4f)",
-             model_type, study.best_value, _safe_auc(ytr.values, p_tr),
-             _safe_auc(yva.values, p_va),
-             _safe_auc(ytr.values, p_tr) - _safe_auc(yva.values, p_va))
+    log.info("%-9s | score=%.4f | AUC_val=%.4f | LogLoss tr/val=%.4f/%.4f | EC_val=%.4f",
+             model_type, study.best_value, _safe_auc(yva.values, p_va),
+             logloss(ytr.values, p_tr), logloss(yva.values, p_va),
+             ec_calibration(yva.values, p_va))
     return best, study.best_trial.params
 
 
@@ -687,22 +713,6 @@ def calibrate(cfg: Config, p_tr: np.ndarray, y_tr: np.ndarray,
             z = np.log(np.clip(p, 1e-6, 1 - 1e-6) / (1 - np.clip(p, 1e-6, 1 - 1e-6)))
             return lr.predict_proba(z.reshape(-1, 1))[:, 1]
         return _f
-
-
-def maybe_calibrate(cfg: Config, p_tr: np.ndarray, y_tr: np.ndarray,
-                    p_dict: Dict[str, np.ndarray]) -> Tuple[Dict[str, np.ndarray], float, bool]:
-    """Aplica calibracion SOLO si el EC del modelo (in-sample) supera el umbral.
-    Si EC <= umbral => el modelo ya esta bien calibrado y NO se toca (evita
-    introducir varianza/ruido innecesario). Devuelve (preds, ec, aplicada)."""
-    ec = ec_calibration(y_tr, p_tr)
-    if ec is None or np.isnan(ec) or ec <= cfg.ec_calibration_threshold:
-        log.info("Calibracion OMITIDA (EC=%.4f <= %.2f): el modelo ya esta calibrado",
-                 ec if ec is not None else float("nan"), cfg.ec_calibration_threshold)
-        return p_dict, ec, False
-    log.info("Calibracion APLICADA (EC=%.4f > %.2f) | metodo=%s",
-             ec, cfg.ec_calibration_threshold, cfg.calibration_method)
-    cal = calibrate(cfg, p_tr, y_tr, cfg.calibration_method)
-    return {k: cal(v) for k, v in p_dict.items()}, ec, True
 
 
 # =============================================================================
@@ -841,8 +851,8 @@ def benchmark_table(cfg: Config, parts: Dict[str, pd.DataFrame],
             m = metric_panel(y, p)
             m.update({"particion": part_name, "modelo": mname})
             rows.append(m)
-    cols = ["particion", "modelo", "Gini", "KS", "AUC", "Brier", "EC", "ECE", "MCE",
-            "mean_pred", "mean_obs"]
+    cols = ["particion", "modelo", "Gini", "KS", "AUC", "LogLoss", "Brier", "EC", "ECE",
+            "MCE", "mean_pred", "mean_obs"]
     return pd.DataFrame(rows)[cols].sort_values(["particion", "Gini"], ascending=[True, False])
 
 
@@ -921,24 +931,37 @@ def run(cfg: Config):
             for part, X in [("train", Xtr), ("test", Xte), ("oot", Xoo)]
         }
 
-    # --- 6. calibracion CONDICIONAL (solo si EC del modelo > umbral=0.05) ---
+    # --- 6. CALIBRACION NATIVA (el modelo ya sale calibrado por la optimizacion
+    #        log-loss; NO se aplica parche post-hoc salvo cfg.post_hoc_calibration).
+    #        Aqui solo se DIAGNOSTICA EC/ECE en train/test/OOT para evidenciar que
+    #        la calibracion se sostiene fuera de muestra. ---
     preds_by_part = {"train": {}, "test": {}, "oot": {}}
-    cal_report = []
+    all_preds = {"LR/WOE": p_lr, **gbm_preds}
 
-    # 6.1 scorecard LR
-    p_lr_cal, ec_lr, applied_lr = maybe_calibrate(cfg, p_lr["train"], y_tr.values, p_lr)
-    cal_report.append({"modelo": "LR/WOE", "EC_train": ec_lr, "calibrado": applied_lr})
-    for part in preds_by_part:
-        preds_by_part[part]["LR/WOE"] = p_lr_cal[part]
-
-    # 6.2 cada GBM
-    for mt, preds in gbm_preds.items():
-        preds_cal, ec, applied = maybe_calibrate(cfg, preds["train"], y_tr.values, preds)
-        cal_report.append({"modelo": mt, "EC_train": ec, "calibrado": applied})
+    for name, preds in all_preds.items():
+        if cfg.post_hoc_calibration:
+            # opcional (desactivado por defecto): ajuste entrenado SOLO en train
+            cal = calibrate(cfg, preds["train"], y_tr.values, cfg.calibration_method)
+            preds = {k: cal(v) for k, v in preds.items()}
+            log.info("%s: calibracion post-hoc aplicada (%s)", name, cfg.calibration_method)
         for part in preds_by_part:
-            preds_by_part[part][mt] = preds_cal[part]
-    pd.DataFrame(cal_report).to_csv(
-        os.path.join(cfg.out_dir, "reporte_calibracion.csv"), index=False)
+            preds_by_part[part][name] = preds[part]
+
+    # diagnostico de calibracion (sin transformar nada): EC/ECE por particion
+    diag = []
+    for name in all_preds:
+        for part, dfp in parts.items():
+            y = dfp[cfg.target].values
+            p = preds_by_part[part][name]
+            ece, _ = expected_calibration_error(y, p)
+            diag.append({"modelo": name, "particion": part,
+                         "EC": ec_calibration(y, p), "ECE": ece,
+                         "LogLoss": logloss(y, p), "Brier": brier(y, p),
+                         "mean_PD": float(np.nanmean(p)), "mean_RD": float(np.mean(y))})
+    pd.DataFrame(diag).to_csv(
+        os.path.join(cfg.out_dir, "diagnostico_calibracion.csv"), index=False)
+    log.info("\nDIAGNOSTICO DE CALIBRACION (EC debe ser bajo en train/test/OOT):\n%s",
+             pd.DataFrame(diag).to_string(index=False))
 
     # --- 7. tabla de decision champion vs challenger ---
     bench = benchmark_table(cfg, parts, preds_by_part)
@@ -981,7 +1004,7 @@ def run(cfg: Config):
         "config": asdict(cfg),
         "n_variables_finales": len(keep),
         "variables_finales": keep,
-        "calibracion": cal_report,
+        "calibracion": {"post_hoc": cfg.post_hoc_calibration, "diagnostico": diag},
         "librerias": {
             "optbinning": optbinning is not None, "lightgbm": lightgbm is not None,
             "xgboost": xgboost is not None, "catboost": catboost is not None,
