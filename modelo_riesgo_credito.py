@@ -125,6 +125,11 @@ class Config:
 
     # --- GBM challengers + control de over/under-fitting + CALIBRACION nativa ---
     gbm_models: Tuple[str, ...] = ("lightgbm", "xgboost")   # CatBoost removido
+    # rango del learning rate (bajo pero practico; 0.001 suele ser demasiado lento)
+    lr_min: float = 0.005
+    lr_max: float = 0.03
+    n_estimators_max: int = 8000               # tope de arboles (early stopping recorta)
+    early_stopping_rounds: int = 200           # paciencia del early stopping
     # La OPTIMIZACION usa LOG-LOSS (regla propia) => el modelo sale calibrado por
     # construccion (sin parche post-hoc). El objetivo penaliza ademas:
     #   - el GAP de log-loss train-val (over/under-fitting)
@@ -695,33 +700,45 @@ def _selection_score(cfg: Config, y_tr, p_tr, y_va, p_va) -> float:
 def _space(model_type: str, trial, cfg: Config) -> dict:
     """Espacios de busqueda REGULARIZADOS por libreria."""
     rs = cfg.random_state
+    lo, hi = cfg.lr_min, cfg.lr_max
     if model_type == "lightgbm":
         return dict(
-            objective="binary", metric="binary_logloss", n_estimators=4000,
-            learning_rate=trial.suggest_float("learning_rate", 0.01, 0.1, log=True),
-            num_leaves=trial.suggest_int("num_leaves", 15, 63),          # acotado -> menos overfit
-            max_depth=trial.suggest_int("max_depth", 3, 8),
-            min_child_samples=trial.suggest_int("min_child_samples", 50, 500),
-            min_split_gain=trial.suggest_float("min_split_gain", 0.0, 0.5),
-            subsample=trial.suggest_float("subsample", 0.6, 1.0),
-            subsample_freq=1,
-            colsample_bytree=trial.suggest_float("colsample_bytree", 0.6, 1.0),
-            reg_alpha=trial.suggest_float("reg_alpha", 1e-3, 10.0, log=True),   # L1
-            reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 10.0, log=True), # L2
+            objective="binary", metric="binary_logloss", n_estimators=cfg.n_estimators_max,
+            learning_rate=trial.suggest_float("learning_rate", lo, hi, log=True),
+            num_leaves=trial.suggest_int("num_leaves", 15, 127),         # estructura
+            max_depth=trial.suggest_int("max_depth", 3, 10),
+            min_child_samples=trial.suggest_int("min_child_samples", 30, 600),  # hojas con minimo soporte
+            min_child_weight=trial.suggest_float("min_child_weight", 1e-3, 10.0, log=True),  # min hessiana
+            min_split_gain=trial.suggest_float("min_split_gain", 0.0, 1.0),     # ganancia minima para abrir
+            subsample=trial.suggest_float("subsample", 0.5, 1.0),              # bagging por fila
+            subsample_freq=trial.suggest_int("subsample_freq", 0, 7),
+            colsample_bytree=trial.suggest_float("colsample_bytree", 0.5, 1.0),  # features por arbol
+            colsample_bynode=trial.suggest_float("colsample_bynode", 0.5, 1.0),  # features por nodo
+            reg_alpha=trial.suggest_float("reg_alpha", 1e-3, 30.0, log=True),    # L1
+            reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 30.0, log=True),  # L2
+            min_data_in_bin=trial.suggest_int("min_data_in_bin", 3, 50),
+            max_bin=trial.suggest_int("max_bin", 128, 512),                      # resolucion del histograma
+            path_smooth=trial.suggest_float("path_smooth", 0.0, 1.0),           # suavizado anti-overfit
+            extra_trees=trial.suggest_categorical("extra_trees", [False, True]),
             random_state=rs, n_jobs=-1, verbose=-1,
         )
     if model_type == "xgboost":
         return dict(
-            objective="binary:logistic", eval_metric="logloss", n_estimators=4000,
+            objective="binary:logistic", eval_metric="logloss", n_estimators=cfg.n_estimators_max,
             tree_method="hist", enable_categorical=True,
-            learning_rate=trial.suggest_float("learning_rate", 0.01, 0.1, log=True),
-            max_depth=trial.suggest_int("max_depth", 3, 8),
-            min_child_weight=trial.suggest_float("min_child_weight", 1.0, 300.0, log=True),
-            gamma=trial.suggest_float("gamma", 0.0, 5.0),                 # min loss reduction
-            subsample=trial.suggest_float("subsample", 0.6, 1.0),
-            colsample_bytree=trial.suggest_float("colsample_bytree", 0.6, 1.0),
-            reg_alpha=trial.suggest_float("reg_alpha", 1e-3, 10.0, log=True),
-            reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 10.0, log=True),
+            learning_rate=trial.suggest_float("learning_rate", lo, hi, log=True),
+            max_depth=trial.suggest_int("max_depth", 3, 10),
+            min_child_weight=trial.suggest_float("min_child_weight", 1.0, 400.0, log=True),
+            gamma=trial.suggest_float("gamma", 1e-3, 5.0, log=True),            # min loss reduction (split)
+            max_delta_step=trial.suggest_float("max_delta_step", 0.0, 10.0),    # estabiliza/calibra
+            subsample=trial.suggest_float("subsample", 0.5, 1.0),
+            colsample_bytree=trial.suggest_float("colsample_bytree", 0.5, 1.0),
+            colsample_bylevel=trial.suggest_float("colsample_bylevel", 0.5, 1.0),
+            colsample_bynode=trial.suggest_float("colsample_bynode", 0.5, 1.0),
+            reg_alpha=trial.suggest_float("reg_alpha", 1e-3, 30.0, log=True),
+            reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 30.0, log=True),
+            grow_policy=trial.suggest_categorical("grow_policy", ["depthwise", "lossguide"]),
+            max_bin=trial.suggest_int("max_bin", 128, 512),
             random_state=rs, n_jobs=-1, verbosity=0,
         )
     if model_type == "catboost":
@@ -751,24 +768,26 @@ def _default_space(model_type: str, cfg: Config) -> dict:
     return _space(model_type, _T(), cfg)
 
 
-def _fit_gbm(model_type: str, params: dict, Xtr, ytr, Xva, yva, cat: List[str]):
-    """Ajuste con EARLY STOPPING (controla nro de arboles -> anti-overfit)."""
+def _fit_gbm(model_type: str, params: dict, Xtr, ytr, Xva, yva, cat: List[str],
+             rounds: int = 200):
+    """Ajuste con EARLY STOPPING (controla nro de arboles -> anti-overfit).
+    `rounds` = paciencia (mas alta cuando el learning rate es bajo)."""
     if model_type == "lightgbm":
         import lightgbm as lgb
         m = lgb.LGBMClassifier(**params)
         m.fit(Xtr, ytr, eval_set=[(Xva, yva)],
-              callbacks=[lgb.early_stopping(150, verbose=False), lgb.log_evaluation(0)])
+              callbacks=[lgb.early_stopping(rounds, verbose=False), lgb.log_evaluation(0)])
         return m
     if model_type == "xgboost":
         import xgboost as xgb
-        p = dict(params); p["early_stopping_rounds"] = 150
+        p = dict(params); p["early_stopping_rounds"] = rounds
         m = xgb.XGBClassifier(**p)
         m.fit(Xtr, ytr, eval_set=[(Xva, yva)], verbose=False)
         return m
     if model_type == "catboost":
         from catboost import CatBoostClassifier, Pool
         cat_idx = [Xtr.columns.get_loc(c) for c in cat]
-        m = CatBoostClassifier(**params, od_type="Iter", od_wait=60, cat_features=cat_idx)
+        m = CatBoostClassifier(**params, od_type="Iter", od_wait=rounds, cat_features=cat_idx)
         m.fit(Pool(Xtr, ytr, cat_features=cat_idx),
               eval_set=Pool(Xva, yva, cat_features=cat_idx), use_best_model=True, verbose=0)
         return m
@@ -784,11 +803,11 @@ def optimize_gbm(cfg: Config, model_type: str, Xtr, ytr, Xva, yva, cat: List[str
     if optuna is None:
         log.warning("Optuna no disponible -> %s con hiperparametros por defecto", model_type)
         params = _default_space(model_type, cfg)
-        return _fit_gbm(model_type, params, Xtr, ytr, Xva, yva, cat), {}
+        return _fit_gbm(model_type, params, Xtr, ytr, Xva, yva, cat, cfg.early_stopping_rounds), {}
 
     def objective(trial):
         params = _space(model_type, trial, cfg)
-        m = _fit_gbm(model_type, params, Xtr, ytr, Xva, yva, cat)
+        m = _fit_gbm(model_type, params, Xtr, ytr, Xva, yva, cat, cfg.early_stopping_rounds)
         p_tr = gbm_predict(model_type, m, Xtr)
         p_va = gbm_predict(model_type, m, Xva)
         return _selection_score(cfg, ytr, p_tr, yva, p_va)
@@ -797,7 +816,7 @@ def optimize_gbm(cfg: Config, model_type: str, Xtr, ytr, Xva, yva, cat: List[str
                                 sampler=optuna.samplers.TPESampler(seed=cfg.random_state))
     study.optimize(objective, n_trials=cfg.optuna_trials, show_progress_bar=False)
     best_params = _space(model_type, study.best_trial, cfg)
-    best = _fit_gbm(model_type, best_params, Xtr, ytr, Xva, yva, cat)
+    best = _fit_gbm(model_type, best_params, Xtr, ytr, Xva, yva, cat, cfg.early_stopping_rounds)
     p_tr = gbm_predict(model_type, best, Xtr)
     p_va = gbm_predict(model_type, best, Xva)
     log.info("%-9s | score=%.4f | AUC_val=%.4f | LogLoss tr/val=%.4f/%.4f | EC_val=%.4f",
@@ -1202,7 +1221,10 @@ def modelar(csv: str,
             trials: int = 40,
             oot_months: int = 4,
             usar_flags: bool = False,
-            modelos: Tuple[str, ...] = ("lightgbm", "xgboost")):
+            modelos: Tuple[str, ...] = ("lightgbm", "xgboost"),
+            lr_min: float = 0.005,
+            lr_max: float = 0.03,
+            n_estimators_max: int = 8000):
     """Ejecuta TODO el pipeline a partir de un CSV. Solo necesitas la ruta.
 
     Hace, de punta a punta y sin que configures nada:
@@ -1227,6 +1249,7 @@ def modelar(csv: str,
         data_path=csv, out_dir=out_dir, target=target,
         optuna_trials=trials, oot_n_months=oot_months,
         use_flags=usar_flags, gbm_models=tuple(modelos),
+        lr_min=lr_min, lr_max=lr_max, n_estimators_max=n_estimators_max,
     )
     return run(cfg)
 
