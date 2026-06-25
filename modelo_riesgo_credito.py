@@ -151,14 +151,14 @@ class Config:
         "far_rubrofrec_9m", "spsa_rubro_top3_frec_name_9m",
         "far_rubro_top2_monto_name_6m", "spsa_rubro_top2_frec_name_12m",
         "far_rubro_top2_monto_name_9m", "far_rubro_top3_frec_name_1m",
-        "far_rubro_top1_monto_name_6m",
+        "lvl_edu_poten_open",            # nivel educativo (ordinal) -> categorica, NO flag
     )
-    # flags / ordinales de baja cardinalidad que conviene tratar como categoricas
+    # flags binarios; por defecto se EXCLUYEN del modelo (use_flags=False)
     flag_cols: Tuple[str, ...] = (
-        "flag_bancarizado", "flg_clasi_dif_nor_1m", "lvl_edu_poten_open",
+        "flag_bancarizado", "flg_clasi_dif_nor_1m",
     )
-    use_flags: bool = True                      # True: flags entran como features (categoricas)
-                                                # False: se excluyen del modelo
+    use_flags: bool = False                     # False: los flags NO entran (pedido del negocio)
+                                                # True: entran como categoricas
 
     # --- regla de seleccion del ganador ---
     select_metric: str = "Gini"                 # metrica de seleccion
@@ -445,7 +445,10 @@ class WoeEngine:
             selection_criteria={"iv": {"min": self.cfg.min_iv, "max": self.cfg.max_iv,
                                        "strategy": "highest"}},
         )
-        self.binning_process.fit(X[variables].values, y.values)
+        # IMPORTANTE: pasar el DataFrame (NO .values). Con .values y columnas string,
+        # NumPy promueve todo a object y OptBinning trataria las numericas como
+        # categoricas (cada valor = una categoria) => memorizacion y sobreajuste.
+        self.binning_process.fit(X[variables], y.values)
         summ = self.binning_process.summary()
         self.iv_table = (summ[["name", "iv", "selected"]]
                          .rename(columns={"name": "variable"})
@@ -456,19 +459,27 @@ class WoeEngine:
 
     def transform_optbinning(self, X: pd.DataFrame) -> pd.DataFrame:
         # transform exige TODAS las variables del fit como input (no solo las
-        # seleccionadas); luego nos quedamos con las columnas seleccionadas.
+        # seleccionadas). Se pasa el DataFrame (preserva dtypes) y se devuelven
+        # SOLO las columnas seleccionadas con nombres alineados.
         all_vars = list(self.binning_process.variable_names)
-        selected = list(self.binning_process.get_support(names=True))
-        woe = self.binning_process.transform(X[all_vars].values, metric="woe")
-        if woe.shape[1] == len(selected):
-            cols = [f"woe_{v}" for v in selected]
-        elif woe.shape[1] == len(all_vars):
+        selected = [str(v) for v in self.binning_process.get_support(names=True)]
+        out = self.binning_process.transform(X[all_vars], metric="woe")
+        if isinstance(out, pd.DataFrame):
+            out.index = X.index
+            out.columns = [f"woe_{c}" for c in out.columns]
+            return out
+        # fallback: salida en array. transform devuelve las columnas SELECCIONADAS
+        # en el orden de variable_names -> reconstruimos ese orden exacto.
+        sel_in_order = [v for v in all_vars if v in set(selected)]
+        if out.shape[1] == len(sel_in_order):
+            cols = [f"woe_{v}" for v in sel_in_order]
+        elif out.shape[1] == len(all_vars):
             cols = [f"woe_{v}" for v in all_vars]
         else:
-            cols = [f"woe_c{i}" for i in range(woe.shape[1])]
-        woe_df = pd.DataFrame(woe, columns=cols, index=X.index)
-        sel_cols = [f"woe_{v}" for v in selected if f"woe_{v}" in woe_df.columns]
-        return woe_df[sel_cols] if sel_cols else woe_df
+            cols = [f"woe_c{i}" for i in range(out.shape[1])]
+        woe_df = pd.DataFrame(out, columns=cols, index=X.index)
+        keep_cols = [f"woe_{v}" for v in sel_in_order if f"woe_{v}" in woe_df.columns]
+        return woe_df[keep_cols] if keep_cols else woe_df
 
     # ---- Fallback path (sin OptBinning) -------------------------------------
     @staticmethod
@@ -1042,6 +1053,11 @@ def run(cfg: Config):
     log.info("=" * 70)
     log.info("PIPELINE PD — CHALLENGER vs CHAMPION(prob_malo)  | seed=%d", cfg.random_state)
     log.info("=" * 70)
+    falt = [m for m in cfg.gbm_models if {"lightgbm": lightgbm, "xgboost": xgboost,
+                                          "catboost": catboost}.get(m) is None]
+    if falt:
+        log.warning("GBMs NO instalados (%s). Para activarlos: pip install %s",
+                    ", ".join(falt), " ".join(falt))
 
     # --- 1. data + particion ---
     df = load_data(cfg)
@@ -1218,7 +1234,7 @@ def run(cfg: Config):
               indent=2, default=str)
     log.info("Artefactos guardados en: %s", os.path.abspath(cfg.out_dir))
     log.info("FIN.")
-    return bench
+    return winner, bench
 
 
 # =============================================================================
@@ -1229,7 +1245,7 @@ def modelar(csv: str,
             target: str = "target_60_12m",
             trials: int = 40,
             oot_months: int = 4,
-            usar_flags: bool = True,
+            usar_flags: bool = False,
             modelos: Tuple[str, ...] = ("lightgbm", "xgboost", "catboost")):
     """Ejecuta TODO el pipeline a partir de un CSV. Solo necesitas la ruta.
 
