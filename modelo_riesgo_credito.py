@@ -927,9 +927,22 @@ def stability_by_period(cfg: Config, df: pd.DataFrame, p: np.ndarray,
 def _shap_values(model, X: pd.DataFrame, kind: str):
     """Devuelve la matriz de SHAP (clase positiva) para tree o linear."""
     if kind == "tree":
-        explainer = shap.TreeExplainer(model)
-        sv = explainer.shap_values(X)
-        return sv[1] if isinstance(sv, list) else sv
+        try:
+            explainer = shap.TreeExplainer(model)
+            sv = explainer.shap_values(X)
+            return sv[1] if isinstance(sv, list) else sv
+        except Exception:
+            # XGBoost >=2 guarda base_score como string y rompe shap -> SHAP nativo
+            mod = model.__class__.__module__
+            if mod.startswith("xgboost"):
+                import xgboost as xgb
+                dm = xgb.DMatrix(X, enable_categorical=True)
+                contribs = model.get_booster().predict(dm, pred_contribs=True)
+                return contribs[:, :-1]                 # se quita la columna de bias
+            if mod.startswith("lightgbm"):
+                contribs = model.predict(X, pred_contrib=True)
+                return contribs[:, :-1]
+            raise
     # linear (LR sobre WOE): background = la propia muestra
     explainer = shap.LinearExplainer(model, X)
     sv = explainer.shap_values(X)
@@ -1275,6 +1288,9 @@ def modelar(csv: str,
             modelos: Tuple[str, ...] = ("lightgbm", "xgboost"),
             preselect_gini: int = 15,
             max_variables: int = 8,
+            max_psi: float = 0.25,
+            max_corr: float = 0.80,
+            max_iv: float = 1.50,
             lr_min: float = 0.005,
             lr_max: float = 0.03,
             n_estimators_max: int = 8000):
@@ -1303,6 +1319,7 @@ def modelar(csv: str,
         optuna_trials=trials, oot_n_months=oot_months,
         use_flags=usar_flags, gbm_models=tuple(modelos),
         n_gini_preselect=preselect_gini, n_features_max=max_variables,
+        max_psi=max_psi, max_corr=max_corr, max_iv=max_iv,
         lr_min=lr_min, lr_max=lr_max, n_estimators_max=n_estimators_max,
     )
     return run(cfg)
