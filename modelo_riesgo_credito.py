@@ -114,9 +114,14 @@ class Config:
     # --- modelado ---
     monotonic: bool = True                      # binning monotono (regulatorio)
     use_woe_for_lr: bool = True                 # LR sobre WOE (scorecard)
-    n_features_max: int = 25                    # tope de variables en el modelo final
+    n_features_max: int = 25                    # tope de variables del scorecard (LR/WOE)
     optuna_trials: int = 40                     # iteraciones de optimizacion bayesiana
     cv_folds: int = 5                           # validacion cruzada temporal
+
+    # --- seleccion de variables especifica para los GBM (NO todas entran) ---
+    gbm_feature_selection: bool = True          # aplica eliminacion de variables a los GBM
+    embedded_prune: bool = True                 # poda embebida por importancia (LightGBM)
+    n_features_gbm_max: int = 60                # tope de variables para los GBM
 
     # --- GBM challengers + control de over/under-fitting + CALIBRACION nativa ---
     gbm_models: Tuple[str, ...] = ("lightgbm", "xgboost", "catboost")
@@ -567,6 +572,88 @@ def filter_correlation(cfg: Config, woe: pd.DataFrame, iv_map: Dict[str, float])
     return keep
 
 
+def cat_psi(expected: pd.Series, actual: pd.Series) -> float:
+    """PSI sobre frecuencias de categorias (estabilidad de una variable categorica)."""
+    e = expected.astype("object").fillna("__NA__").value_counts(normalize=True)
+    a = actual.astype("object").fillna("__NA__").value_counts(normalize=True)
+    cats = e.index.union(a.index)
+    e = e.reindex(cats).fillna(1e-6).clip(lower=1e-6)
+    a = a.reindex(cats).fillna(1e-6).clip(lower=1e-6)
+    return float(np.sum((a - e) * np.log(a / e)))
+
+
+def select_features_gbm(cfg: Config, train: pd.DataFrame, oot: pd.DataFrame,
+                        num: List[str], cat: List[str], iv_map: Dict[str, float],
+                        y_tr: pd.Series, outdir: str) -> Tuple[List[str], List[str]]:
+    """FEATURE ENGINEERING / SELECCION para los GBM: NO todas las variables entran.
+    Elimina por: (1) estabilidad PSI train->OOT, (2) redundancia por correlacion
+    (conserva mayor IV), (3) poda embebida por importancia (LightGBM) + tope.
+    Guarda seleccion_variables_gbm.csv con el motivo de cada exclusion."""
+    log_rows = []  # (variable, decision, motivo)
+
+    # (1) estabilidad PSI (numericas por cuantiles, categoricas por frecuencias)
+    stable_num, stable_cat = [], []
+    for c in num:
+        val = psi(train[c].values, oot[c].values)
+        if np.isnan(val) or val <= cfg.max_psi:
+            stable_num.append(c)
+        else:
+            log_rows.append((c, "ELIMINADA", f"PSI={val:.3f}>{cfg.max_psi}"))
+    for c in cat:
+        val = cat_psi(train[c], oot[c])
+        if val <= cfg.max_psi:
+            stable_cat.append(c)
+        else:
+            log_rows.append((c, "ELIMINADA", f"PSI_cat={val:.3f}>{cfg.max_psi}"))
+
+    # (2) redundancia entre numericas: |corr|>umbral -> se conserva la de mayor IV
+    drop = set()
+    if len(stable_num) > 1:
+        corr = train[stable_num].corr().abs()
+        for i, a in enumerate(stable_num):
+            if a in drop:
+                continue
+            for b in stable_num[i + 1:]:
+                if b in drop:
+                    continue
+                if corr.loc[a, b] > cfg.max_corr:
+                    worse = a if iv_map.get(a, 0) < iv_map.get(b, 0) else b
+                    other = b if worse == a else a
+                    drop.add(worse)
+                    log_rows.append((worse, "ELIMINADA",
+                                     f"corr>|{cfg.max_corr}| con {other} (menor IV)"))
+    keep_num = [c for c in stable_num if c not in drop]
+    keep_cat = stable_cat
+
+    # (3) poda embebida por importancia (metodo embebido) + tope n_features_gbm_max
+    feats = keep_num + keep_cat
+    if cfg.embedded_prune and lightgbm is not None and len(feats) > 1:
+        import lightgbm as lgb
+        Xq = prepare_gbm_frame("lightgbm", train[feats], keep_cat)
+        q = lgb.LGBMClassifier(n_estimators=400, learning_rate=0.05, num_leaves=31,
+                               min_child_samples=100, subsample=0.8, colsample_bytree=0.8,
+                               reg_lambda=1.0, random_state=cfg.random_state,
+                               n_jobs=-1, verbose=-1)
+        q.fit(Xq, y_tr)
+        imp = pd.Series(q.feature_importances_, index=feats).sort_values(ascending=False)
+        kept = imp[imp > 0].index.tolist()[:cfg.n_features_gbm_max]
+        for c in feats:
+            if c not in kept:
+                motivo = ("importancia=0 (embebido)" if imp.get(c, 0) == 0
+                          else f"fuera del top-{cfg.n_features_gbm_max} (embebido)")
+                log_rows.append((c, "ELIMINADA", motivo))
+        keep_num = [c for c in keep_num if c in kept]
+        keep_cat = [c for c in keep_cat if c in kept]
+
+    for c in keep_num + keep_cat:
+        log_rows.append((c, "SELECCIONADA", "pasa PSI + correlacion + embebido"))
+    pd.DataFrame(log_rows, columns=["variable", "decision", "motivo"]).to_csv(
+        os.path.join(outdir, "seleccion_variables_gbm.csv"), index=False)
+    log.info("Seleccion GBM: %d->%d variables (%d num, %d cat) tras PSI/corr/embebido",
+             len(num) + len(cat), len(keep_num) + len(keep_cat), len(keep_num), len(keep_cat))
+    return keep_num, keep_cat
+
+
 def filter_vif(cfg: Config, woe: pd.DataFrame) -> List[str]:
     """Elimina iterativamente la variable de mayor VIF hasta < umbral."""
     try:
@@ -1002,9 +1089,16 @@ def run(cfg: Config):
         "oot": lr_model.predict_proba(woe_oo.fillna(0))[:, 1],
     }
 
-    # --- 5B. challengers GBM: LightGBM + XGBoost + CatBoost (features crudas) ---
+    # --- 5B. SELECCION de variables para GBM (no todas entran) + entrenamiento ---
+    if cfg.gbm_feature_selection:
+        gbm_num, gbm_cat = select_features_gbm(cfg, train, oot, num, cat, iv_map,
+                                               y_tr, cfg.out_dir)
+    else:
+        gbm_num, gbm_cat = num, cat
+    gbm_feats = gbm_num + gbm_cat
+
     avail = {"lightgbm": lightgbm, "xgboost": xgboost, "catboost": catboost}
-    Xtr, Xte, Xoo = train[num + cat], test[num + cat], oot[num + cat]
+    Xtr, Xte, Xoo = train[gbm_feats], test[gbm_feats], oot[gbm_feats]
     y_te = test[cfg.target]
     gbm_models: Dict[str, object] = {}
     gbm_preds: Dict[str, Dict[str, np.ndarray]] = {}
@@ -1013,12 +1107,12 @@ def run(cfg: Config):
             log.warning("%s no disponible -> challenger omitido", mt)
             continue
         log.info("--- Optimizando %s (anti-overfit, %d trials) ---", mt, cfg.optuna_trials)
-        model, best_params = optimize_gbm(cfg, mt, Xtr, y_tr, Xte, y_te, cat)
+        model, best_params = optimize_gbm(cfg, mt, Xtr, y_tr, Xte, y_te, gbm_cat)
         json.dump(best_params, open(os.path.join(cfg.out_dir, f"{mt}_best_params.json"), "w"),
                   indent=2, default=str)
         gbm_models[mt] = model
         gbm_preds[mt] = {
-            part: gbm_predict(mt, model, prepare_gbm_frame(mt, X, cat))
+            part: gbm_predict(mt, model, prepare_gbm_frame(mt, X, gbm_cat))
             for part, X in [("train", Xtr), ("test", Xte), ("oot", Xoo)]
         }
 
@@ -1085,7 +1179,7 @@ def run(cfg: Config):
     if winner in gbm_models:
         shap_dependence_plots(
             cfg, gbm_models[winner],
-            prepare_gbm_frame(winner, Xtr.loc[smp_idx], cat),
+            prepare_gbm_frame(winner, Xtr.loc[smp_idx], gbm_cat),
             cfg.out_dir, tag=f"original_{winner}", kind="tree", is_woe=False)
     shap_dependence_plots(
         cfg, lr_model, woe_tr.loc[smp_idx].fillna(0.0),
@@ -1107,8 +1201,10 @@ def run(cfg: Config):
         "ganador": winner,
         "regla_seleccion": f"mejor {cfg.select_metric}({cfg.select_partition})",
         "seleccion": win_tab.to_dict(orient="records"),
-        "n_variables_finales": len(keep),
-        "variables_finales": keep,
+        "n_variables_scorecard": len(keep),
+        "variables_scorecard": keep,
+        "n_variables_gbm": len(gbm_feats),
+        "variables_gbm": gbm_feats,
         "calibracion": {"post_hoc": cfg.post_hoc_calibration, "diagnostico": diag},
         "librerias": {
             "optbinning": optbinning is not None, "lightgbm": lightgbm is not None,
@@ -1126,7 +1222,45 @@ def run(cfg: Config):
 
 
 # =============================================================================
-# 12. DATA DEMO (mismas columnas del dataset real) — para PROBAR que corre
+# 12. FUNCION UNICA — tu solo pasas el CSV y hace TODO
+# =============================================================================
+def modelar(csv: str,
+            out_dir: str = "artefactos_modelo",
+            target: str = "target_60_12m",
+            trials: int = 40,
+            oot_months: int = 4,
+            usar_flags: bool = True,
+            modelos: Tuple[str, ...] = ("lightgbm", "xgboost", "catboost")):
+    """Ejecuta TODO el pipeline a partir de un CSV. Solo necesitas la ruta.
+
+    Hace, de punta a punta y sin que configures nada:
+      1. Carga el CSV y AUTO-IDENTIFICA roles (target, ids, tiempo, particion,
+         benchmark prob_malo/score, flags, categoricas, numericas).
+      2. Particiona train/test/OOT (usa la columna 'split' si existe; si no, los
+         ultimos `oot_months` meses de 'codmes_ejec' son OOT).
+      3. WOE/IV (OptBinning) + filtros de estabilidad (PSI), correlacion y VIF.
+      4. Entrena scorecard LR/WOE + GBMs (LightGBM/XGBoost/CatBoost) con Optuna
+         anti-overfit y CALIBRACION NATIVA (objetivo log-loss, sin parche).
+      5. Elige al GANADOR por mejor Gini(train) y lo prueba en test/OOT.
+      6. Compara contra el champion (prob_malo), SHAP del ganador, estabilidad y
+         ficha de gobierno.
+
+    Devuelve (winner, benchmark_df). Todos los CSV/PNG quedan en `out_dir`.
+
+    Uso:
+        from modelo_riesgo_credito import modelar
+        winner, bench = modelar("mi_data.csv")
+    """
+    cfg = Config(
+        data_path=csv, out_dir=out_dir, target=target,
+        optuna_trials=trials, oot_n_months=oot_months,
+        use_flags=usar_flags, gbm_models=tuple(modelos),
+    )
+    return run(cfg)
+
+
+# =============================================================================
+# 13. DATA DEMO (mismas columnas del dataset real) — para PROBAR que corre
 # =============================================================================
 # Columnas exactas del dataset de la tabla (nivel cliente)
 SCHEMA_COLUMNS = [
