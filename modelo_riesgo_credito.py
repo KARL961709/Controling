@@ -119,7 +119,9 @@ class Config:
     woe_for_all: bool = True                    # TODOS los modelos usan WOE (LR y GBMs)
     min_n_bins: int = 5                         # bins minimos del WOE (si infeasible -> auto)
     max_n_bins: int = 7                         # bins maximos del WOE
-    n_features_max: int = 9                     # tope de variables (parsimonioso: 8-9)
+    # Seleccion final en 2 etapas: Gini univariado (top n_gini_preselect) -> SHAP (top n_features_max)
+    n_gini_preselect: int = 15                  # preseleccion por Gini univariado
+    n_features_max: int = 8                      # set FINAL por SHAP (parsimonioso: 8-9)
     optuna_trials: int = 40                     # iteraciones de optimizacion bayesiana
     cv_folds: int = 5                           # validacion cruzada temporal
 
@@ -637,6 +639,54 @@ def filter_vif(cfg: Config, woe: pd.DataFrame) -> List[str]:
     return cols
 
 
+def _shap_rank(cfg: Config, X: pd.DataFrame, y: pd.Series) -> pd.DataFrame:
+    """Importancia por SHAP (mean|SHAP|) con un GBM rapido sobre las WOE.
+    Si no hay shap/lightgbm, usa |coef estandarizado| de una LR como respaldo."""
+    if shap is not None and lightgbm is not None:
+        import lightgbm as lgb
+        m = lgb.LGBMClassifier(n_estimators=400, learning_rate=0.05, num_leaves=31,
+                               min_child_samples=100, subsample=0.8, colsample_bytree=0.8,
+                               reg_lambda=1.0, random_state=cfg.random_state,
+                               n_jobs=-1, verbose=-1)
+        m.fit(X, y)
+        sv = shap.TreeExplainer(m).shap_values(X)
+        vals = sv[1] if isinstance(sv, list) else sv
+        imp = np.abs(vals).mean(axis=0)
+    else:
+        from sklearn.linear_model import LogisticRegression
+        lr = LogisticRegression(max_iter=1000, random_state=cfg.random_state).fit(X, y)
+        imp = np.abs(lr.coef_[0]) * X.std().values     # respaldo: |coef| * sd
+    return (pd.DataFrame({"variable": X.columns, "shap_imp": imp})
+            .sort_values("shap_imp", ascending=False).reset_index(drop=True))
+
+
+def final_selection(cfg: Config, woe_df: pd.DataFrame, y: pd.Series,
+                    n_gini: int, n_final: int, outdir: str) -> List[str]:
+    """SELECCION FINAL PARSIMONIOSA en dos etapas (in-sample, solo train):
+      1) GINI UNIVARIADO de cada WOE -> se queda con las top `n_gini` (si las hay).
+      2) SHAP sobre esas preseleccionadas -> top `n_final` (si las hay).
+    Guarda seleccion_final_variables.csv con ambos rankings y la decision."""
+    cands = list(woe_df.columns)
+    # 1) Gini univariado (|2*AUC-1| de cada variable WOE contra el target)
+    grows = [(c, abs(gini(y.values, woe_df[c].values))) for c in cands]
+    gtab = (pd.DataFrame(grows, columns=["variable", "gini_univariado"])
+            .sort_values("gini_univariado", ascending=False).reset_index(drop=True))
+    pre = gtab.head(n_gini)["variable"].tolist()
+    log.info("Filtro 1 (Gini univariado): %d -> top %d", len(cands), len(pre))
+
+    # 2) SHAP sobre las preseleccionadas -> top n_final
+    stab = _shap_rank(cfg, woe_df[pre].fillna(0.0), y)
+    final = stab.head(n_final)["variable"].tolist()
+    log.info("Filtro 2 (SHAP): %d -> top %d (FINAL)", len(pre), len(final))
+
+    rep = gtab.merge(stab, on="variable", how="left")
+    rep["preselec_gini"] = rep["variable"].isin(pre)
+    rep["seleccion_final"] = rep["variable"].isin(final)
+    (rep.sort_values(["seleccion_final", "shap_imp", "gini_univariado"], ascending=False)
+        .to_csv(os.path.join(outdir, "seleccion_final_variables.csv"), index=False))
+    return final
+
+
 # =============================================================================
 # 6. MODELOS
 #    (A) Scorecard regulatorio (LR/WOE)
@@ -1059,10 +1109,11 @@ def run(cfg: Config):
     keep = filter_correlation(cfg, woe_tr, iv_woe)
     woe_tr, woe_te, woe_oo = woe_tr[keep], woe_te[keep], woe_oo[keep]
     keep = filter_vif(cfg, woe_tr)
-    # tope final de variables por IV
-    keep = sorted(keep, key=lambda c: iv_woe.get(c, 0), reverse=True)[:cfg.n_features_max]
     woe_tr, woe_te, woe_oo = woe_tr[keep], woe_te[keep], woe_oo[keep]
-    log.info("Set final de variables WOE: %d", len(keep))
+    # SELECCION FINAL PARSIMONIOSA: Gini univariado (top n_gini) -> SHAP (top n_final)
+    keep = final_selection(cfg, woe_tr, y_tr, cfg.n_gini_preselect, cfg.n_features_max, cfg.out_dir)
+    woe_tr, woe_te, woe_oo = woe_tr[keep], woe_te[keep], woe_oo[keep]
+    log.info("Set final de variables WOE (parsimonioso): %d", len(keep))
 
     # --- 5A. modelo regulatorio: Scorecard LR/WOE ---
     lr_model, lr_coef = fit_scorecard_lr(cfg, woe_tr, y_tr, keep)
@@ -1222,7 +1273,8 @@ def modelar(csv: str,
             oot_months: int = 4,
             usar_flags: bool = False,
             modelos: Tuple[str, ...] = ("lightgbm", "xgboost"),
-            max_variables: int = 9,
+            preselect_gini: int = 15,
+            max_variables: int = 8,
             lr_min: float = 0.005,
             lr_max: float = 0.03,
             n_estimators_max: int = 8000):
@@ -1250,7 +1302,7 @@ def modelar(csv: str,
         data_path=csv, out_dir=out_dir, target=target,
         optuna_trials=trials, oot_n_months=oot_months,
         use_flags=usar_flags, gbm_models=tuple(modelos),
-        n_features_max=max_variables,
+        n_gini_preselect=preselect_gini, n_features_max=max_variables,
         lr_min=lr_min, lr_max=lr_max, n_estimators_max=n_estimators_max,
     )
     return run(cfg)
