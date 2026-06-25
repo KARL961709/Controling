@@ -1348,11 +1348,21 @@ def make_demo(n: int = 12000, seed: int = RANDOM_STATE) -> pd.DataFrame:
 
 
 # =============================================================================
-# 13. MAIN
+# 14. MAIN (CLI)
 # =============================================================================
-if __name__ == "__main__":
-    import argparse
+def _in_notebook() -> bool:
+    """True si se ejecuta dentro de Jupyter/IPython (evita que argparse choque
+    con el argumento --f=...kernel.json que inyecta el kernel)."""
+    try:
+        from IPython import get_ipython
+        ip = get_ipython()
+        return ip is not None and ip.__class__.__name__ == "ZMQInteractiveShell"
+    except Exception:
+        return False
 
+
+def _main_cli():
+    import argparse
     ap = argparse.ArgumentParser(description="Modelo PD challenger vs champion(prob_malo)")
     ap.add_argument("--data", default="data_cliente.parquet", help="ruta a .parquet/.csv")
     ap.add_argument("--out", default="artefactos_modelo")
@@ -1363,7 +1373,8 @@ if __name__ == "__main__":
     ap.add_argument("--demo", action="store_true",
                     help="genera data sintetica con las columnas reales y prueba el pipeline")
     ap.add_argument("--demo-n", type=int, default=12000)
-    args = ap.parse_args()
+    # parse_known_args ignora argumentos ajenos (p.ej. los del kernel de Jupyter)
+    args, _ = ap.parse_known_args()
 
     cfg = Config(
         data_path=args.data, out_dir=args.out, target=args.target,
@@ -1374,9 +1385,9 @@ if __name__ == "__main__":
     if args.demo:
         log.info("MODO DEMO: generando data sintetica (%d filas) con el esquema real",
                  args.demo_n)
-        demo_path = os.path.join(cfg.out_dir, "demo_data.parquet")
         os.makedirs(cfg.out_dir, exist_ok=True)
         df_demo = make_demo(args.demo_n)
+        demo_path = os.path.join(cfg.out_dir, "demo_data.parquet")
         try:
             df_demo.to_parquet(demo_path)
             cfg.data_path = demo_path
@@ -1386,3 +1397,9 @@ if __name__ == "__main__":
             cfg.data_path = demo_path
 
     run(cfg)
+
+
+# Solo ejecuta el CLI si es un script de terminal; en notebook NO hace nada
+# (ahi simplemente llamas:  modelar("mi_data.csv")  ).
+if __name__ == "__main__" and not _in_notebook():
+    _main_cli()
