@@ -119,7 +119,7 @@ class Config:
     woe_for_all: bool = True                    # TODOS los modelos usan WOE (LR y GBMs)
     min_n_bins: int = 5                         # bins minimos del WOE (si infeasible -> auto)
     max_n_bins: int = 7                         # bins maximos del WOE
-    n_features_max: int = 25                    # tope de variables del modelo (WOE)
+    n_features_max: int = 9                     # tope de variables (parsimonioso: 8-9)
     optuna_trials: int = 40                     # iteraciones de optimizacion bayesiana
     cv_folds: int = 5                           # validacion cruzada temporal
 
@@ -1222,6 +1222,7 @@ def modelar(csv: str,
             oot_months: int = 4,
             usar_flags: bool = False,
             modelos: Tuple[str, ...] = ("lightgbm", "xgboost"),
+            max_variables: int = 9,
             lr_min: float = 0.005,
             lr_max: float = 0.03,
             n_estimators_max: int = 8000):
@@ -1249,6 +1250,7 @@ def modelar(csv: str,
         data_path=csv, out_dir=out_dir, target=target,
         optuna_trials=trials, oot_n_months=oot_months,
         use_flags=usar_flags, gbm_models=tuple(modelos),
+        n_features_max=max_variables,
         lr_min=lr_min, lr_max=lr_max, n_estimators_max=n_estimators_max,
     )
     return run(cfg)
