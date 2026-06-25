@@ -433,21 +433,35 @@ class WoeEngine:
         self.cfg = cfg
         self.binnings: Dict[str, object] = {}     # variable -> OptimalBinning ajustado
         self.iv_table: Optional[pd.DataFrame] = None
+        self.trend_table: Optional[pd.DataFrame] = None
         self._fallback_maps: Dict[str, pd.DataFrame] = {}
         self._fallback_iv: Dict[str, float] = {}
         self.selected: List[str] = []
 
     # ---- OptBinning path (VARIABLE POR VARIABLE, con fallback a auto) ---------
-    def _fit_one(self, name, x, y, dtype):
-        """Ajusta una variable pidiendo [min_n_bins, max_n_bins]. Si el problema
-        es INFEASIBLE (p.ej. binaria/pocos valores), REINTENTA en modo AUTO
-        (min_n_bins=2) para no colapsar la variable a 1 solo bin."""
+    @staticmethod
+    def _tau_trend(x, y) -> Tuple[str, float]:
+        """Direccion por Kendall's Tau entre la variable y el target:
+        tau>0 -> ascending (a mayor valor, mayor PD); tau<0 -> descending;
+        tau=0 / NaN -> auto_asc_desc (que OptBinning decida)."""
+        from scipy.stats import kendalltau
+        d = pd.DataFrame({"x": x, "y": y}).dropna()
+        if d["x"].nunique() < 2:
+            return "auto_asc_desc", np.nan
+        tau, _ = kendalltau(d["x"].values, d["y"].values)
+        if tau is None or np.isnan(tau) or tau == 0:
+            return "auto_asc_desc", (0.0 if tau == 0 else np.nan)
+        return ("ascending" if tau > 0 else "descending"), float(tau)
+
+    def _fit_one(self, name, x, y, dtype, trend):
+        """Ajusta una variable pidiendo [min_n_bins, max_n_bins] con la direccion
+        `trend`. Si el problema es INFEASIBLE (binaria/pocos valores), REINTENTA
+        en modo AUTO (min_n_bins=2) para no colapsar la variable a 1 solo bin."""
         from optbinning import OptimalBinning
-        mono = "auto_asc_desc" if (self.cfg.monotonic and dtype == "numerical") else "auto"
         def _mk(minb):
             return OptimalBinning(name=name, dtype=dtype, min_n_bins=minb,
                                   max_n_bins=self.cfg.max_n_bins, min_bin_size=0.05,
-                                  monotonic_trend=mono)
+                                  monotonic_trend=trend)
         ob = _mk(self.cfg.min_n_bins)
         ob.fit(x, y)
         n_bins = len(ob.splits) + 1 if dtype == "numerical" else len(getattr(ob, "splits", []) or []) + 1
@@ -457,18 +471,25 @@ class WoeEngine:
         return ob
 
     def fit_optbinning(self, X: pd.DataFrame, y: pd.Series, num, cat):
-        rows = []
+        rows, trend_rows = [], []
         yv = y.values
         for v in num:
-            ob = self._fit_one(v, X[v].values, yv, "numerical")
+            if self.cfg.monotonic:
+                trend, tau = self._tau_trend(X[v].values, yv)   # direccion por Kendall Tau
+            else:
+                trend, tau = "auto_asc_desc", np.nan
+            trend_rows.append((v, tau, trend))
+            ob = self._fit_one(v, X[v].values, yv, "numerical", trend)
             bt = ob.binning_table; bt.build()
             self.binnings[v] = ob
             rows.append((v, float(bt.iv)))
         for v in cat:
-            ob = self._fit_one(v, X[v].astype("object").values, yv, "categorical")
+            ob = self._fit_one(v, X[v].astype("object").values, yv, "categorical", "auto")
             bt = ob.binning_table; bt.build()
             self.binnings[v] = ob
             rows.append((v, float(bt.iv)))
+            trend_rows.append((v, np.nan, "auto (categorica)"))
+        self.trend_table = pd.DataFrame(trend_rows, columns=["variable", "kendall_tau", "monotonic_trend"])
         self.iv_table = (pd.DataFrame(rows, columns=["variable", "iv"])
                          .sort_values("iv", ascending=False))
         self.iv_table["selected"] = self.iv_table["iv"].between(self.cfg.min_iv, self.cfg.max_iv)
@@ -1111,6 +1132,12 @@ def run(cfg: Config):
     woe.fit(train, y_tr, num, cat)
     iv_map = dict(zip(woe.iv_table["variable"], woe.iv_table["iv"]))
     woe.iv_table.to_csv(os.path.join(cfg.out_dir, "iv_table.csv"), index=False)
+    if woe.trend_table is not None:    # direccion (Kendall Tau) por variable
+        woe.trend_table.to_csv(os.path.join(cfg.out_dir, "direccion_monotonia.csv"), index=False)
+        asc = (woe.trend_table["monotonic_trend"] == "ascending").sum()
+        desc = (woe.trend_table["monotonic_trend"] == "descending").sum()
+        au = woe.trend_table["monotonic_trend"].str.startswith("auto").sum()
+        log.info("Direccion por Kendall Tau: %d ascending, %d descending, %d auto", asc, desc, au)
 
     woe_tr = woe.transform(train)
     woe_te = woe.transform(test)
