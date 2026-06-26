@@ -129,8 +129,8 @@ class Config:
     # --- GBM challengers + control de over/under-fitting + CALIBRACION nativa ---
     gbm_models: Tuple[str, ...] = ("lightgbm", "xgboost")   # CatBoost removido
     # rango del learning rate (bajo pero practico; 0.001 suele ser demasiado lento)
-    lr_min: float = 0.005
-    lr_max: float = 0.03
+    lr_min: float = 0.01
+    lr_max: float = 0.05
     n_estimators_max: int = 8000               # tope de arboles (early stopping recorta)
     early_stopping_rounds: int = 200           # paciencia del early stopping
     # La OPTIMIZACION usa LOG-LOSS (regla propia) => el modelo sale calibrado por
@@ -775,43 +775,37 @@ def _space(model_type: str, trial, cfg: Config) -> dict:
     rs = cfg.random_state
     lo, hi = cfg.lr_min, cfg.lr_max
     if model_type == "lightgbm":
+        # Espacio ENFOCADO y menos regularizado (subir discriminacion sin underfit).
+        # Quitados: colsample_bynode, subsample_freq, min_data_in_bin, max_bin,
+        # path_smooth, extra_trees (ruido en la busqueda con pocas features).
         return dict(
             objective="binary", metric="binary_logloss", n_estimators=cfg.n_estimators_max,
             learning_rate=trial.suggest_float("learning_rate", lo, hi, log=True),
-            num_leaves=trial.suggest_int("num_leaves", 15, 127),         # estructura
-            max_depth=trial.suggest_int("max_depth", 3, 10),
-            min_child_samples=trial.suggest_int("min_child_samples", 30, 600),  # hojas con minimo soporte
-            min_child_weight=trial.suggest_float("min_child_weight", 1e-3, 10.0, log=True),  # min hessiana
-            min_split_gain=trial.suggest_float("min_split_gain", 0.0, 1.0),     # ganancia minima para abrir
-            subsample=trial.suggest_float("subsample", 0.5, 1.0),              # bagging por fila
-            subsample_freq=trial.suggest_int("subsample_freq", 0, 7),
-            colsample_bytree=trial.suggest_float("colsample_bytree", 0.5, 1.0),  # features por arbol
-            colsample_bynode=trial.suggest_float("colsample_bynode", 0.5, 1.0),  # features por nodo
-            reg_alpha=trial.suggest_float("reg_alpha", 1e-3, 30.0, log=True),    # L1
-            reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 30.0, log=True),  # L2
-            min_data_in_bin=trial.suggest_int("min_data_in_bin", 3, 50),
-            max_bin=trial.suggest_int("max_bin", 128, 512),                      # resolucion del histograma
-            path_smooth=trial.suggest_float("path_smooth", 0.0, 1.0),           # suavizado anti-overfit
-            extra_trees=trial.suggest_categorical("extra_trees", [False, True]),
+            num_leaves=trial.suggest_int("num_leaves", 15, 63),
+            max_depth=trial.suggest_int("max_depth", 3, 8),
+            min_child_samples=trial.suggest_int("min_child_samples", 20, 300),
+            min_child_weight=trial.suggest_float("min_child_weight", 1e-3, 5.0, log=True),
+            min_split_gain=trial.suggest_float("min_split_gain", 0.0, 0.3),
+            subsample=trial.suggest_float("subsample", 0.7, 1.0),
+            subsample_freq=1,
+            colsample_bytree=trial.suggest_float("colsample_bytree", 0.7, 1.0),
+            reg_alpha=trial.suggest_float("reg_alpha", 1e-3, 10.0, log=True),   # L1
+            reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 10.0, log=True), # L2
             random_state=rs, n_jobs=-1, verbose=-1,
         )
     if model_type == "xgboost":
+        # Quitados: colsample_bylevel/bynode, max_delta_step, grow_policy, max_bin.
         return dict(
             objective="binary:logistic", eval_metric="logloss", n_estimators=cfg.n_estimators_max,
             tree_method="hist", enable_categorical=True,
             learning_rate=trial.suggest_float("learning_rate", lo, hi, log=True),
-            max_depth=trial.suggest_int("max_depth", 3, 10),
-            min_child_weight=trial.suggest_float("min_child_weight", 1.0, 400.0, log=True),
-            gamma=trial.suggest_float("gamma", 1e-3, 5.0, log=True),            # min loss reduction (split)
-            max_delta_step=trial.suggest_float("max_delta_step", 0.0, 10.0),    # estabiliza/calibra
-            subsample=trial.suggest_float("subsample", 0.5, 1.0),
-            colsample_bytree=trial.suggest_float("colsample_bytree", 0.5, 1.0),
-            colsample_bylevel=trial.suggest_float("colsample_bylevel", 0.5, 1.0),
-            colsample_bynode=trial.suggest_float("colsample_bynode", 0.5, 1.0),
-            reg_alpha=trial.suggest_float("reg_alpha", 1e-3, 30.0, log=True),
-            reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 30.0, log=True),
-            grow_policy=trial.suggest_categorical("grow_policy", ["depthwise", "lossguide"]),
-            max_bin=trial.suggest_int("max_bin", 128, 512),
+            max_depth=trial.suggest_int("max_depth", 3, 8),
+            min_child_weight=trial.suggest_float("min_child_weight", 1.0, 50.0, log=True),
+            gamma=trial.suggest_float("gamma", 1e-3, 1.0, log=True),            # min loss reduction (split)
+            subsample=trial.suggest_float("subsample", 0.7, 1.0),
+            colsample_bytree=trial.suggest_float("colsample_bytree", 0.7, 1.0),
+            reg_alpha=trial.suggest_float("reg_alpha", 1e-3, 10.0, log=True),
+            reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 10.0, log=True),
             random_state=rs, n_jobs=-1, verbosity=0,
         )
     if model_type == "catboost":
@@ -1320,8 +1314,8 @@ def modelar(csv: str,
             max_psi: float = 0.25,
             max_corr: float = 0.80,
             max_iv: float = 1.50,
-            lr_min: float = 0.005,
-            lr_max: float = 0.03,
+            lr_min: float = 0.01,
+            lr_max: float = 0.05,
             n_estimators_max: int = 8000):
     """Ejecuta TODO el pipeline a partir de un CSV. Solo necesitas la ruta.
 
