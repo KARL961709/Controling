@@ -41,6 +41,8 @@
 
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .grid-5-7{display:grid;grid-template-columns:.82fr 1.18fr;gap:16px}
+  .cols-main{display:grid;grid-template-columns:.96fr 1.04fr;gap:16px;margin-top:13px;align-items:start}
+  .left-stack{display:flex;flex-direction:column;gap:13px}
 
   /* tablas */
   table{width:100%;border-collapse:collapse;font-size:11.6px}
@@ -128,44 +130,47 @@
     <span class="badge"><span class="dot"></span>REBANK 2 · Ventana 2506</span>
   </div>
 
-  <!-- 1 · Categorías (achicada) -->
-  <div class="card">
-    <div class="ch"><span class="n">1</span>Categorías del universo de castigados</div>
-    <div class="bd" style="padding:6px 13px">
-      <table style="font-size:10.2px">
-        <thead><tr><th style="width:212px">Categoría</th><th>Descripción</th></tr></thead>
-        <tbody>
-          <tr><td class="var">CAST_NOIBK_REP&lt;5anios</td><td>Castigo vigente en otra entidad (no-IBK) con mora &lt; 5 años. Sin IBK.</td></tr>
-          <tr class="on"><td class="var">CAST_NOIBK_REP&gt;=5anios<span class="mk">modelado</span></td><td>Igual, pero la mora del castigo no-IBK es ≥ 5 años (muy antiguos).</td></tr>
-          <tr class="on"><td class="var">NO_CAST_NOIBK_U24M<span class="mk">modelado</span></td><td>Sin castigo vigente; con castigo no-IBK en los últimos 24 meses.</td></tr>
-          <tr><td class="var">NO_CAST_IBK_U24M</td><td>Sin castigo IBK hoy; tuvo castigo IBK en los últimos 24 meses.</td></tr>
-          <tr><td class="var">CAST_IBK_REP</td><td>Castigo vigente en Interbank en 202601. Máxima prioridad.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+  <div class="cols-main">
+    <!-- IZQUIERDA: 1 categorías + 2 score rebank -->
+    <div class="left-stack">
+      <!-- 1 · Categorías -->
+      <div class="card">
+        <div class="ch"><span class="n">1</span>Categorías del universo de castigados</div>
+        <div class="bd" style="padding:6px 12px">
+          <table style="font-size:10.2px">
+            <thead><tr><th style="width:178px">Categoría</th><th>Descripción</th></tr></thead>
+            <tbody>
+              <tr><td class="var">CAST_NOIBK_REP&lt;5anios</td><td>Castigo vigente en otra entidad (no-IBK) con mora &lt; 5 años. Sin IBK.</td></tr>
+              <tr class="on"><td class="var">CAST_NOIBK_REP&gt;=5anios<span class="mk">model.</span></td><td>Igual, pero la mora del castigo no-IBK es ≥ 5 años (muy antiguos).</td></tr>
+              <tr class="on"><td class="var">NO_CAST_NOIBK_U24M<span class="mk">model.</span></td><td>Sin castigo vigente; con castigo no-IBK en los últimos 24 meses.</td></tr>
+              <tr><td class="var">NO_CAST_IBK_U24M</td><td>Sin castigo IBK hoy; tuvo castigo IBK en los últimos 24 meses.</td></tr>
+              <tr><td class="var">CAST_IBK_REP</td><td>Castigo vigente en Interbank en 202601. Máxima prioridad.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-  <div class="grid-5-7" style="margin-top:12px">
-    <!-- 2 · Score Rebank + OptBinning -->
-    <div class="card">
-      <div class="ch"><span class="n">2</span>Score Rebank · OptBinning</div>
-      <div class="bd" style="padding:10px 12px">
-        <table class="cmp">
-          <thead><tr><th class="cat" style="text-align:center">Cat</th><th>Bin (score)</th><th class="num">Tasa evento</th><th class="num">% distrib.</th></tr></thead>
-          <tbody>
-            <tr><td class="cat">1</td><td class="var">≥ 682.5</td><td class="num" style="background:#e8f6ec">6.2%</td><td class="num">14.3%</td></tr>
-            <tr><td class="cat">2</td><td class="var">627.5 – 682.5</td><td class="num" style="background:#eef7e2">10.4%</td><td class="num">14.7%</td></tr>
-            <tr><td class="cat">3</td><td class="var">570.5 – 627.5</td><td class="num" style="background:#fbf6da">13.4%</td><td class="num">18.5%</td></tr>
-            <tr><td class="cat">4</td><td class="var">523.5 – 570.5</td><td class="num" style="background:#fdeed6">17.5%</td><td class="num">15.4%</td></tr>
-            <tr><td class="cat">5</td><td class="var">426.5 – 523.5</td><td class="num" style="background:#fbe1d1">24.2%</td><td class="num">21.4%</td></tr>
-            <tr><td class="cat">6</td><td class="var">&lt; 426.5</td><td class="num" style="background:#f6d0ca">55.9%</td><td class="num">15.8%</td></tr>
-          </tbody>
-        </table>
-        <div class="tipnote"><b>Ajuste:</b> sobre la <b>base de entrenamiento del modelo Rebank</b> se aplica <code>OptBinning</code> al <code>score</code> contra el <code>target</code> (6 bins, descendente). Los cortes definen la categoría <b>1 (mejor) … 6 (peor)</b>.</div>
+      <!-- 2 · Score Rebank + OptBinning -->
+      <div class="card">
+        <div class="ch"><span class="n">2</span>Score Rebank · OptBinning</div>
+        <div class="bd" style="padding:10px 12px">
+          <table class="cmp">
+            <thead><tr><th class="cat" style="text-align:center">Cat</th><th>Bin (score)</th><th class="num">Tasa evento</th><th class="num">% distrib.</th></tr></thead>
+            <tbody>
+              <tr><td class="cat">1</td><td class="var">≥ 682.5</td><td class="num" style="background:#e8f6ec">6.2%</td><td class="num">14.3%</td></tr>
+              <tr><td class="cat">2</td><td class="var">627.5 – 682.5</td><td class="num" style="background:#eef7e2">10.4%</td><td class="num">14.7%</td></tr>
+              <tr><td class="cat">3</td><td class="var">570.5 – 627.5</td><td class="num" style="background:#fbf6da">13.4%</td><td class="num">18.5%</td></tr>
+              <tr><td class="cat">4</td><td class="var">523.5 – 570.5</td><td class="num" style="background:#fdeed6">17.5%</td><td class="num">15.4%</td></tr>
+              <tr><td class="cat">5</td><td class="var">426.5 – 523.5</td><td class="num" style="background:#fbe1d1">24.2%</td><td class="num">21.4%</td></tr>
+              <tr><td class="cat">6</td><td class="var">&lt; 426.5</td><td class="num" style="background:#f6d0ca">55.9%</td><td class="num">15.8%</td></tr>
+            </tbody>
+          </table>
+          <div class="tipnote"><b>Ajuste:</b> sobre la <b>base de entrenamiento del modelo Rebank</b> se aplica <code>OptBinning</code> al <code>score</code> contra el <code>target</code> (6 bins, descendente). Los cortes definen la categoría <b>1 (mejor) … 6 (peor)</b>.</div>
+        </div>
       </div>
     </div>
 
-    <!-- A · Variables del Árbol 1 -->
+    <!-- DERECHA: A · Variables del Árbol 1 -->
     <div class="card alt">
       <div class="ch"><span class="n">A</span>Variables que pueden entrar al Árbol 1</div>
       <div class="bd" style="padding:8px 13px">
