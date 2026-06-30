@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metodología de Segmentación · 2 Árboles</title>
+<style>
+  :root{
+    --green-deep:#1f5130;       /* verde oscuro cabeceras / cajas raíz */
+    --green-deep2:#26603a;
+    --green:#1aa44c;            /* verde acento */
+    --green-bright:#1a9850;
+    --green-soft:#e8f5ee;       /* fondo chip incluir */
+    --green-line:#cfe6d8;
+    --gray-title:#9aa6a0;       /* segundo color del título */
+    --gray-chip:#eef1ef;
+    --gray-txt:#5b6f66;
+    --ink:#14271d;
+    --card:#ffffff;
+    --bg:#ffffff;
+    --shadow:0 6px 20px rgba(20,60,40,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Roboto,Arial,sans-serif}
+  body{background:#dfe6e2;display:flex;flex-direction:column;align-items:center;gap:26px;padding:26px}
+
+  /* ---- SLIDE 16:9 ---- */
+  .slide{
+    width:1280px;height:720px;background:var(--bg);position:relative;
+    border-radius:14px;overflow:hidden;box-shadow:var(--shadow);
+    padding:38px 46px 34px;
+  }
+
+  /* ---- Título ---- */
+  .head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px}
+  h1{font-size:30px;font-weight:800;color:var(--green-deep);letter-spacing:-.3px;line-height:1.1}
+  h1 .sec{color:var(--gray-title);font-weight:800}
+  .subt{font-size:13.5px;color:var(--gray-txt);margin-top:6px}
+  .badge{display:inline-flex;align-items:center;gap:8px;background:var(--green-soft);
+    color:var(--green-deep);font-weight:700;font-size:13px;padding:8px 16px;border-radius:30px;white-space:nowrap}
+  .badge .dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
+
+  /* ---- Tarjetas ---- */
+  .card{background:var(--card);border:1px solid #e7eee9;border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+  .card .ch{background:var(--green-deep);color:#fff;font-weight:700;font-size:15px;padding:11px 18px;display:flex;align-items:center;gap:9px}
+  .card .ch .n{background:rgba(255,255,255,.18);width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .card .bd{padding:16px 18px}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .grid-7-5{display:grid;grid-template-columns:1.05fr .95fr;gap:20px}
+
+  /* ---- Chips ---- */
+  .chip{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap}
+  .chip.inc{background:var(--green-soft);color:var(--green-deep)}
+  .chip.exc{background:var(--gray-chip);color:#9aa9a1}
+  .chip.pos{background:#fdeceb;color:#c0392b}      /* +1 más riesgo */
+  .chip.neg{background:#e8f5ee;color:#1a7a45}      /* -1 menos riesgo */
+  .chip.amb{background:#fff4e0;color:#b9821f}      /* 0 ambigua */
+  .chip.ord{background:#e9eefb;color:#34529c}
+
+  /* ---- Tabla variables ---- */
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{background:#f3f8f5;color:var(--green-deep);text-align:left;font-weight:700;padding:7px 10px;border-bottom:2px solid var(--green-line)}
+  td{padding:6px 10px;border-bottom:1px solid #eef3f0;color:var(--ink);vertical-align:middle}
+  td.fam{font-weight:700;color:var(--green-deep2);white-space:nowrap}
+  td.var{font-family:Consolas,monospace;font-size:11.5px;color:#23433c}
+  tr:last-child td{border-bottom:none}
+
+  /* ---- Lista pasos ---- */
+  .steps{display:flex;flex-direction:column;gap:11px}
+  .step{display:flex;gap:12px;align-items:flex-start}
+  .step .num{flex:0 0 26px;height:26px;border-radius:8px;background:var(--green);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+  .step .tx{font-size:13px;color:var(--ink);line-height:1.45}
+  .step .tx b{color:var(--green-deep)}
+  .step .tx code{font-family:Consolas,monospace;font-size:11.5px;background:#f0f5f2;padding:1px 6px;border-radius:5px;color:#23433c}
+
+  /* ---- Flujo / pipeline ---- */
+  .flow{display:flex;flex-direction:column;gap:10px}
+  .fbox{border-radius:11px;padding:12px 15px;display:flex;flex-direction:column;gap:3px;position:relative}
+  .fbox .t{font-weight:700;font-size:14px}
+  .fbox .s{font-size:11.5px;opacity:.92}
+  .fbox.root{background:var(--green-deep);color:#fff}
+  .fbox.a{background:#eaf6ef;border:1.5px solid var(--green-line);color:var(--green-deep)}
+  .fbox.b{background:#fff;border:1.5px solid #e2ece6;color:var(--ink)}
+  .arrow{align-self:center;color:var(--green);font-size:17px;line-height:.6}
+
+  /* ---- Stats ---- */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+  .stat{background:#f5faf7;border:1px solid #e3efe8;border-radius:12px;padding:13px 15px}
+  .stat .l{font-size:11.5px;color:var(--gray-txt);font-weight:600}
+  .stat .v{font-size:23px;font-weight:800;color:var(--green-deep);margin-top:3px;line-height:1}
+  .stat .d{font-size:11px;color:#8a9b93;margin-top:3px}
+
+  /* ---- Pipeline mini ---- */
+  .mini{display:flex;align-items:stretch;gap:0;margin-top:14px}
+  .mstep{flex:1;background:#f5faf7;border:1px solid #e3efe8;border-radius:10px;padding:10px 11px;text-align:center}
+  .mstep .mt{font-weight:700;font-size:12.5px;color:var(--green-deep)}
+  .mstep .ms{font-size:10.5px;color:var(--gray-txt);margin-top:2px}
+  .march{display:flex;align-items:center;color:var(--green);font-size:16px;padding:0 6px;font-weight:800}
+
+  .note{font-size:11.5px;color:var(--gray-txt);margin-top:12px;display:flex;align-items:center;gap:8px}
+  .note .tag{background:var(--green-deep);color:#fff;font-weight:700;font-size:10.5px;padding:3px 8px;border-radius:6px}
+
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:var(--gray-txt);align-items:center}
+
+  @media print{
+    body{background:#fff;padding:0;gap:0}
+    .slide{box-shadow:none;border-radius:0;page-break-after:always;margin:0}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================== SLIDE 1 ============================== -->
+<section class="slide">
+  <div class="head">
+    <div>
+      <h1>Segmentación de Riesgo <span class="sec">| Metodología de 2 Árboles</span></h1>
+      <div class="subt">Stock TC castigada · Objetivo = <b>score</b> (mayor score → menor riesgo) · Profundidades evaluadas 4–7</div>
+    </div>
+    <span class="badge"><span class="dot"></span>REBANK 2 · Ventana 2506</span>
+  </div>
+
+  <div class="grid-7-5">
+    <!-- Población & preparación -->
+    <div class="card">
+      <div class="ch"><span class="n">1</span>Población &amp; Preparación de la base</div>
+      <div class="bd">
+        <table>
+          <thead><tr><th>Segmento (FLG_CAST_AP)</th><th>Definición</th><th style="text-align:right">Clientes</th></tr></thead>
+          <tbody>
+            <tr><td class="fam">&gt;60 meses</td><td class="var">CAST_NOIBK_REP&gt;=5anios</td><td style="text-align:right">1,697,675</td></tr>
+            <tr><td class="fam">≤24 meses</td><td class="var">NO_CAST_NOIBK_U24M</td><td style="text-align:right">582,927</td></tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top:14px;font-size:13px;color:var(--ink);line-height:1.5">
+          <b style="color:var(--green-deep)">Score de calibración:</b> se ajusta un <b>OptimalBinning</b> del
+          <code style="font-family:Consolas,monospace;font-size:11.5px;background:#f0f5f2;padding:1px 6px;border-radius:5px">score</code>
+          contra <code style="font-family:Consolas,monospace;font-size:11.5px;background:#f0f5f2;padding:1px 6px;border-radius:5px">target_60_12m</code>
+          (6 bins, tendencia descendente, bin mínimo 10%).
+        </div>
+
+        <div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap">
+          <span class="chip ord">682.5+ → cat 1 (mejor)</span>
+          <span class="chip ord">627–682 → 2</span>
+          <span class="chip ord">570–627 → 3</span>
+          <span class="chip ord">523–570 → 4</span>
+          <span class="chip ord">426–523 → 5</span>
+          <span class="chip ord">&lt;426 → 6 (peor)</span>
+        </div>
+        <div class="note"><span class="tag">puntuacion_cal_cat</span> categoría de riesgo 1–6 derivada del bin del score</div>
+      </div>
+    </div>
+
+    <!-- Flujo de 2 árboles -->
+    <div class="card">
+      <div class="ch"><span class="n">2</span>Pipeline de segmentación</div>
+      <div class="bd">
+        <div class="flow">
+          <div class="fbox root"><div class="t">Base scoreada</div><div class="s">universo a recomprar, sin nulos de score</div></div>
+          <div class="arrow">▼</div>
+          <div class="fbox a"><div class="t">Árbol 1 · segmentación gruesa</div><div class="s">árbol monótono → hojas = estrategias rankeadas por riesgo</div></div>
+          <div class="arrow">▼</div>
+          <div class="fbox b"><div class="t">Bucketing manual B1…Bn</div><div class="s">agrupación de estrategias en buckets monótonos</div></div>
+          <div class="arrow">▼</div>
+          <div class="fbox a"><div class="t">Árbol 2 · refinamiento</div><div class="s">re-segmenta usando el bucket + saldo pasivo + cal_cat</div></div>
+          <div class="arrow">▼</div>
+          <div class="fbox b"><div class="t">Buckets finales &amp; validación</div><div class="s">V1 campañas · V2 base inicial · V3 no-campaña</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="l">Objetivo del árbol</div><div class="v">SCORE</div><div class="d">proxy de riesgo · mayor = menor riesgo</div></div>
+    <div class="stat"><div class="l">Profundidades evaluadas</div><div class="v">4 · 5 · 6 · 7</div><div class="d">una corrida por cada profundidad</div></div>
+    <div class="stat"><div class="l">Metodologías por corrida</div><div class="v">A &amp; B</div><div class="d">A: solo árbol · B: OptBinning (WoE) + árbol</div></div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 2 ============================== -->
+<section class="slide">
+  <div class="head">
+    <div>
+      <h1>Árbol 1 <span class="sec">| Variables candidatas y construcción</span></h1>
+      <div class="subt">Segmentación gruesa por escenario (≥5 años / ≤24 meses) con restricciones monótonas por negocio</div>
+    </div>
+    <span class="badge"><span class="dot"></span>Segmentación inicial</span>
+  </div>
+
+  <div class="grid-7-5">
+    <!-- Variables candidatas -->
+    <div class="card">
+      <div class="ch"><span class="n">A</span>Variables que pueden entrar al Árbol 1</div>
+      <div class="bd" style="padding-top:10px">
+        <table>
+          <thead><tr><th>Familia</th><th>Variable</th><th>Dirección de riesgo</th></tr></thead>
+          <tbody>
+            <tr><td class="fam" rowspan="6">Castigo</td><td class="var">deuda_cas</td><td><span class="chip pos">+ más riesgo</span></td></tr>
+            <tr><td class="var">monto_castigado_total / ibk / otros</td><td><span class="chip pos">+ más riesgo</span></td></tr>
+            <tr><td class="var">nro_entidades_castigo</td><td><span class="chip pos">+ más riesgo</span></td></tr>
+            <tr><td class="var">meses_desde_ultimo_castigo</td><td><span class="chip neg">− menos riesgo</span></td></tr>
+            <tr><td class="var">meses_desde_primer_castigo</td><td><span class="chip neg">− menos riesgo</span></td></tr>
+            <tr><td class="var">max_dias_mora_castigo</td><td><span class="chip pos">+ más riesgo</span></td></tr>
+            <tr><td class="fam" rowspan="2">Ingreso / edad</td><td class="var">rk_ing_num</td><td><span class="chip neg">− menos riesgo</span></td></tr>
+            <tr><td class="var">edad_num</td><td><span class="chip amb">0 ambigua · se prueba sin ella</span></td></tr>
+            <tr><td class="fam" rowspan="3">Demográfico</td><td class="var">sexo</td><td><span class="chip amb">0 ambigua</span></td></tr>
+            <tr><td class="var">nivel_profesional</td><td><span class="chip pos">+ más riesgo</span></td></tr>
+            <tr><td class="var">tipinstitucion</td><td><span class="chip pos">+ más riesgo</span></td></tr>
+            <tr><td class="fam">Ordinal</td><td class="var">segmentacion_gdp_v2 (G1…G8)</td><td><span class="chip ord">ordinal · ORD_VAR</span></td></tr>
+          </tbody>
+        </table>
+        <div class="legend">
+          <span class="chip pos">+</span> a mayor valor, más riesgo &nbsp;·&nbsp;
+          <span class="chip neg">−</span> a mayor valor, menos riesgo &nbsp;·&nbsp;
+          <span class="chip amb">0</span> dirección detectada por correlación
+        </div>
+      </div>
+    </div>
+
+    <!-- Cómo se construye -->
+    <div class="card">
+      <div class="ch"><span class="n">B</span>Cómo se construye el árbol</div>
+      <div class="bd">
+        <div class="steps">
+          <div class="step"><div class="num">1</div><div class="tx"><b>OptBinning por variable</b> (WoE) con tendencia monótona según <code>DIRECCION_NEGOCIO</code>.</div></div>
+          <div class="step"><div class="num">2</div><div class="tx"><b>Imputación de missing</b> con el WoE del <b>peor bin</b> (cliente sin dato → tratado como mayor riesgo).</div></div>
+          <div class="step"><div class="num">3</div><div class="tx"><b>Árbol monótono</b> <code>DecisionTreeRegressor</code> con <code>monotonic_cst</code> y <code>min_samples_leaf</code>.</div></div>
+          <div class="step"><div class="num">4</div><div class="tx"><b>Poda automática:</b> se re-entrena usando solo las variables con <b>importancia &gt; 0</b>.</div></div>
+          <div class="step"><div class="num">5</div><div class="tx"><b>Salida:</b> cada <b>hoja = estrategia</b>, rankeada por riesgo; se exporta Excel + modelo <code>.pkl</code>.</div></div>
+        </div>
+
+        <div class="stats" style="margin-top:16px;grid-template-columns:1fr 1fr">
+          <div class="stat"><div class="l">Dos universos de variables</div><div class="v" style="font-size:17px">Con todas / sin edad_num</div><div class="d">archivos *_sinalgunasvariables</div></div>
+          <div class="stat"><div class="l">Estrategias generadas (prof. 6)</div><div class="v" style="font-size:17px">15–21</div><div class="d">según escenario y profundidad</div></div>
+        </div>
+        <div class="note"><span class="tag">monotonic_cst</span> garantiza que la tasa de riesgo respete la lógica de negocio en cada corte</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 3 ============================== -->
+<section class="slide">
+  <div class="head">
+    <div>
+      <h1>Árbol 2 <span class="sec">| Refinamiento sobre la base capturada</span></h1>
+      <div class="subt">Re-segmenta a los clientes ya clasificados por el Árbol 1 para abrir buckets más finos y monótonos</div>
+    </div>
+    <span class="badge"><span class="dot"></span>Refinamiento</span>
+  </div>
+
+  <div class="grid2">
+    <!-- Qué cambia -->
+    <div class="card">
+      <div class="ch"><span class="n">A</span>Qué cambia respecto al Árbol 1</div>
+      <div class="bd">
+        <table>
+          <thead><tr><th>Variable de entrada</th><th>Rol en el Árbol 2</th></tr></thead>
+          <tbody>
+            <tr><td class="var">bucket (B1…B8)</td><td>Resultado del Árbol 1 entra como <b>ordinal</b> (<code style="font-family:Consolas,monospace;font-size:11px;background:#f0f5f2;padding:1px 5px;border-radius:5px">ORD_VAR</code>)</td></tr>
+            <tr><td class="var">saldo_prom_tot_pasivo_u3m</td><td>Saldo pasivo promedio · binning 2–7 bins</td></tr>
+            <tr><td class="var">puntuacion_cal_cat</td><td>Categoría de riesgo del score (1–6)</td></tr>
+          </tbody>
+        </table>
+
+        <div class="steps" style="margin-top:16px">
+          <div class="step"><div class="num">✓</div><div class="tx"><b>Conjunto reducido y enfocado</b> de variables (vs. el set amplio del Árbol 1).</div></div>
+          <div class="step"><div class="num">✓</div><div class="tx"><b>FAMILIAS_UNICAS = ("saldo",):</b> de cada familia el árbol conserva <b>una sola</b> variable (la de mayor importancia).</div></div>
+          <div class="step"><div class="num">✓</div><div class="tx">Dirección de <code style="font-family:Consolas,monospace;font-size:11px;background:#f0f5f2;padding:1px 5px;border-radius:5px">puntuacion_cal_cat</code> ajustada a <b>+1</b> y splits propios por valor (1…6 / B1…B8).</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resultado y validación -->
+    <div class="card">
+      <div class="ch"><span class="n">B</span>Resultado &amp; validación</div>
+      <div class="bd">
+        <div class="steps">
+          <div class="step"><div class="num">1</div><div class="tx"><b>Nuevas hojas = estrategias finas</b> del Árbol 2 (<code style="font-family:Consolas,monospace;font-size:11px;background:#f0f5f2;padding:1px 5px;border-radius:5px">nro_estrategia</code>).</div></div>
+          <div class="step"><div class="num">2</div><div class="tx"><b>Agrupación en buckets finales</b> con mapeo manual hacia ~12 buckets.</div></div>
+          <div class="step"><div class="num">3</div><div class="tx"><b>Validación en 3 bases:</b> V1 campañas · V2 base inicial · V3 no-campaña, más una fila de <b>Rechazo</b> (no capturados).</div></div>
+          <div class="step"><div class="num">4</div><div class="tx"><b>Comparación de métodos</b> de agrupamiento y chequeo de monotonía de la tasa de malos.</div></div>
+        </div>
+
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+          <span class="chip inc">Cascada</span>
+          <span class="chip inc">ChiMerge</span>
+          <span class="chip inc">OptBin</span>
+          <span class="chip inc">Shrinkage</span>
+          <span class="chip inc">MDLP</span>
+        </div>
+
+        <div class="stats" style="margin-top:16px;grid-template-columns:1fr 1fr">
+          <div class="stat"><div class="l">≤24 meses</div><div class="v" style="font-size:18px">30 → 12</div><div class="d">estrategias → buckets finales</div></div>
+          <div class="stat"><div class="l">≥5 años</div><div class="v" style="font-size:18px">16 → 12</div><div class="d">estrategias → buckets finales</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pipeline mini -->
+  <div class="mini">
+    <div class="mstep"><div class="mt">Árbol 1</div><div class="ms">estrategias gruesas</div></div>
+    <div class="march">→</div>
+    <div class="mstep"><div class="mt">Bucket B1…Bn</div><div class="ms">agrupación monótona</div></div>
+    <div class="march">→</div>
+    <div class="mstep"><div class="mt">Árbol 2</div><div class="ms">bucket + saldo + cal_cat</div></div>
+    <div class="march">→</div>
+    <div class="mstep"><div class="mt">Buckets finales</div><div class="ms">~12 grupos</div></div>
+    <div class="march">→</div>
+    <div class="mstep"><div class="mt">Validación V1/V2/V3</div><div class="ms">tasa de malos monótona</div></div>
+  </div>
+
+  <div class="note"><span class="tag">Idea clave</span> el Árbol 2 toma el resultado del Árbol 1 como insumo y lo afina con saldo pasivo y categoría de score, abriendo buckets de riesgo más finos y ordenados</div>
+</section>
+
+</body>
+</html>
