@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buckets Árbol 2 — cubo de reglas (3 variables)</title>
+<style>
+  :root{
+    --green-deep:#1f5130; --green-deep2:#26603a; --green:#1aa44c; --green-bright:#1a9850;
+    --green-teal:#3a7d5c; --green-soft:#e8f5ee; --gray-title:#9aa6a0; --gray-txt:#5b6f66;
+    --ink:#14271d; --mono:#23433c; --shadow:0 6px 20px rgba(20,60,40,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Roboto,Arial,sans-serif}
+  body{background:#dfe6e2;display:flex;flex-direction:column;align-items:center;gap:26px;padding:26px}
+  .slide{width:1280px;height:720px;background:#fff;position:relative;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);padding:28px 40px 20px}
+
+  .head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:13px}
+  h1{font-size:26px;font-weight:800;color:var(--green-deep);letter-spacing:-.3px;line-height:1.1}
+  h1 .sec{color:var(--gray-title);font-weight:800}
+  .subt{font-size:12px;color:var(--gray-txt);margin-top:4px}
+  .badge{display:inline-flex;align-items:center;gap:8px;background:var(--green-soft);color:var(--green-deep);font-weight:700;font-size:12px;padding:7px 15px;border-radius:30px;white-space:nowrap}
+  .badge .dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
+
+  .card{background:#fff;border:1px solid #e7eee9;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+  .card .ch{background:var(--green-deep);color:#fff;font-weight:700;font-size:12.5px;padding:8px 14px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .card .ch small{font-weight:400;opacity:.85;font-size:11px}
+  .card.alt .ch{background:var(--green-bright)}
+  .card.teal .ch{background:var(--green-teal)}
+  .card .bd{padding:10px 13px}
+  .grid3{display:grid;grid-template-columns:1.18fr 1fr 1fr;gap:13px}
+
+  table{width:100%;border-collapse:collapse;font-size:10.6px}
+  th{background:#0a5a44;color:#fff;text-align:center;font-weight:600;padding:5px 6px;border:1px solid #0a5a44;white-space:nowrap}
+  td{padding:4px 6px;border:1px solid #dde7e4;text-align:center;white-space:nowrap}
+  td.b{text-align:left;font-weight:700;color:#23433c}
+  td.l{text-align:left}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  tr.tot td{background:#cfe9e4;font-weight:800;color:#084b44;border-top:2px solid #0a7d74}
+  td.rj,th.rj{background:#eceff0;color:#4a5a56}
+  tr.rjr td{background:#eceff0;color:#4a5a56}
+  td.totc,th.totc{background:#dff0ed;font-weight:700;color:#0a5a52}
+  .bcell{font-weight:800;color:#10241f}
+
+  table.rl{font-size:9.6px}
+  table.rl td{padding:2.6px 6px}
+  table.rl td.rule{text-align:left;font-family:Consolas,"Courier New",monospace;font-size:9.2px;color:#23433c;white-space:nowrap}
+  table.rl td.idx{font-weight:800;color:#0a5a44}
+  .reglas2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+  /* cubo */
+  .cubewrap{display:grid;grid-template-columns:1.55fr 1fr;gap:18px;align-items:start}
+  .cubebox{display:flex;flex-direction:column;align-items:center;padding:6px 4px}
+  .legend{display:flex;flex-direction:column;gap:4px}
+  .legrow{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink)}
+  .sw{width:20px;height:14px;border-radius:3px;border:1px solid #0000001f;flex:0 0 20px}
+  .note{font-size:11.5px;color:var(--gray-txt);line-height:1.5}
+  .note b{color:var(--green-deep)}
+  .keychip{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:14px;background:var(--green-soft);color:var(--green-deep)}
+
+  .foot{position:absolute;left:40px;right:40px;bottom:12px;border-top:1px solid #e3ece7;padding-top:7px;font-size:9.4px;color:#8a9b93;line-height:1.45;display:flex;flex-wrap:wrap;gap:3px 18px}
+  .foot b{color:var(--green-deep2)}
+
+  @media print{ body{background:#fff;padding:0;gap:0} .slide{box-shadow:none;border-radius:0;page-break-after:always;margin:0} }
+</style>
+</head>
+<body>
+
+<!-- ============ 24m · RESUMEN ============ -->
+<section class="slide">
+  <div class="head">
+    <div><h1>Buckets Árbol 2 · 24 meses <span class="sec">| Tasa de riesgo y distribución V1 / V2 / V3</span></h1>
+      <div class="subt">Escenario <b>24m_sinedad_6</b> · 12 buckets sobre 30 estrategias del Árbol 2 (3 variables) · verde = menor riesgo, rojo = mayor</div></div>
+    <span class="badge"><span class="dot"></span>24m_sinedad_6</span>
+  </div>
+  <div class="grid3">
+    <div class="card"><div class="ch">Tasa de riesgo por bucket</div><div class="bd" style="padding:8px 11px">
+      <table>
+        <thead><tr><th style="width:44px">Buck.</th><th class="l" style="text-align:left">Estrateg.</th><th>Tasa</th><th>N</th><th>% tot</th></tr></thead><tbody id="tasa24"></tbody></table>
+    </div></div>
+    <div class="card alt"><div class="ch">V2 · Base inicial</div><div class="bd" style="padding:8px 11px">
+      <table><thead><tr><th style="width:40px">Buck.</th><th>Cantidad</th><th>%</th><th>prob</th><th>score</th></tr></thead><tbody id="v224"></tbody></table>
+    </div></div>
+    <div class="card alt"><div class="ch">V3 · Fuera de campaña</div><div class="bd" style="padding:8px 11px">
+      <table><thead><tr><th style="width:40px">Buck.</th><th>Cantidad</th><th>%</th><th>prob</th><th>score</th></tr></thead><tbody id="v324"></tbody></table>
+    </div></div>
+  </div>
+  <div class="card teal" style="margin-top:12px"><div class="ch teal">V1 · Base de campañas <small>· 3 fechas de junio (5 pilotos) × bucket</small></div>
+    <div class="bd" style="padding:7px 12px"><table style="font-size:9.7px" id="v124"></table></div>
+  </div>
+  <div class="foot">
+    <span><b>Tasa malos:</b> % de target_60_12m=1 en la base de modelamiento (RD, n=45,459).</span>
+    <span><b>V1:</b> campañas (5 pilotos) · V2: base de generación · V3: fuera de campaña.</span>
+    <span><b>prob/score:</b> promedios por bucket.</span>
+  </div>
+</section>
+
+<!-- ============ 24m · CUBO ============ -->
+<section class="slide">
+  <div class="head">
+    <div><h1>Buckets Árbol 2 · 24 meses <span class="sec">| Cubo de reglas (3 variables)</span></h1>
+      <div class="subt">Las 30 reglas se ubican en un espacio de 3 variables: <b>Score Rebank</b> × <b>bucket Árbol 1</b> × <b>saldo</b> → color = bucket final</div></div>
+    <span class="badge"><span class="dot"></span>24m_sinedad_6</span>
+  </div>
+  <div class="card"><div class="ch">Mapa de reglas en el cubo <small>· cara = Score Rebank × bucket Árbol 1 · profundidad = saldo</small></div>
+    <div class="bd"><div class="cubewrap">
+      <div class="cubebox"><div id="cube24"></div>
+        <div class="note" style="margin-top:6px;text-align:center">
+          <b>Score Rebank</b> (eje vertical): 1 = mejor (arriba) → 6 = peor (abajo) &nbsp;·&nbsp;
+          <b>bucket Árbol 1</b> (eje horizontal): menor → mayor riesgo &nbsp;·&nbsp;
+          celdas partidas: <b>▲ saldo &gt; 349.07</b> / <b>▼ saldo ≤ 349.07</b>
+        </div>
+      </div>
+      <div>
+        <div style="font-weight:700;color:var(--green-deep);font-size:12.5px;margin-bottom:6px">Bucket final → tasa de malos</div>
+        <div class="legend" id="leg24"></div>
+        <div class="note" style="margin-top:12px">
+          <b>Cómo leer:</b> cada casilla es una combinación de Score Rebank (fila) y bucket del Árbol 1 (columna). El color indica el bucket final (verde = menor riesgo). El <b>saldo</b> sólo cambia el resultado en la fila superior (mejor score), por eso esas casillas aparecen partidas.
+        </div>
+      </div>
+    </div></div>
+  </div>
+  <div class="foot">
+    <span><b>Score Rebank:</b> puntuacion_cal_cat (1–6) · <b>bucket Árbol 1:</b> bucket (ordinal) · <b>saldo:</b> saldo_prom_tot_pasivo_u3m.</span>
+    <span><b>Umbral saldo:</b> 349.07.</span>
+  </div>
+</section>
+
+<!-- ============ 24m · REGLAS ============ -->
+<section class="slide">
+  <div class="head">
+    <div><h1>Buckets Árbol 2 · 24 meses <span class="sec">| Reglas por bucket</span></h1>
+      <div class="subt">Escenario <b>24m_sinedad_6</b> · 30 estrategias del Árbol 2 · cada regla = una hoja</div></div>
+    <span class="badge"><span class="dot"></span>24m_sinedad_6</span>
+  </div>
+  <div class="card"><div class="ch">Reglas (estrategia → condición → tasa de malos)</div>
+    <div class="bd" style="padding:8px 12px"><div class="reglas2">
+      <table class="rl"><thead><tr><th style="width:30px">Bk</th><th style="width:26px">#</th><th class="l" style="text-align:left">Regla</th><th>Tasa</th><th>%</th><th>N</th></tr></thead><tbody id="reg24a"></tbody></table>
+      <table class="rl"><thead><tr><th style="width:30px">Bk</th><th style="width:26px">#</th><th class="l" style="text-align:left">Regla</th><th>Tasa</th><th>%</th><th>N</th></tr></thead><tbody id="reg24b"></tbody></table>
+    </div></div>
+  </div>
+  <div class="foot">
+    <span><b>pcc</b> = puntuacion_cal_cat (Score Rebank) · <b>saldo</b> = saldo_prom_tot_pasivo_u3m · <b>bk</b> = bucket (Árbol 1).</span>
+    <span><b>Bk:</b> bucket final · <b>%:</b> % del total · <b>N:</b> clientes (base de modelamiento).</span>
+  </div>
+</section>
+
+<!-- ============ 5 años · RESUMEN ============ -->
+<section class="slide">
+  <div class="head">
+    <div><h1>Buckets Árbol 2 · 5 años <span class="sec">| Tasa de riesgo y distribución V1 / V2 / V3</span></h1>
+      <div class="subt">Escenario <b>5años_sinedad_4</b> · 12 buckets sobre 16 estrategias del Árbol 2 (3 variables) · verde = menor riesgo, rojo = mayor</div></div>
+    <span class="badge"><span class="dot"></span>5años_sinedad_4</span>
+  </div>
+  <div class="grid3">
+    <div class="card"><div class="ch">Tasa de riesgo por bucket</div><div class="bd" style="padding:8px 11px">
+      <table><thead><tr><th style="width:44px">Buck.</th><th class="l" style="text-align:left">Estrateg.</th><th>Tasa</th><th>N</th><th>% tot</th></tr></thead><tbody id="tasa5"></tbody></table>
+    </div></div>
+    <div class="card alt"><div class="ch">V2 · Base inicial</div><div class="bd" style="padding:8px 11px">
+      <table><thead><tr><th style="width:40px">Buck.</th><th>Cantidad</th><th>%</th><th>prob</th><th>score</th></tr></thead><tbody id="v25"></tbody></table>
+    </div></div>
+    <div class="card alt"><div class="ch">V3 · Fuera de campaña</div><div class="bd" style="padding:8px 11px">
+      <table><thead><tr><th style="width:40px">Buck.</th><th>Cantidad</th><th>%</th><th>prob</th><th>score</th></tr></thead><tbody id="v35"></tbody></table>
+    </div></div>
+  </div>
+  <div class="card teal" style="margin-top:12px"><div class="ch teal">V1 · Base de campañas <small>· 3 fechas de junio (5 pilotos) × bucket</small></div>
+    <div class="bd" style="padding:7px 12px"><table style="font-size:9.7px" id="v15"></table></div>
+  </div>
+  <div class="foot">
+    <span><b>Tasa malos:</b> % de target_60_12m=1 en la base de modelamiento (RD, n=45,459).</span>
+    <span><b>V1:</b> campañas (5 pilotos) · V2: base de generación · V3: fuera de campaña.</span>
+    <span><b>prob/score:</b> promedios por bucket.</span>
+  </div>
+</section>
+
+<!-- ============ 5 años · CUBO ============ -->
+<section class="slide">
+  <div class="head">
+    <div><h1>Buckets Árbol 2 · 5 años <span class="sec">| Cubo de reglas (3 variables)</span></h1>
+      <div class="subt">Las 16 reglas se ubican en un espacio de 3 variables: <b>Score Rebank</b> × <b>bucket Árbol 1</b> × <b>saldo</b> → color = bucket final</div></div>
+    <span class="badge"><span class="dot"></span>5años_sinedad_4</span>
+  </div>
+  <div class="card"><div class="ch">Mapa de reglas en el cubo <small>· cara = Score Rebank × bucket Árbol 1 · profundidad = saldo</small></div>
+    <div class="bd"><div class="cubewrap">
+      <div class="cubebox"><div id="cube5"></div>
+        <div class="note" style="margin-top:6px;text-align:center">
+          <b>Score Rebank</b> (eje vertical): 1 = mejor (arriba) → 6 = peor (abajo) &nbsp;·&nbsp;
+          <b>bucket Árbol 1</b> (eje horizontal): menor → mayor riesgo &nbsp;·&nbsp;
+          celdas partidas: <b>▲ saldo &gt; 220.89</b> / <b>▼ saldo ≤ 220.89</b>
+        </div>
+      </div>
+      <div>
+        <div style="font-weight:700;color:var(--green-deep);font-size:12.5px;margin-bottom:6px">Bucket final → tasa de malos</div>
+        <div class="legend" id="leg5"></div>
+        <div class="note" style="margin-top:12px">
+          <b>Cómo leer:</b> cada casilla es una combinación de Score Rebank (fila) y bucket del Árbol 1 (columna). El color indica el bucket final. Aquí el árbol parte primero por <b>Score Rebank</b> y luego por <b>bucket</b>; el <b>saldo</b> sólo separa la fila superior.
+        </div>
+      </div>
+    </div></div>
+  </div>
+  <div class="foot">
+    <span><b>Score Rebank:</b> puntuacion_cal_cat (1–6) · <b>bucket Árbol 1:</b> bucket (ordinal) · <b>saldo:</b> saldo_prom_tot_pasivo_u3m.</span>
+    <span><b>Umbral saldo:</b> 220.89.</span>
+  </div>
+</section>
+
+<!-- ============ 5 años · REGLAS ============ -->
+<section class="slide">
+  <div class="head">
+    <div><h1>Buckets Árbol 2 · 5 años <span class="sec">| Reglas por bucket</span></h1>
+      <div class="subt">Escenario <b>5años_sinedad_4</b> · 16 estrategias del Árbol 2 · cada regla = una hoja</div></div>
+    <span class="badge"><span class="dot"></span>5años_sinedad_4</span>
+  </div>
+  <div class="card"><div class="ch">Reglas (estrategia → condición → tasa de malos)</div>
+    <div class="bd" style="padding:8px 12px">
+      <table class="rl"><thead><tr><th style="width:34px">Bk</th><th style="width:30px">#</th><th class="l" style="text-align:left">Regla (condición de la hoja)</th><th>Tasa</th><th>% tot</th><th>N</th></tr></thead><tbody id="reg5"></tbody></table>
+    </div>
+  </div>
+  <div class="foot">
+    <span><b>pcc</b> = puntuacion_cal_cat (Score Rebank) · <b>saldo</b> = saldo_prom_tot_pasivo_u3m · <b>bk</b> = bucket (Árbol 1).</span>
+    <span><b>Bk:</b> bucket final · <b>%:</b> % del total · <b>N:</b> clientes.</span>
+  </div>
+</section>
+
+<script>
+const HUE=[130,118,106,95,83,71,59,47,35,24,12,0];
+const colB=n=>`hsl(${HUE[n-1]},60%,78%)`;
+const numB=b=>parseInt(b.slice(1));
+
+// ---------- datos ----------
+const TASA24=[["B1","1, 2","4.55%","176","0.4%"],["B2","3","5.55%","2,524","5.6%"],["B3","4–8","6.69%","3,842","8.5%"],["B4","9, 10","10.13%","5,290","11.6%"],["B5","11, 12","11.51%","1,321","2.9%"],["B6","13–15","13.40%","6,329","13.9%"],["B7","16–18","12.67%","1,855","4.1%"],["B8","19, 20","17.13%","5,311","11.7%"],["B9","21–23","17.69%","893","2.0%"],["B10","24, 25","19.63%","1,019","2.2%"],["B11","26–28","36.96%","13,785","30.3%"],["B12","29, 30","40.82%","3,114","6.9%"]];
+const TASA24T=["30 estr.","21.58%","45,459","100%"];
+const V224=[["4,442","0.8%","0.244","755.5"],["7,021","1.2%","0.269","730.1"],["27,721","4.8%","0.288","711.3"],["26,961","4.6%","0.346","653.6"],["51,215","8.8%","0.351","648.6"],["32,686","5.6%","0.400","599.2"],["132,679","22.8%","0.403","596.6"],["20,663","3.5%","0.444","555.1"],["108,579","18.6%","0.451","548.6"],["28,296","4.9%","0.453","546.9"],["38,475","6.6%","0.518","481.9"],["104,189","17.9%","0.523","476.7"]];
+const V224T=["582,927","100%","0.429","570.4"];
+const V324=[["3,233","0.6%","0.247","752.4"],["5,668","1.1%","0.272","727.1"],["17,052","3.3%","0.289","710.1"],["18,067","3.5%","0.347","652.7"],["42,440","8.1%","0.352","647.8"],["24,750","4.7%","0.401","598.9"],["121,324","23.2%","0.403","596.3"],["17,990","3.4%","0.444","555.1"],["103,892","19.8%","0.451","548.3"],["28,128","5.4%","0.453","546.9"],["37,084","7.1%","0.518","481.2"],["103,856","19.8%","0.523","476.7"]];
+const V324T=["523,484","100%","0.436","563.2"];
+const V124=[["20260617","1,147","745","5,985","6,613","3,910","8,294","7,358","5,938","6,123","194","24,425","2,342","0","73,074"],
+["20260623","1,102","710","5,040","5,592","2,988","6,746","5,421","5,169","5,248","145","19,927","1,633","0","59,721"],
+["20260624","1,102","708","5,045","5,587","2,983","6,747","5,418","5,167","5,243","145","19,931","1,631","0","59,707"]];
+const V124T=["Total","3,351","2,163","16,070","17,792","9,881","21,787","18,197","16,274","16,614","484","64,283","5,606","0","192,502"];
+
+const TASA5=[["B1","1","7.15%","3,733","8.2%"],["B2","2","8.14%","835","1.8%"],["B3","3","8.70%","7,078","15.6%"],["B4","4","9.42%","1,507","3.3%"],["B5","5","13.36%","6,317","13.9%"],["B6","6","13.53%","931","2.0%"],["B7","7","13.17%","1,154","2.5%"],["B8","8, 9","17.07%","5,084","11.2%"],["B9","10","18.13%","695","1.5%"],["B10","11","19.10%","1,225","2.7%"],["B11","12–14","36.89%","12,137","26.7%"],["B12","15, 16","39.68%","4,763","10.5%"]];
+const TASA5T=["16 estr.","21.58%","45,459","100%"];
+const V25=[["20,304","1.2%","0.282","717.8"],["28,500","1.7%","0.315","685.0"],["140,065","8.3%","0.335","664.5"],["187,958","11.1%","0.352","647.4"],["114,041","6.7%","0.396","603.4"],["289,713","17.1%","0.398","601.9"],["278,690","16.4%","0.401","598.2"],["86,512","5.1%","0.421","578.6"],["111,032","6.5%","0.449","550.3"],["147,087","8.7%","0.450","549.1"],["70,579","4.2%","0.478","521.5"],["223,194","13.1%","0.522","477.8"]];
+const V25T=["1,697,675","100%","0.414","585.6"];
+const V35=[["17,656","1.1%","0.287","713.0"],["27,642","1.7%","0.316","684.0"],["117,373","7.1%","0.339","660.2"],["177,463","10.8%","0.353","646.6"],["110,285","6.7%","0.396","603.3"],["285,437","17.3%","0.398","601.8"],["276,720","16.8%","0.401","598.2"],["85,882","5.2%","0.421","578.5"],["110,728","6.7%","0.449","550.3"],["146,876","8.9%","0.450","549.1"],["70,510","4.3%","0.478","521.5"],["223,102","13.5%","0.522","477.8"]];
+const V35T=["1,649,674","100%","0.416","583.3"];
+const V15=[["20260617","2,450","676","16,063","5,748","4,834","3,761","1,404","2,031","1,136","455","3,565","3,773","0","45,896"],
+["20260623","2,371","644","13,941","5,436","4,022","3,483","1,309","1,798","1,049","420","3,304","3,643","0","41,420"],
+["20260624","2,358","642","13,937","5,434","4,018","3,483","1,306","1,798","1,049","420","3,300","3,642","0","41,387"]];
+const V15T=["Total","7,179","1,962","43,941","16,618","12,874","10,727","4,019","5,627","3,234","1,295","10,169","11,058","0","128,703"];
+
+const REG24=[[1,"pcc ≤ 1.5 & saldo > 349.07 & bk ≤ 1.5","5.0%","0.4%","161"],[1,"pcc ≤ 1.5 & saldo > 349.07 & bk (1.5, 2.5]","0.0%","0.0%","15"],[2,"pcc ≤ 1.5 & saldo > 349.07 & bk > 2.5","5.5%","5.6%","2,524"],[3,"pcc ≤ 1.5 & saldo ≤ 349.07 & bk ≤ 1.5","8.8%","0.6%","273"],[3,"pcc ≤ 1.5 & saldo ≤ 349.07 & bk (1.5, 2.5]","16.7%","0.1%","30"],[3,"pcc ≤ 1.5 & saldo ≤ 349.07 & bk (2.5, 3.5]","6.4%","6.3%","2,884"],[3,"pcc ≤ 1.5 & saldo ≤ 349.07 & bk > 3.5","6.3%","1.3%","600"],[3,"pcc (1.5, 2.5] & bk ≤ 2.5 & saldo > 349.07","7.3%","0.1%","55"],[4,"pcc (1.5, 2.5] & bk ≤ 2.5 & saldo ≤ 349.07","10.5%","0.6%","277"],[4,"pcc (1.5, 2.5] & bk (2.5, 3.5]","10.1%","11.0%","5,013"],[5,"pcc (1.5, 2.5] & bk (3.5, 4.5]","11.2%","1.6%","717"],[5,"pcc (1.5, 2.5] & bk > 4.5","11.9%","1.3%","604"],[6,"pcc (2.5, 3.5] & bk ≤ 1.5","14.8%","0.6%","257"],[6,"pcc (2.5, 3.5] & bk (1.5, 2.5]","14.3%","0.1%","49"],[6,"pcc (2.5, 3.5] & bk (2.5, 3.5]","13.3%","13.2%","6,023"],[7,"pcc (2.5, 3.5] & bk (3.5, 4.5]","13.3%","2.0%","919"],[7,"pcc (2.5, 3.5] & bk (4.5, 5.5]","12.4%","0.4%","186"],[7,"pcc (2.5, 3.5] & bk (5.5, 6.5]","12.0%","1.6%","750"],[8,"pcc (2.5, 3.5] & bk > 6.5","18.2%","0.5%","220"],[8,"pcc (3.5, 4.5] & bk ≤ 3.5","17.1%","11.2%","5,091"],[9,"pcc (3.5, 4.5] & bk (3.5, 4.5]","17.9%","1.5%","686"],[9,"pcc (3.5, 4.5] & bk (4.5, 5.5] & saldo > 349.07","11.8%","0.0%","17"],[9,"pcc (3.5, 4.5] & bk (4.5, 5.5] & saldo ≤ 349.07","17.4%","0.4%","190"],[10,"pcc (3.5, 4.5] & bk (5.5, 6.5]","19.9%","1.7%","787"],[10,"pcc (3.5, 4.5] & bk > 6.5","18.5%","0.5%","232"],[11,"pcc > 4.5 & bk ≤ 2.5","39.3%","0.7%","323"],[11,"pcc > 4.5 & bk (2.5, 3.5]","36.8%","25.9%","11,796"],[11,"pcc > 4.5 & bk (3.5, 4.5]","37.5%","3.7%","1,666"],[12,"pcc > 4.5 & bk (4.5, 6.5]","41.2%","5.5%","2,502"],[12,"pcc > 4.5 & bk > 6.5","39.1%","1.3%","612"]];
+const REG5=[[1,"pcc ≤ 2.5 & saldo > 220.89 & bk ≤ 4.5","7.2%","8.2%","3,733"],[2,"pcc ≤ 2.5 & saldo > 220.89 & bk > 4.5","8.1%","1.8%","835"],[3,"pcc ≤ 2.5 & saldo ≤ 220.89 & bk ≤ 4.5","8.7%","15.6%","7,078"],[4,"pcc ≤ 2.5 & saldo ≤ 220.89 & bk > 4.5","9.4%","3.3%","1,507"],[5,"pcc (2.5, 3.5] & bk ≤ 3.5","13.4%","13.9%","6,317"],[6,"pcc (2.5, 3.5] & bk (3.5, 5.5]","13.5%","2.0%","931"],[7,"pcc (2.5, 3.5] & bk (5.5, 6.5]","13.2%","2.5%","1,154"],[8,"pcc (2.5, 3.5] & bk > 6.5","50.0%","0.0%","2"],[8,"pcc (3.5, 4.5] & bk ≤ 3.5","17.1%","11.2%","5,082"],[9,"pcc (3.5, 4.5] & bk (3.5, 5.5]","18.1%","1.5%","695"],[10,"pcc (3.5, 4.5] & bk (5.5, 6.5]","19.1%","2.7%","1,225"],[11,"pcc (3.5, 4.5] & bk > 6.5","100%","0.0%","1"],[11,"pcc > 4.5 & bk ≤ 3.5","36.9%","26.6%","12,108"],[11,"pcc > 4.5 & bk (3.5, 4.5]","32.1%","0.1%","28"],[12,"pcc > 4.5 & bk (4.5, 6.5]","39.7%","10.5%","4,757"],[12,"pcc > 4.5 & bk > 6.5","16.7%","0.0%","6"]];
+
+const CUBE24={umbral:"349.07", rows:["≤ 1.5","(1.5, 2.5]","(2.5, 3.5]","(3.5, 4.5]","> 4.5"], cols:["1","2","3","4","5","6","7+"],
+ grid:[[{f:1,b:3},{f:1,b:3},{f:2,b:3},{f:2,b:3},{f:2,b:3},{f:2,b:3},{f:2,b:3}],
+       [{f:3,b:4},{f:3,b:4},4,5,5,5,5],
+       [6,6,6,7,7,7,8],
+       [8,8,8,9,9,10,10],
+       [11,11,11,11,12,12,12]]};
+const CUBE5={umbral:"220.89", rows:["≤ 2.5","(2.5, 3.5]","(3.5, 4.5]","> 4.5"], cols:["≤3","4","5","6","7+"],
+ grid:[[{f:1,b:3},{f:1,b:3},{f:2,b:4},{f:2,b:4},{f:2,b:4}],
+       [5,6,6,7,8],
+       [8,9,9,10,11],
+       [11,11,12,12,12]]};
+
+// ---------- render helpers ----------
+function tasaRows(tb,data,tot){
+  let h="";
+  data.forEach((r,i)=>{h+=`<tr><td class="bcell" style="background:${colB(i+1)}">${r[0]}</td><td class="l">${r[1]}</td><td>${r[2]}</td><td class="num">${r[3]}</td><td class="num">${r[4]}</td></tr>`;});
+  h+=`<tr class="tot"><td>Tot</td><td class="l">${tot[0]}</td><td>${tot[1]}</td><td class="num">${tot[2]}</td><td class="num">${tot[3]}</td></tr>`;
+  document.getElementById(tb).innerHTML=h;
+}
+function vRows(tb,data,tot){
+  let h="";
+  data.forEach((r,i)=>{h+=`<tr><td class="bcell" style="background:${colB(i+1)}">B${i+1}</td><td class="num">${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td><td class="num">${r[3]}</td></tr>`;});
+  h+=`<tr class="rjr"><td class="b">Rech.</td><td class="num">0</td><td class="num">0.0%</td><td class="num">-</td><td class="num">-</td></tr>`;
+  h+=`<tr class="tot"><td>Tot</td><td class="num">${tot[0]}</td><td>${tot[1]}</td><td class="num">${tot[2]}</td><td class="num">${tot[3]}</td></tr>`;
+  document.getElementById(tb).innerHTML=h;
+}
+function v1Table(id,data,tot){
+  let h='<thead><tr><th class="l" style="text-align:left">p_fecinformacion</th>';
+  for(let k=1;k<=12;k++)h+=`<th>B${k}</th>`;
+  h+='<th class="rj">Rech.</th><th class="totc">Total</th></tr></thead><tbody>';
+  data.forEach(r=>{h+=`<tr><td class="b">${r[0]}</td>`;for(let j=1;j<=12;j++)h+=`<td class="num">${r[j]}</td>`;h+=`<td class="num rj">${r[13]}</td><td class="num totc">${r[14]}</td></tr>`;});
+  h+=`<tr class="tot"><td>${tot[0]}</td>`;for(let j=1;j<=12;j++)h+=`<td class="num">${tot[j]}</td>`;h+=`<td class="num">${tot[13]}</td><td class="num">${tot[14]}</td></tr></tbody>`;
+  document.getElementById(id).innerHTML=h;
+}
+function regRows(tb,data,off){
+  let h="";
+  data.forEach((r,i)=>{h+=`<tr><td class="bcell" style="background:${colB(r[0])};font-size:9px">B${r[0]}</td><td class="idx">${off+i+1}</td><td class="rule">${r[1]}</td><td>${r[2]}</td><td class="num">${r[3]}</td><td class="num">${r[4]}</td></tr>`;});
+  document.getElementById(tb).innerHTML=h;
+}
+function legend(id,tasa){
+  let h="";
+  tasa.forEach((r,i)=>{h+=`<div class="legrow"><span class="sw" style="background:${colB(i+1)}"></span><b style="width:30px">B${i+1}</b><span style="color:#5b6f66">tasa ${r[2]} · n ${r[3]}</span></div>`;});
+  document.getElementById(id).innerHTML=h;
+}
+
+const SVGNS="http://www.w3.org/2000/svg";
+function E(t,a){const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function T(x,y,s,a){const t=E("text",Object.assign({x,y,"text-anchor":"middle","font-size":12,fill:"#10241f"},a||{}));t.textContent=s;return t;}
+function drawCube(id,spec){
+  const cs=60, lp=112, tp=78, dd=26, dyy=-18;
+  const nc=spec.cols.length, nr=spec.rows.length;
+  const GW=nc*cs, GH=nr*cs;
+  const W=lp+GW+dd+22, H=tp+GH+58;
+  const ox=lp, oy=tp;
+  const svg=E("svg",{viewBox:`0 0 ${W} ${H}`,width:W,style:`max-width:100%;height:auto`});
+  // caras de profundidad (cubo)
+  svg.appendChild(E("polygon",{points:`${ox},${oy} ${ox+GW},${oy} ${ox+GW+dd},${oy+dyy} ${ox+dd},${oy+dyy}`,fill:"#e8efec",stroke:"#cdd9d4"}));
+  svg.appendChild(E("polygon",{points:`${ox+GW},${oy} ${ox+GW},${oy+GH} ${ox+GW+dd},${oy+GH+dyy} ${ox+GW+dd},${oy+dyy}`,fill:"#dde6e2",stroke:"#cdd9d4"}));
+  // celdas
+  for(let r=0;r<nr;r++)for(let c=0;c<nc;c++){
+    const x=ox+c*cs, y=oy+r*cs, cell=spec.grid[r][c];
+    if(typeof cell==="object"){
+      svg.appendChild(E("polygon",{points:`${x},${y} ${x+cs},${y} ${x+cs},${y+cs}`,fill:colB(cell.f),stroke:"#fff","stroke-width":1}));
+      svg.appendChild(E("polygon",{points:`${x},${y} ${x},${y+cs} ${x+cs},${y+cs}`,fill:colB(cell.b),stroke:"#fff","stroke-width":1}));
+      svg.appendChild(T(x+cs*0.70,y+cs*0.30,"B"+cell.f,{"font-size":10.5,"font-weight":700}));
+      svg.appendChild(T(x+cs*0.30,y+cs*0.72,"B"+cell.b,{"font-size":10.5,"font-weight":700}));
+    }else{
+      svg.appendChild(E("rect",{x,y,width:cs,height:cs,fill:colB(cell),stroke:"#fff","stroke-width":1}));
+      svg.appendChild(T(x+cs/2,y+cs/2+1,"B"+cell,{"font-size":13,"font-weight":800}));
+    }
+    svg.appendChild(E("rect",{x,y,width:cs,height:cs,fill:"none",stroke:"#aebfba","stroke-width":0.6}));
+  }
+  // etiquetas filas (Score Rebank)
+  for(let r=0;r<nr;r++) svg.appendChild(T(ox-9,oy+r*cs+cs/2+1,spec.rows[r],{"text-anchor":"end","font-size":11,fill:"#23433c","font-family":"Consolas,monospace"}));
+  // etiquetas columnas (bucket)
+  for(let c=0;c<nc;c++) svg.appendChild(T(ox+c*cs+cs/2,oy+GH+16,spec.cols[c],{"font-size":11.5,"font-weight":700,fill:"#23433c"}));
+  // títulos de ejes
+  svg.appendChild(T(ox-86,oy+GH/2,"Score Rebank ↓",{"font-size":12.5,"font-weight":700,fill:"#007a72",transform:`rotate(-90 ${ox-86} ${oy+GH/2})`}));
+  svg.appendChild(T(ox+GW/2,oy+GH+40,"bucket Árbol 1  →",{"font-size":12.5,"font-weight":700,fill:"#007a72"}));
+  svg.appendChild(T(ox+GW/2+dd+34,oy+dyy-7,"saldo ↗",{"font-size":12.5,"font-weight":700,fill:"#007a72"}));
+  document.getElementById(id).appendChild(svg);
+}
+
+// ---------- montar ----------
+tasaRows("tasa24",TASA24,TASA24T); vRows("v224",V224,V224T); vRows("v324",V324,V324T); v1Table("v124",V124,V124T);
+tasaRows("tasa5",TASA5,TASA5T); vRows("v25",V25,V25T); vRows("v35",V35,V35T); v1Table("v15",V15,V15T);
+regRows("reg24a",REG24.slice(0,15),0); regRows("reg24b",REG24.slice(15),15); regRows("reg5",REG5,0);
+legend("leg24",TASA24); legend("leg5",TASA5);
+drawCube("cube24",CUBE24); drawCube("cube5",CUBE5);
+</script>
+</body>
+</html>
