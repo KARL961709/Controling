@@ -115,6 +115,7 @@
         <div class="skeyrow" id="skey24"></div>
         <div style="font-weight:700;color:var(--green-deep);font-size:12.5px;margin-bottom:4px">Bucket final → ¿qué cliente es?</div>
         <table class="leg" id="leg24"></table>
+        <div class="note" style="margin-top:8px;font-size:10.5px">Orden por <b>riesgo</b>: domina el <b>Score Rebank</b>; dentro de cada tramo de score sube el <b>segmento</b> del Árbol 1 (por eso el segmento "reinicia" al cambiar de tramo).</div>
       </div>
     </div></div>
   </div>
@@ -185,6 +186,7 @@
         <div class="skeyrow" id="skey5"></div>
         <div style="font-weight:700;color:var(--green-deep);font-size:12.5px;margin-bottom:4px">Bucket final → ¿qué cliente es?</div>
         <table class="leg" id="leg5"></table>
+        <div class="note" style="margin-top:8px;font-size:10.5px">Orden por <b>riesgo</b>: domina el <b>Score Rebank</b>; dentro de cada tramo de score sube el <b>segmento</b> del Árbol 1 (por eso el segmento "reinicia" al cambiar de tramo).</div>
       </div>
     </div></div>
   </div>
@@ -282,21 +284,34 @@ function regRows(tb,data,off){
   data.forEach((r,i)=>{h+=`<tr><td class="bcell" style="background:${colB(r[0])};font-size:9px">B${r[0]}</td><td class="idx">${off+i+1}</td><td class="rule">${r[1]}</td><td>${r[2]}</td><td class="num">${r[3]}</td><td class="num">${r[4]}</td></tr>`;});
   document.getElementById(tb).innerHTML=h;
 }
-const DESC=["Mejor score · Saldo Pasivo alto → riesgo mínimo",
-"Mejor score · Saldo alto · segmento alto",
+// descripciones derivadas del cubo (Score Rebank · segmento Árbol 1 · Saldo Pasivo)
+const DESC24=["Mejor score · Saldo Pasivo alto · mejor segmento → riesgo mínimo",
+"Mejor score · Saldo Pasivo alto · segmento alto",
 "Mejor score · Saldo Pasivo bajo",
-"Score alto · segmento bajo–medio",
-"Score alto · segmento alto",
-"Score medio · segmento bajo",
-"Score medio · segmento medio–alto",
-"Score medio–bajo",
+"Score muy bueno · segmento bajo–medio",
+"Score muy bueno · segmento alto",
+"Score medio · segmento bajo–medio",
+"Score medio · segmento alto",
+"Score medio–bajo · segmento bajo",
 "Score medio–bajo · segmento medio",
 "Score medio–bajo · segmento alto",
-"Peor score · riesgo alto",
-"Peor score · segmento alto → riesgo máximo"];
-function legend(id,tasa){
+"Score bajo · segmento bajo–medio → riesgo alto",
+"Score bajo · segmento alto → riesgo máximo"];
+const DESC5=["Mejor score · Saldo Pasivo alto · segmento bajo–medio",
+"Mejor score · Saldo Pasivo alto · segmento alto",
+"Mejor score · Saldo Pasivo bajo · segmento bajo–medio",
+"Mejor score · Saldo Pasivo bajo · segmento alto",
+"Score medio · segmento bajo",
+"Score medio · segmento medio",
+"Score medio · segmento alto",
+"Score medio–bajo · segmento bajo",
+"Score medio–bajo · segmento medio",
+"Score medio–bajo · segmento alto",
+"Score bajo · segmento bajo–medio → riesgo alto",
+"Score bajo · segmento alto → riesgo máximo"];
+function legend(id,tasa,desc){
   let h="";
-  tasa.forEach((r,i)=>{h+=`<tr><td class="sw" style="background:${colB(i+1)}"></td><td class="bn">B${i+1}</td><td class="ta">${r[2]}</td><td class="ds">${DESC[i]}</td></tr>`;});
+  tasa.forEach((r,i)=>{h+=`<tr><td class="sw" style="background:${colB(i+1)}"></td><td class="bn">B${i+1}</td><td class="ta">${r[2]}</td><td class="ds">${desc[i]}</td></tr>`;});
   document.getElementById(id).innerHTML=h;
 }
 function saldoKey(id,umbral){
@@ -360,7 +375,7 @@ function drawCube(id,spec){
 tasaRows("tasa24",TASA24,TASA24T); vRows("v224",V224,V224T); vRows("v324",V324,V324T); v1Table("v124",V124,V124T);
 tasaRows("tasa5",TASA5,TASA5T); vRows("v25",V25,V25T); vRows("v35",V35,V35T); v1Table("v15",V15,V15T);
 regRows("reg24a",REG24.slice(0,15),0); regRows("reg24b",REG24.slice(15),15); regRows("reg5",REG5,0);
-legend("leg24",TASA24); legend("leg5",TASA5);
+legend("leg24",TASA24,DESC24); legend("leg5",TASA5,DESC5);
 saldoKey("skey24","349.07"); saldoKey("skey5","220.89");
 drawCube("cube24",CUBE24); drawCube("cube5",CUBE5);
 </script>
