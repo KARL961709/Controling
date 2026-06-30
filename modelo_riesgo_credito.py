@@ -1176,35 +1176,52 @@ def run(cfg: Config):
     # alimenta por igual a LR y a los GBMs. Las columnas WOE son todas numericas
     # (sin categoricas nativas), por eso gbm_cat = [].
     gbm_feats = keep
-    gbm_cat: List[str] = []
-    Xtr, Xte, Xoo = woe_tr.fillna(0.0), woe_te.fillna(0.0), woe_oo.fillna(0.0)
+    # variables ORIGINALES del set final (quita el prefijo 'woe_')
+    orig = [c[4:] if c.startswith("woe_") else c for c in keep]
+    cat_raw = [c for c in orig if c in set(cat)]   # categoricas dentro del set final
 
-    # VALIDACION para tuning: se separa DENTRO de train (fit interno + valid interno).
+    # DOS variantes de entrada por cada GBM:
+    #   - 'woe': matriz WOE (numerica)        -> flujo actual
+    #   - 'raw': variables ORIGINALES (sin WOE, categoricas nativas)
+    variantes = {
+        "woe": dict(Xtr=woe_tr.fillna(0.0), Xte=woe_te.fillna(0.0), Xoo=woe_oo.fillna(0.0),
+                    cat=[], is_woe=True),
+        "raw": dict(Xtr=train[orig], Xte=test[orig], Xoo=oot[orig],
+                    cat=cat_raw, is_woe=False),
+    }
+
+    # VALIDACION para tuning: indices DENTRO de train (mismos para woe y raw).
     # El TEST y el OOT NO intervienen en la optimizacion ni en el early stopping.
     from sklearn.model_selection import train_test_split as _tts
-    fit_idx, val_idx = _tts(Xtr.index, test_size=cfg.valid_size,
+    fit_idx, val_idx = _tts(train.index, test_size=cfg.valid_size,
                             random_state=cfg.random_state, stratify=y_tr)
-    X_fit, y_fit = Xtr.loc[fit_idx], y_tr.loc[fit_idx]
-    X_val, y_val = Xtr.loc[val_idx], y_tr.loc[val_idx]
+    y_fit, y_val = y_tr.loc[fit_idx], y_tr.loc[val_idx]
     log.info("Tuning con validacion INTERNA de train (fit=%d, valid=%d). "
              "TEST y OOT NO se usan en la optimizacion.", len(fit_idx), len(val_idx))
 
     avail = {"lightgbm": lightgbm, "xgboost": xgboost, "catboost": catboost}
     gbm_models: Dict[str, object] = {}
+    gbm_meta: Dict[str, dict] = {}
     gbm_preds: Dict[str, Dict[str, np.ndarray]] = {}
     for mt in cfg.gbm_models:
         if avail.get(mt) is None:
             log.warning("%s no disponible -> challenger omitido", mt)
             continue
-        log.info("--- Optimizando %s sobre WOE (anti-overfit, %d trials) ---", mt, cfg.optuna_trials)
-        model, best_params = optimize_gbm(cfg, mt, X_fit, y_fit, X_val, y_val, gbm_cat)
-        json.dump(best_params, open(os.path.join(cfg.out_dir, f"{mt}_best_params.json"), "w"),
-                  indent=2, default=str)
-        gbm_models[mt] = model
-        gbm_preds[mt] = {
-            part: gbm_predict(mt, model, X)
-            for part, X in [("train", Xtr), ("test", Xte), ("oot", Xoo)]
-        }
+        for vname, v in variantes.items():
+            name = f"{mt}_{vname}"                       # p.ej. lightgbm_woe / lightgbm_raw
+            Xtr_v, Xte_v, Xoo_v, vcat = v["Xtr"], v["Xte"], v["Xoo"], v["cat"]
+            X_fit_v, X_val_v = Xtr_v.loc[fit_idx], Xtr_v.loc[val_idx]
+            log.info("--- Optimizando %s (%s, anti-overfit, %d trials) ---",
+                     mt, vname.upper(), cfg.optuna_trials)
+            model, best_params = optimize_gbm(cfg, mt, X_fit_v, y_fit, X_val_v, y_val, vcat)
+            json.dump(best_params, open(os.path.join(cfg.out_dir, f"{name}_best_params.json"), "w"),
+                      indent=2, default=str)
+            gbm_models[name] = model
+            gbm_meta[name] = {"mt": mt, "cat": vcat, "is_woe": v["is_woe"], "Xte": Xte_v}
+            gbm_preds[name] = {
+                part: gbm_predict(mt, model, prepare_gbm_frame(mt, X, vcat))
+                for part, X in [("train", Xtr_v), ("test", Xte_v), ("oot", Xoo_v)]
+            }
 
     # --- 6. CALIBRACION NATIVA (el modelo ya sale calibrado por la optimizacion
     #        log-loss; NO se aplica parche post-hoc salvo cfg.post_hoc_calibration).
@@ -1262,16 +1279,21 @@ def run(cfg: Config):
         log.info("\nGANADOR vs CHAMPION:\n%s", comp.to_string(index=False))
 
     # --- 8. explicabilidad SHAP del GANADOR sobre el TEST (data independiente) ---
-    #   Todo el mundo usa WOE, asi que el eje X de los SHAP son los valores WOE
-    #   (linea de SHAP promedio por valor WOE). Se explica sobre TEST (no train).
-    n_smp = min(cfg.shap_sample, len(Xte))
-    smp_idx = Xte.sample(n_smp, random_state=cfg.random_state).index
+    #   Si el ganador es WOE -> eje X = valores WOE; si es raw -> valores originales.
     if winner in gbm_models:
+        meta = gbm_meta[winner]
+        Xte_w = meta["Xte"]
+        n_smp = min(cfg.shap_sample, len(Xte_w))
+        smp_idx = Xte_w.sample(n_smp, random_state=cfg.random_state).index
         shap_dependence_plots(
-            cfg, gbm_models[winner], Xte.loc[smp_idx],
-            cfg.out_dir, tag=f"woe_{winner}_test", kind="tree", is_woe=True)
+            cfg, gbm_models[winner],
+            prepare_gbm_frame(meta["mt"], Xte_w.loc[smp_idx], meta["cat"]),
+            cfg.out_dir, tag=f"{winner}_test", kind="tree", is_woe=meta["is_woe"])
+    # scorecard LR siempre sobre WOE
+    n_smp2 = min(cfg.shap_sample, len(woe_te))
+    smp2 = woe_te.sample(n_smp2, random_state=cfg.random_state).index
     shap_dependence_plots(
-        cfg, lr_model, woe_te.loc[smp_idx].fillna(0.0),
+        cfg, lr_model, woe_te.loc[smp2].fillna(0.0),
         cfg.out_dir, tag="woe_scorecard_test", kind="linear", is_woe=True)
 
     # --- 9. estabilidad temporal del score del GANADOR ---
