@@ -103,6 +103,12 @@ class Config:
     test_size: float = 0.25                     # holdout dentro de train
     valid_size: float = 0.20                    # VALIDACION interna (de train) para tuning/early-stop
                                                 # TEST y OOT NUNCA se usan para optimizar
+    # re-particion train/test (OOT intacto). None=respeta split_col; 0.30=70/30; 0.20=80/20
+    repartition_test_size: Optional[float] = None
+
+    # --- escenarios de nº de variables (cada uno optimiza sus hiperparametros) ---
+    feature_scenarios: Tuple = (10, 15, 20, "half", "all")
+    gbm_input_variants: Tuple[str, ...] = ("woe", "catnat", "raw")
 
     # --- filtros de elegibilidad de variables (in-sample) ---
     max_missing_rate: float = 0.95              # descarta var con >95% nulos
@@ -328,15 +334,23 @@ def split_train_oot(cfg: Config, df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
         vals = df[cfg.split_col].astype(str).str.lower()
         oot = df[vals.isin(["oot", "validation", "valid", "oos"])].copy()
         rest = df[~vals.isin(["oot", "validation", "valid", "oos"])].copy()
-        if {"train", "test"}.issubset(set(vals.unique())):
+        if cfg.repartition_test_size is not None:
+            # OOT intacto; train/test se RE-PARTICIONAN con la razon pedida (70/30, 80/20)
+            train, test = train_test_split(
+                rest, test_size=cfg.repartition_test_size, random_state=cfg.random_state,
+                stratify=rest[cfg.target])
+            log.info("Particion: OOT de '%s' + train/test re-particionado %d/%d",
+                     cfg.split_col, round(100 * (1 - cfg.repartition_test_size)),
+                     round(100 * cfg.repartition_test_size))
+        elif {"train", "test"}.issubset(set(vals.unique())):
             train = rest[vals.loc[rest.index] == "train"].copy()
             test = rest[vals.loc[rest.index] == "test"].copy()
+            log.info("Particion por columna '%s'", cfg.split_col)
         else:
             train, test = train_test_split(
                 rest, test_size=cfg.test_size, random_state=cfg.random_state,
-                stratify=rest[cfg.target],
-            )
-        log.info("Particion por columna '%s'", cfg.split_col)
+                stratify=rest[cfg.target])
+            log.info("Particion por columna '%s' (train/test aleatorio)", cfg.split_col)
     else:
         months = sorted(df[cfg.time_col].dropna().unique())
         oot_months = set(months[-cfg.oot_n_months:])
@@ -1157,92 +1171,95 @@ def run(cfg: Config):
     woe_tr, woe_te, woe_oo = woe_tr[keep], woe_te[keep], woe_oo[keep]
     keep = filter_vif(cfg, woe_tr)
     woe_tr, woe_te, woe_oo = woe_tr[keep], woe_te[keep], woe_oo[keep]
-    # SELECCION FINAL PARSIMONIOSA: Gini univariado (top n_gini) -> SHAP (top n_final)
-    keep = final_selection(cfg, woe_tr, y_tr, cfg.n_gini_preselect, cfg.n_features_max, cfg.out_dir)
-    woe_tr, woe_te, woe_oo = woe_tr[keep], woe_te[keep], woe_oo[keep]
-    log.info("Set final de variables WOE (parsimonioso): %d", len(keep))
 
-    # --- 5A. modelo regulatorio: Scorecard LR/WOE ---
-    lr_model, lr_coef = fit_scorecard_lr(cfg, woe_tr, y_tr, keep)
-    lr_coef.to_csv(os.path.join(cfg.out_dir, "scorecard_coeficientes.csv"))
-    p_lr = {
-        "train": lr_model.predict_proba(woe_tr.fillna(0))[:, 1],
-        "test": lr_model.predict_proba(woe_te.fillna(0))[:, 1],
-        "oot": lr_model.predict_proba(woe_oo.fillna(0))[:, 1],
-    }
+    # --- 5. RANKING del pool + ESCENARIOS de nº de variables ---
+    # Pool = lo que paso IV+PSI+correlacion+VIF; se ordena por Gini univariado.
+    grank = sorted(keep, key=lambda c: abs(gini(y_tr.values, woe_tr[c].values)), reverse=True)
+    sizes = sorted({(len(grank) if s == "all" else max(1, len(grank) // 2) if s == "half"
+                     else min(int(s), len(grank))) for s in cfg.feature_scenarios})
+    pd.DataFrame({"orden": range(1, len(grank) + 1), "variable": grank,
+                  "gini_univariado": [abs(gini(y_tr.values, woe_tr[c].values)) for c in grank]}
+                 ).to_csv(os.path.join(cfg.out_dir, "ranking_variables.csv"), index=False)
+    log.info("Pool=%d variables; escenarios (top-N): %s | variantes: %s",
+             len(grank), sizes, list(cfg.gbm_input_variants))
 
-    # --- 5B. GBM sobre la MISMA matriz WOE que el scorecard (todos usan WOE) ---
-    # No hay seleccion raw separada: el set WOE 'keep' (IV + PSI + correlacion + VIF)
-    # alimenta por igual a LR y a los GBMs. Las columnas WOE son todas numericas
-    # (sin categoricas nativas), por eso gbm_cat = [].
-    gbm_feats = keep
     num_set, cat_set = set(num), set(cat)
-    # separa el set final: columnas WOE de NUMERICAS  vs  nombres ORIGINALES de CATEGORICAS
-    woe_num_cols = [c for c in keep if (c[4:] if c.startswith("woe_") else c) in num_set]
-    cat_cols = [(c[4:] if c.startswith("woe_") else c) for c in keep
-                if (c[4:] if c.startswith("woe_") else c) in cat_set]
 
-    def _mix(woe_df: pd.DataFrame, raw_df: pd.DataFrame) -> pd.DataFrame:
-        """V2: numericas en WOE + categoricas en su valor ORIGINAL (para tratarlas
-        como categorica NATIVA del GBM)."""
-        ps = []
-        if woe_num_cols:
-            ps.append(woe_df[woe_num_cols].fillna(0.0))
-        if cat_cols:
-            ps.append(raw_df[cat_cols])
-        return pd.concat(ps, axis=1)
+    def build_variants(feats: List[str]) -> Dict[str, dict]:
+        """Para un subconjunto de columnas WOE arma las entradas de cada variante:
+        woe (num+cat WOE) | catnat (num WOE + cat nativa) | raw (num y cat originales)."""
+        orig = [c[4:] if c.startswith("woe_") else c for c in feats]
+        wn = [c for c in feats if (c[4:] if c.startswith("woe_") else c) in num_set]
+        cc = [o for o in orig if o in cat_set]
+        def mix(wdf, rdf):
+            ps = [wdf[wn].fillna(0.0)] if wn else []
+            if cc:
+                ps.append(rdf[cc])
+            return pd.concat(ps, axis=1)
+        vs = {}
+        if "woe" in cfg.gbm_input_variants:
+            vs["woe"] = dict(Xtr=woe_tr[feats].fillna(0.0), Xte=woe_te[feats].fillna(0.0),
+                             Xoo=woe_oo[feats].fillna(0.0), cat=[], is_woe=True)
+        if "catnat" in cfg.gbm_input_variants and cc:
+            vs["catnat"] = dict(Xtr=mix(woe_tr, train), Xte=mix(woe_te, test), Xoo=mix(woe_oo, oot),
+                                cat=cc, is_woe=False)
+        if "raw" in cfg.gbm_input_variants:
+            vs["raw"] = dict(Xtr=train[orig], Xte=test[orig], Xoo=oot[orig], cat=cc, is_woe=False)
+        return vs
 
-    # DOS variantes de entrada por cada GBM (LightGBM y XGBoost):
-    #   - 'woe'   : WOE para numericas Y categoricas (flujo actual)
-    #   - 'catnat': WOE para numericas; categoricas como CATEGORICA NATIVA
-    variantes = {
-        "woe": dict(Xtr=woe_tr.fillna(0.0), Xte=woe_te.fillna(0.0), Xoo=woe_oo.fillna(0.0),
-                    cat=[], is_woe=True),
-        "catnat": dict(Xtr=_mix(woe_tr, train), Xte=_mix(woe_te, test), Xoo=_mix(woe_oo, oot),
-                       cat=cat_cols, is_woe=False),
-    }
-    log.info("Variantes GBM -> woe (num+cat WOE) | catnat (num WOE + %d cat nativas)",
-             len(cat_cols))
-
-    # VALIDACION para tuning: indices DENTRO de train (mismos para woe y raw).
-    # El TEST y el OOT NO intervienen en la optimizacion ni en el early stopping.
+    # VALIDACION para tuning: indices DENTRO de train (mismos para todos). TEST/OOT no se usan.
     from sklearn.model_selection import train_test_split as _tts
     fit_idx, val_idx = _tts(train.index, test_size=cfg.valid_size,
                             random_state=cfg.random_state, stratify=y_tr)
     y_fit, y_val = y_tr.loc[fit_idx], y_tr.loc[val_idx]
-    log.info("Tuning con validacion INTERNA de train (fit=%d, valid=%d). "
-             "TEST y OOT NO se usan en la optimizacion.", len(fit_idx), len(val_idx))
 
     avail = {"lightgbm": lightgbm, "xgboost": xgboost, "catboost": catboost}
+    n_gbm = sum(avail.get(m) is not None for m in cfg.gbm_models)
+    log.info("MATRIZ: %d escenarios x %d variantes x %d modelos = %d optimizaciones (+%d LR). "
+             "trials=%d", len(sizes), len(cfg.gbm_input_variants), n_gbm,
+             len(sizes) * len(cfg.gbm_input_variants) * n_gbm, len(sizes), cfg.optuna_trials)
+
+    all_preds: Dict[str, Dict[str, np.ndarray]] = {}
     gbm_models: Dict[str, object] = {}
     gbm_meta: Dict[str, dict] = {}
-    gbm_preds: Dict[str, Dict[str, np.ndarray]] = {}
-    for mt in cfg.gbm_models:
-        if avail.get(mt) is None:
-            log.warning("%s no disponible -> challenger omitido", mt)
-            continue
-        for vname, v in variantes.items():
-            name = f"{mt}_{vname}"                       # p.ej. lightgbm_woe / lightgbm_raw
-            Xtr_v, Xte_v, Xoo_v, vcat = v["Xtr"], v["Xte"], v["Xoo"], v["cat"]
-            X_fit_v, X_val_v = Xtr_v.loc[fit_idx], Xtr_v.loc[val_idx]
-            log.info("--- Optimizando %s (%s, anti-overfit, %d trials) ---",
-                     mt, vname.upper(), cfg.optuna_trials)
-            model, best_params = optimize_gbm(cfg, mt, X_fit_v, y_fit, X_val_v, y_val, vcat)
-            json.dump(best_params, open(os.path.join(cfg.out_dir, f"{name}_best_params.json"), "w"),
-                      indent=2, default=str)
-            gbm_models[name] = model
-            gbm_meta[name] = {"mt": mt, "cat": vcat, "is_woe": v["is_woe"], "Xte": Xte_v}
-            gbm_preds[name] = {
-                part: gbm_predict(mt, model, prepare_gbm_frame(mt, X, vcat))
-                for part, X in [("train", Xtr_v), ("test", Xte_v), ("oot", Xoo_v)]
-            }
+    lr_meta: Dict[str, dict] = {}
+    best_params_all: Dict[str, dict] = {}
+    scen_feats: Dict[str, List[str]] = {}
+
+    for N in sizes:
+        feats = grank[:N]
+        lbl = f"n{N}"
+        # --- scorecard LR/WOE del escenario ---
+        lr_m, lr_c = fit_scorecard_lr(cfg, woe_tr[feats], y_tr, feats)
+        lr_c.to_csv(os.path.join(cfg.out_dir, f"scorecard_coef_{lbl}.csv"))
+        lname = f"LR/WOE_{lbl}"
+        all_preds[lname] = {p: lr_m.predict_proba(wdf[feats].fillna(0))[:, 1]
+                            for p, wdf in [("train", woe_tr), ("test", woe_te), ("oot", woe_oo)]}
+        lr_meta[lname] = {"feats": feats, "model": lr_m}
+        scen_feats[lname] = feats
+        # --- GBMs x variantes ---
+        for mt in cfg.gbm_models:
+            if avail.get(mt) is None:
+                continue
+            for vname, v in build_variants(feats).items():
+                name = f"{mt}_{vname}_{lbl}"
+                Xtr_v, Xte_v, Xoo_v, vcat = v["Xtr"], v["Xte"], v["Xoo"], v["cat"]
+                log.info("--- %-9s %-7s %-5s | %d vars, %d trials ---",
+                         mt, vname, lbl, N, cfg.optuna_trials)
+                model, bp = optimize_gbm(cfg, mt, Xtr_v.loc[fit_idx], y_fit,
+                                         Xtr_v.loc[val_idx], y_val, vcat)
+                gbm_models[name] = model
+                best_params_all[name] = bp
+                gbm_meta[name] = {"mt": mt, "cat": vcat, "is_woe": v["is_woe"], "Xte": Xte_v}
+                scen_feats[name] = feats
+                all_preds[name] = {p: gbm_predict(mt, model, prepare_gbm_frame(mt, X, vcat))
+                                   for p, X in [("train", Xtr_v), ("test", Xte_v), ("oot", Xoo_v)]}
 
     # --- 6. CALIBRACION NATIVA (el modelo ya sale calibrado por la optimizacion
     #        log-loss; NO se aplica parche post-hoc salvo cfg.post_hoc_calibration).
     #        Aqui solo se DIAGNOSTICA EC/ECE en train/test/OOT para evidenciar que
     #        la calibracion se sostiene fuera de muestra. ---
     preds_by_part = {"train": {}, "test": {}, "oot": {}}
-    all_preds = {"LR/WOE": p_lr, **gbm_preds}
 
     for name, preds in all_preds.items():
         if cfg.post_hoc_calibration:
@@ -1286,6 +1303,12 @@ def run(cfg: Config):
              win_tab.set_index("modelo").loc[winner, "Gini_test"],
              win_tab.set_index("modelo").loc[winner, "Gini_oot"])
 
+    # guarda los hiperparametros del GBM ganador (si lo es)
+    if winner in best_params_all:
+        json.dump(best_params_all[winner],
+                  open(os.path.join(cfg.out_dir, "ganador_best_params.json"), "w"),
+                  indent=2, default=str)
+
     # comparacion del ganador contra el champion (prob_malo) en las 3 particiones
     if cfg.champion_prob in df.columns:
         comp = bench[bench["modelo"].isin([winner, "CHAMPION (prob_malo)"])]
@@ -1293,22 +1316,24 @@ def run(cfg: Config):
         log.info("\nGANADOR vs CHAMPION:\n%s", comp.to_string(index=False))
 
     # --- 8. explicabilidad SHAP del GANADOR sobre el TEST (data independiente) ---
-    #   Si el ganador es WOE -> eje X = valores WOE; si es raw -> valores originales.
+    #   Si el ganador es WOE -> eje X = valores WOE; si es raw/catnat -> originales/nativas.
+    n_smp = min(cfg.shap_sample, len(test))
     if winner in gbm_models:
         meta = gbm_meta[winner]
         Xte_w = meta["Xte"]
-        n_smp = min(cfg.shap_sample, len(Xte_w))
-        smp_idx = Xte_w.sample(n_smp, random_state=cfg.random_state).index
+        smp_idx = Xte_w.sample(min(cfg.shap_sample, len(Xte_w)),
+                               random_state=cfg.random_state).index
         shap_dependence_plots(
             cfg, gbm_models[winner],
             prepare_gbm_frame(meta["mt"], Xte_w.loc[smp_idx], meta["cat"]),
             cfg.out_dir, tag=f"{winner}_test", kind="tree", is_woe=meta["is_woe"])
-    # scorecard LR siempre sobre WOE
-    n_smp2 = min(cfg.shap_sample, len(woe_te))
-    smp2 = woe_te.sample(n_smp2, random_state=cfg.random_state).index
-    shap_dependence_plots(
-        cfg, lr_model, woe_te.loc[smp2].fillna(0.0),
-        cfg.out_dir, tag="woe_scorecard_test", kind="linear", is_woe=True)
+    elif winner in lr_meta:
+        feats = lr_meta[winner]["feats"]
+        smp_idx = woe_te.sample(min(cfg.shap_sample, len(woe_te)),
+                                random_state=cfg.random_state).index
+        shap_dependence_plots(
+            cfg, lr_meta[winner]["model"], woe_te.loc[smp_idx, feats].fillna(0.0),
+            cfg.out_dir, tag=f"{winner}_test", kind="linear", is_woe=True)
 
     # --- 9. estabilidad temporal del score del GANADOR ---
     full = pd.concat([train, test, oot]).reset_index(drop=True)
@@ -1326,10 +1351,10 @@ def run(cfg: Config):
         "ganador": winner,
         "regla_seleccion": f"mejor {cfg.select_metric}({cfg.select_partition})",
         "seleccion": win_tab.to_dict(orient="records"),
-        "n_variables_scorecard": len(keep),
-        "variables_scorecard": keep,
-        "n_variables_gbm": len(gbm_feats),
-        "variables_gbm": gbm_feats,
+        "pool_variables": grank,
+        "escenarios": sizes,
+        "n_variables_ganador": len(scen_feats.get(winner, [])),
+        "variables_ganador": scen_feats.get(winner, []),
         "calibracion": {"post_hoc": cfg.post_hoc_calibration, "diagnostico": diag},
         "librerias": {
             "optbinning": optbinning is not None, "lightgbm": lightgbm is not None,
@@ -1363,7 +1388,10 @@ def modelar(csv: str,
             max_iv: float = 1.50,
             lr_min: float = 0.01,
             lr_max: float = 0.05,
-            n_estimators_max: int = 8000):
+            n_estimators_max: int = 8000,
+            escenarios: Tuple = (10, 15, 20, "half", "all"),
+            variantes: Tuple[str, ...] = ("woe", "catnat", "raw"),
+            test_size: Optional[float] = None):   # 0.30=70/30, 0.20=80/20 (OOT intacto)
     """Ejecuta TODO el pipeline a partir de un CSV. Solo necesitas la ruta.
 
     Hace, de punta a punta y sin que configures nada:
@@ -1391,6 +1419,8 @@ def modelar(csv: str,
         n_gini_preselect=preselect_gini, n_features_max=max_variables,
         max_psi=max_psi, max_corr=max_corr, max_iv=max_iv,
         lr_min=lr_min, lr_max=lr_max, n_estimators_max=n_estimators_max,
+        feature_scenarios=tuple(escenarios), gbm_input_variants=tuple(variantes),
+        repartition_test_size=test_size,
     )
     return run(cfg)
 
