@@ -40,7 +40,13 @@
   td.rj,th.rj{background:#eceff0;color:#4a5a56}
   tr.rjr td{background:#eceff0;color:#4a5a56}
   td.totc,th.totc{background:#dff0ed;font-weight:700;color:#0a5a52}
-  .bcell{font-weight:800;color:#10241f}
+  .bcell{font-weight:800;color:#10241f;vertical-align:middle}
+
+  table.rl{font-size:9.8px}
+  table.rl td{padding:2.8px 7px}
+  table.rl td.rule{text-align:left;font-family:Consolas,"Courier New",monospace;font-size:9.4px;color:#23433c;white-space:nowrap}
+  table.rl td.idx{font-weight:800;color:#0a5a44}
+  table.rl tbody tr:hover td{background:#f3faf7}
 
   .foot{position:absolute;left:40px;right:40px;bottom:12px;border-top:1px solid #e3ece7;padding-top:7px;font-size:9.5px;color:#8a9b93;line-height:1.45;display:flex;flex-wrap:wrap;gap:3px 18px}
   .foot b{color:var(--green-deep2)}
@@ -144,6 +150,61 @@
   </div>
 </section>
 
+<!-- =================== ESCENARIO 1 · 24 meses · REGLAS =================== -->
+<section class="slide">
+  <div class="head">
+    <div>
+      <h1>Buckets · 24 meses <span class="sec">| Reglas por bucket</span></h1>
+      <div class="subt">Escenario <b>24m_sinedad_6</b> · 21 estrategias del Árbol 2 agrupadas en 7 buckets · cada regla = una hoja del árbol</div>
+    </div>
+    <span class="badge"><span class="dot"></span>24m_sinedad_6</span>
+  </div>
+
+  <div class="card">
+    <div class="ch">Reglas por bucket <small>· estrategia → condición de la hoja → tasa de malos</small></div>
+    <div class="bd" style="padding:7px 13px">
+      <table class="rl">
+        <thead><tr><th style="width:44px">Buck.</th><th style="width:32px">#</th><th class="l" style="text-align:left">Regla (condición de la hoja)</th><th>Tasa</th><th>% tot</th><th>N</th></tr></thead>
+        <tbody>
+          <tr><td class="bcell" rowspan="3" style="background:hsl(130,60%,78%)">B1</td><td class="idx">1</td><td class="rule">segmentacion_gdp_v2 ≤ 2.5 &amp; rk_ing_num &gt; 3,383.5</td><td>16.8%</td><td class="num">2.8%</td><td class="num">1,294</td></tr>
+          <tr><td class="idx">2</td><td class="rule">segmentacion_gdp_v2 (2.5, 3.5] &amp; rk_ing_num &gt; 3,383.5 &amp; meses_desde_primer_castigo &gt; 22.5</td><td>16.5%</td><td class="num">0.2%</td><td class="num">79</td></tr>
+          <tr><td class="idx">3</td><td class="rule">segmentacion_gdp_v2 (2.5, 3.5] &amp; rk_ing_num &gt; 3,383.5 &amp; meses_desde_primer_castigo ≤ 22.5</td><td>20.0%</td><td class="num">0.1%</td><td class="num">30</td></tr>
+
+          <tr><td class="bcell" rowspan="2" style="background:hsl(108,60%,78%)">B2</td><td class="idx">4</td><td class="rule">segmentacion_gdp_v2 (3.5, 4.5] &amp; rk_ing_num &gt; 3,383.5 &amp; meses_desde_primer_castigo &gt; 22.5</td><td>19.0%</td><td class="num">0.3%</td><td class="num">158</td></tr>
+          <tr><td class="idx">5</td><td class="rule">segmentacion_gdp_v2 (3.5, 4.5] &amp; rk_ing_num &gt; 3,383.5 &amp; meses_desde_primer_castigo ≤ 22.5</td><td>25.0%</td><td class="num">0.1%</td><td class="num">56</td></tr>
+
+          <tr><td class="bcell" rowspan="5" style="background:hsl(87,60%,78%)">B3</td><td class="idx">6</td><td class="rule">segmentacion_gdp_v2 ≤ 3.5 &amp; rk_ing_num (3,088.5, 3,383.5]</td><td>17.3%</td><td class="num">0.7%</td><td class="num">301</td></tr>
+          <tr><td class="idx">7</td><td class="rule">segmentacion_gdp_v2 ≤ 3.5 &amp; rk_ing_num (2,746.5, 3,088.5]</td><td>20.5%</td><td class="num">1.2%</td><td class="num">533</td></tr>
+          <tr><td class="idx">8</td><td class="rule">segmentacion_gdp_v2 ≤ 3.5 &amp; rk_ing_num (1,411.5, 2,746.5] &amp; meses_desde_primer_castigo &gt; 22.5</td><td>19.1%</td><td class="num">4.6%</td><td class="num">2,071</td></tr>
+          <tr><td class="idx">9</td><td class="rule">segmentacion_gdp_v2 ≤ 3.5 &amp; rk_ing_num (1,411.5, 2,746.5] &amp; meses_desde_primer_castigo ≤ 22.5</td><td>20.1%</td><td class="num">1.6%</td><td class="num">730</td></tr>
+          <tr><td class="idx">10</td><td class="rule">segmentacion_gdp_v2 ≤ 3.5 &amp; rk_ing_num ≤ 1,411.5</td><td>20.9%</td><td class="num">64.0%</td><td class="num">29,084</td></tr>
+
+          <tr><td class="bcell" rowspan="3" style="background:hsl(65,60%,78%)">B4</td><td class="idx">11</td><td class="rule">segmentacion_gdp_v2 (3.5, 4.5] &amp; rk_ing_num (2,910.5, 3,383.5]</td><td>23.7%</td><td class="num">0.2%</td><td class="num">97</td></tr>
+          <tr><td class="idx">12</td><td class="rule">segmentacion_gdp_v2 (3.5, 4.5] &amp; rk_ing_num (2,746.5, 2,910.5]</td><td>15.7%</td><td class="num">0.1%</td><td class="num">51</td></tr>
+          <tr><td class="idx">13</td><td class="rule">segmentacion_gdp_v2 (3.5, 4.5] &amp; rk_ing_num ≤ 2,746.5</td><td>21.4%</td><td class="num">9.8%</td><td class="num">4,463</td></tr>
+
+          <tr><td class="bcell" rowspan="4" style="background:hsl(43,60%,78%)">B5</td><td class="idx">14</td><td class="rule">segmentacion_gdp_v2 &gt; 4.5 &amp; rk_ing_num &gt; 2,746.5 &amp; meses_desde_primer_castigo &gt; 22.5</td><td>26.4%</td><td class="num">0.6%</td><td class="num">269</td></tr>
+          <tr><td class="idx">15</td><td class="rule">segmentacion_gdp_v2 &gt; 4.5 &amp; rk_ing_num &gt; 2,746.5 &amp; meses_desde_primer_castigo (9.5, 22.5]</td><td>17.6%</td><td class="num">0.2%</td><td class="num">74</td></tr>
+          <tr><td class="idx">16</td><td class="rule">segmentacion_gdp_v2 &gt; 4.5 &amp; rk_ing_num &gt; 2,746.5 &amp; meses_desde_primer_castigo ≤ 9.5</td><td>20.0%</td><td class="num">0.0%</td><td class="num">5</td></tr>
+          <tr><td class="idx">17</td><td class="rule">segmentacion_gdp_v2 &gt; 4.5 &amp; rk_ing_num (1,348.5, 2,746.5] &amp; meses_desde_primer_castigo &gt; 22.5</td><td>29.0%</td><td class="num">1.3%</td><td class="num">594</td></tr>
+
+          <tr><td class="bcell" rowspan="2" style="background:hsl(22,60%,78%)">B6</td><td class="idx">18</td><td class="rule">segmentacion_gdp_v2 &gt; 4.5 &amp; rk_ing_num ≤ 1,348.5 &amp; meses_desde_primer_castigo &gt; 22.5</td><td>26.8%</td><td class="num">9.1%</td><td class="num">4,155</td></tr>
+          <tr><td class="idx">19</td><td class="rule">segmentacion_gdp_v2 &gt; 4.5 &amp; rk_ing_num (1,348.5, 2,746.5] &amp; meses_desde_primer_castigo (9.5, 22.5]</td><td>28.2%</td><td class="num">0.4%</td><td class="num">163</td></tr>
+
+          <tr><td class="bcell" rowspan="2" style="background:hsl(0,60%,78%)">B7</td><td class="idx">20</td><td class="rule">segmentacion_gdp_v2 &gt; 4.5 &amp; rk_ing_num ≤ 1,348.5 &amp; meses_desde_primer_castigo (9.5, 22.5]</td><td>27.5%</td><td class="num">2.5%</td><td class="num">1,152</td></tr>
+          <tr><td class="idx">21</td><td class="rule">segmentacion_gdp_v2 &gt; 4.5 &amp; rk_ing_num ≤ 2,746.5 &amp; meses_desde_primer_castigo ≤ 9.5</td><td>20.0%</td><td class="num">0.2%</td><td class="num">100</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span><b>Regla:</b> condición de la hoja del Árbol 2 (variables binarizadas con OptBinning).</span>
+    <span><b>Tasa:</b> % de malos de la estrategia · <b>% tot / N:</b> peso y tamaño en la base de modelamiento.</span>
+    <span><b>Variables:</b> segmentacion_gdp_v2 (G1–G8), rk_ing_num (ranking de ingreso), meses_desde_primer_castigo.</span>
+  </div>
+</section>
+
 <!-- =================== ESCENARIO 2 · 5 años =================== -->
 <section class="slide">
   <div class="head">
@@ -237,6 +298,52 @@
     <span><b>Tasa malos:</b> % de target_60_12m=1 en la base de modelamiento (RD, n=45,459).</span>
     <span><b>V1:</b> base de campañas (5 pilotos) · <b>V2:</b> base de generación · <b>V3:</b> fuera de campaña.</span>
     <span><b>Rechazo:</b> clientes sin bucket asignado (~1.5% en 5 años).</span>
+  </div>
+</section>
+
+<!-- =================== ESCENARIO 2 · 5 años · REGLAS =================== -->
+<section class="slide">
+  <div class="head">
+    <div>
+      <h1>Buckets · 5 años <span class="sec">| Reglas por bucket</span></h1>
+      <div class="subt">Escenario <b>5años_sinedad_6</b> · 15 estrategias del Árbol 2 agrupadas en 7 buckets · cada regla = una hoja del árbol</div>
+    </div>
+    <span class="badge"><span class="dot"></span>5años_sinedad_6</span>
+  </div>
+
+  <div class="card">
+    <div class="ch">Reglas por bucket <small>· estrategia → condición de la hoja → tasa de malos</small></div>
+    <div class="bd" style="padding:7px 13px">
+      <table class="rl">
+        <thead><tr><th style="width:44px">Buck.</th><th style="width:32px">#</th><th class="l" style="text-align:left">Regla (condición de la hoja)</th><th>Tasa</th><th>% tot</th><th>N</th></tr></thead>
+        <tbody>
+          <tr><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="idx">1</td><td class="rule">segmentacion_gdp_v2 ≤ 2.5 &amp; rk_ing_num &gt; 3,391.5</td><td>16.8%</td><td class="num">2.8%</td><td class="num">1,290</td></tr>
+
+          <tr><td class="bcell" rowspan="2" style="background:hsl(108,60%,78%)">B2</td><td class="idx">2</td><td class="rule">segmentacion_gdp_v2 (2.5, 3.5] &amp; rk_ing_num &gt; 3,391.5 &amp; nro_entidades_castigo ≤ 1.5</td><td>17.4%</td><td class="num">0.2%</td><td class="num">109</td></tr>
+          <tr><td class="idx">3</td><td class="rule">segmentacion_gdp_v2 (3.5, 4.5] &amp; rk_ing_num &gt; 3,391.5 &amp; nro_entidades_castigo ≤ 1.5</td><td>21.0%</td><td class="num">0.5%</td><td class="num">210</td></tr>
+
+          <tr><td class="bcell" rowspan="3" style="background:hsl(87,60%,78%)">B3</td><td class="idx">5</td><td class="rule">segmentacion_gdp_v2 ≤ 3.5 &amp; rk_ing_num ≤ 3,391.5 &amp; nro_entidades_castigo ≤ 1.5 &amp; deuda_cas ≤ 218.33</td><td>20.3%</td><td class="num">23.8%</td><td class="num">10,802</td></tr>
+          <tr><td class="idx">6</td><td class="rule">segmentacion_gdp_v2 ≤ 3.5 &amp; rk_ing_num (3,100.5, 3,391.5] &amp; nro_entidades_castigo ≤ 1.5 &amp; deuda_cas &gt; 218.33</td><td>21.6%</td><td class="num">0.4%</td><td class="num">185</td></tr>
+          <tr><td class="idx">7</td><td class="rule">segmentacion_gdp_v2 ≤ 3.5 &amp; rk_ing_num ≤ 3,100.5 &amp; nro_entidades_castigo ≤ 1.5 &amp; deuda_cas &gt; 218.33</td><td>21.0%</td><td class="num">47.7%</td><td class="num">21,674</td></tr>
+
+          <tr><td class="bcell" rowspan="2" style="background:hsl(65,60%,78%)">B4</td><td class="idx">9</td><td class="rule">segmentacion_gdp_v2 ≤ 3.5 &amp; rk_ing_num ≤ 3,100.5 &amp; nro_entidades_castigo &gt; 1.5</td><td>21.0%</td><td class="num">0.1%</td><td class="num">62</td></tr>
+          <tr><td class="idx">10</td><td class="rule">segmentacion_gdp_v2 (3.5, 4.5] &amp; rk_ing_num (3,100.5, 3,391.5] &amp; nro_entidades_castigo ≤ 1.5</td><td>15.1%</td><td class="num">0.1%</td><td class="num">53</td></tr>
+
+          <tr><td class="bcell" style="background:hsl(43,60%,78%)">B5</td><td class="idx">12</td><td class="rule">segmentacion_gdp_v2 (3.5, 4.5] &amp; rk_ing_num ≤ 3,100.5</td><td>21.5%</td><td class="num">10.0%</td><td class="num">4,562</td></tr>
+
+          <tr><td class="bcell" rowspan="2" style="background:hsl(22,60%,78%)">B6</td><td class="idx">13</td><td class="rule">segmentacion_gdp_v2 &gt; 4.5 &amp; nro_entidades_castigo ≤ 1.5 &amp; deuda_cas ≤ 218.33</td><td>26.7%</td><td class="num">4.0%</td><td class="num">1,818</td></tr>
+          <tr><td class="idx">14</td><td class="rule">segmentacion_gdp_v2 &gt; 4.5 &amp; nro_entidades_castigo ≤ 1.5 &amp; deuda_cas &gt; 218.33</td><td>27.1%</td><td class="num">10.3%</td><td class="num">4,678</td></tr>
+
+          <tr><td class="bcell" style="background:hsl(0,60%,78%)">B7</td><td class="idx">15</td><td class="rule">segmentacion_gdp_v2 &gt; 4.5 &amp; nro_entidades_castigo &gt; 1.5</td><td>18.8%</td><td class="num">0.0%</td><td class="num">16</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span><b>Regla:</b> condición de la hoja del Árbol 2 (variables binarizadas con OptBinning).</span>
+    <span><b>Tasa:</b> % de malos de la estrategia · <b>% tot / N:</b> peso y tamaño en la base de modelamiento.</span>
+    <span><b>Variables:</b> segmentacion_gdp_v2, rk_ing_num, nro_entidades_castigo, deuda_cas.</span>
   </div>
 </section>
 
