@@ -795,22 +795,22 @@ def _space(model_type: str, trial, cfg: Config) -> dict:
         return dict(
             objective="binary", metric="binary_logloss", n_estimators=cfg.n_estimators_max,
             learning_rate=trial.suggest_float("learning_rate", lo, hi, log=True),
-            num_leaves=trial.suggest_int("num_leaves", 15, 127),         # estructura
-            max_depth=trial.suggest_int("max_depth", 2, 8),
-            min_child_samples=trial.suggest_int("min_child_samples", 30, 600),  # hojas con minimo soporte
-            min_child_weight=trial.suggest_float("min_child_weight", 1e-3, 10.0, log=True),  # min hessiana
+            num_leaves=trial.suggest_int("num_leaves", 15, 80),         # estructura
+            max_depth=trial.suggest_int("max_depth", 2, 4),
+            min_child_samples=trial.suggest_int("min_child_samples", 30, 200),  # hojas con minimo soporte
+            min_child_weight=trial.suggest_float("min_child_weight", 1e-3, 100.0, log=True),  # min hessiana
             min_split_gain=trial.suggest_float("min_split_gain", 0.0, 1.0),     # ganancia minima para abrir
-            subsample=trial.suggest_float("subsample", 0.5, 0.9),              # bagging por fila
+            subsample=trial.suggest_float("subsample", 0.5, 0.8),              # bagging por fila
             subsample_freq=trial.suggest_int("subsample_freq", 0, 6),
             colsample_bytree=trial.suggest_float("colsample_bytree", 0.5, 0.7),  # features por arbol
             colsample_bynode=trial.suggest_float("colsample_bynode", 0.5, 0.7),  # features por nodo
-            reg_alpha=trial.suggest_float("reg_alpha", 1e-3, 30.0, log=True),    # L1
-            reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 30.0, log=True),  # L2
+            reg_alpha=trial.suggest_float("reg_alpha", 1e-3, 90.0, log=True),    # L1
+            reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 90.0, log=True),  # L2
             min_data_in_bin=trial.suggest_int("min_data_in_bin", 3, 50),
             max_bin=trial.suggest_int("max_bin", 128, 512),                      # resolucion del histograma
             path_smooth=trial.suggest_float("path_smooth", 0.0, 1.0),           # suavizado anti-overfit
             extra_trees=trial.suggest_categorical("extra_trees", [False, True]),
-            scale_pos_weight=trial.suggest_float("scale_pos_weight", 1.0, 5.0),  # imbalance (RD~21.6%)
+            scale_pos_weight=trial.suggest_float("scale_pos_weight", 0.5, 4.0),  # imbalance (RD~21.6%)
             random_state=rs, n_jobs=-1, verbose=-1,
         )
     if model_type == "xgboost":
@@ -818,19 +818,19 @@ def _space(model_type: str, trial, cfg: Config) -> dict:
             objective="binary:logistic", eval_metric="logloss", n_estimators=cfg.n_estimators_max,
             tree_method="hist", enable_categorical=True,
             learning_rate=trial.suggest_float("learning_rate", lo, hi, log=True),
-            max_depth=trial.suggest_int("max_depth", 2, 8),
+            max_depth=trial.suggest_int("max_depth", 2, 4),
             min_child_weight=trial.suggest_float("min_child_weight", 1.0, 400.0, log=True),
             gamma=trial.suggest_float("gamma", 1e-3, 5.0, log=True),            # min loss reduction (split)
             max_delta_step=trial.suggest_float("max_delta_step", 0.0, 5.0),    # estabiliza/calibra
-            subsample=trial.suggest_float("subsample", 0.5, 0.85),
-            colsample_bytree=trial.suggest_float("colsample_bytree", 0.5, 0.7),
-            colsample_bylevel=trial.suggest_float("colsample_bylevel", 0.5, 0.7),
-            colsample_bynode=trial.suggest_float("colsample_bynode", 0.5, 0.7),
+            subsample=trial.suggest_float("subsample", 0.4, 0.85),
+            colsample_bytree=trial.suggest_float("colsample_bytree", 0.4, 0.7),
+            colsample_bylevel=trial.suggest_float("colsample_bylevel", 0.4, 0.7),
+            colsample_bynode=trial.suggest_float("colsample_bynode", 0.4, 0.7),
             reg_alpha=trial.suggest_float("reg_alpha", 1e-3, 30.0, log=True),
             reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 30.0, log=True),
             grow_policy=trial.suggest_categorical("grow_policy", ["depthwise", "lossguide"]),
             max_bin=trial.suggest_int("max_bin", 128, 512),
-            scale_pos_weight=trial.suggest_float("scale_pos_weight", 1.0, 5.0),  # imbalance (RD~21.6%)
+            scale_pos_weight=trial.suggest_float("scale_pos_weight", 0.5, 4.0),  # imbalance (RD~21.6%)
             random_state=rs, n_jobs=-1, verbosity=0,
         )
     if model_type == "catboost":
@@ -1006,6 +1006,7 @@ def shap_dependence_plots(cfg: Config, model, X: pd.DataFrame, outdir: str,
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    tag = str(tag).replace("/", "_").replace("\\", "_")   # nombre seguro para archivos
     try:
         vals = _shap_values(model, X, kind)
     except Exception as e:
