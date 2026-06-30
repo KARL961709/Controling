@@ -34,26 +34,28 @@ def is_mono(cell):
     return False
 
 def est_table_height(tbl_graphic):
-    """Estima alto renderizado de la tabla considerando wrap por celda."""
+    """Estima alto renderizado de la tabla usando los márgenes reales de cada celda."""
     tbl = tbl_graphic.table
     col_w = [inch(c.width) for c in tbl.columns]
     total = 0.0
     detail = []
-    for ri, row in enumerate(tbl.rows):
-        rowmin = inch(row.height)
-        needed = rowmin
-        for ci, cell in enumerate(tbl._tbl.tr_lst[ri].tc_lst):
-            pass
-        # usar API de celdas
+    for ri in range(len(tbl.rows)):
+        needed = inch(tbl.rows[ri].height)   # alto mínimo fijado
         for ci in range(len(col_w)):
             cell = tbl.cell(ri, ci)
             n = text_len(cell)
             if n == 0:
                 continue
             sz = max_size(cell)
-            cpl = chars_per_line(col_w[ci] - 0.14, sz, is_mono(cell))  # -margins
-            lines = max(1, -(-n // int(cpl)))  # ceil
-            h = lines * line_h(sz) + 0.10  # +margenes sup/inf aprox
+            mt = cell.margin_top / EMU if cell.margin_top is not None else 0.05
+            mb = cell.margin_bottom / EMU if cell.margin_bottom is not None else 0.05
+            ww = cell.text_frame.word_wrap
+            if ww is False:
+                lines = 1
+            else:
+                cpl = chars_per_line(col_w[ci] - (mt + mb) - 0.06, sz, is_mono(cell))
+                lines = max(1, -(-n // max(1, int(cpl))))
+            h = lines * line_h(sz) + mt + mb + 0.025  # +buffer ascendente/descendente
             needed = max(needed, h)
         total += needed
         detail.append(round(needed, 3))
