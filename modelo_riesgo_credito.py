@@ -777,7 +777,6 @@ def _space(model_type: str, trial, cfg: Config) -> dict:
     """Espacios de busqueda REGULARIZADOS por libreria."""
     rs = cfg.random_state
     lo, hi = cfg.lr_min, cfg.lr_max
-    spw = cfg.scale_pos_weight if cfg.scale_pos_weight else 1.0   # neg/pos (RD~21.6% => ~3.63)
     if model_type == "lightgbm":
         return dict(
             objective="binary", metric="binary_logloss", n_estimators=cfg.n_estimators_max,
@@ -797,7 +796,7 @@ def _space(model_type: str, trial, cfg: Config) -> dict:
             max_bin=trial.suggest_int("max_bin", 128, 512),                      # resolucion del histograma
             path_smooth=trial.suggest_float("path_smooth", 0.0, 1.0),           # suavizado anti-overfit
             extra_trees=trial.suggest_categorical("extra_trees", [False, True]),
-            scale_pos_weight=spw,                                               # imbalance (RD~21.6%)
+            scale_pos_weight=trial.suggest_float("scale_pos_weight", 1.0, 5.0),  # imbalance (RD~21.6%)
             random_state=rs, n_jobs=-1, verbose=-1,
         )
     if model_type == "xgboost":
@@ -817,7 +816,7 @@ def _space(model_type: str, trial, cfg: Config) -> dict:
             reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 30.0, log=True),
             grow_policy=trial.suggest_categorical("grow_policy", ["depthwise", "lossguide"]),
             max_bin=trial.suggest_int("max_bin", 128, 512),
-            scale_pos_weight=spw,                                              # imbalance (RD~21.6%)
+            scale_pos_weight=trial.suggest_float("scale_pos_weight", 1.0, 5.0),  # imbalance (RD~21.6%)
             random_state=rs, n_jobs=-1, verbosity=0,
         )
     if model_type == "catboost":
@@ -1189,13 +1188,6 @@ def run(cfg: Config):
     X_val, y_val = Xtr.loc[val_idx], y_tr.loc[val_idx]
     log.info("Tuning con validacion INTERNA de train (fit=%d, valid=%d). "
              "TEST y OOT NO se usan en la optimizacion.", len(fit_idx), len(val_idx))
-
-    # scale_pos_weight = neg/pos del fit interno (si no se fijo en la config)
-    if cfg.scale_pos_weight is None:
-        pos = int((y_fit == 1).sum()); neg = int((y_fit == 0).sum())
-        cfg.scale_pos_weight = round(neg / max(pos, 1), 4)
-    log.info("scale_pos_weight = %.3f (RD_fit=%.4f) -> OJO: infla la PD, revisa EC",
-             cfg.scale_pos_weight, float(y_fit.mean()))
 
     avail = {"lightgbm": lightgbm, "xgboost": xgboost, "catboost": catboost}
     gbm_models: Dict[str, object] = {}
