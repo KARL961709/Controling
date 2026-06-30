@@ -48,14 +48,21 @@
   .reglas2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 
   /* cubo */
-  .cubewrap{display:grid;grid-template-columns:1.55fr 1fr;gap:18px;align-items:start}
-  .cubebox{display:flex;flex-direction:column;align-items:center;padding:6px 4px}
-  .legend{display:flex;flex-direction:column;gap:4px}
-  .legrow{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink)}
-  .sw{width:20px;height:14px;border-radius:3px;border:1px solid #0000001f;flex:0 0 20px}
+  .cubewrap{display:grid;grid-template-columns:1.32fr 1fr;gap:16px;align-items:start}
+  .cubebox{display:flex;flex-direction:column;align-items:center;padding:4px 2px}
   .note{font-size:11.5px;color:var(--gray-txt);line-height:1.5}
   .note b{color:var(--green-deep)}
-  .keychip{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:14px;background:var(--green-soft);color:var(--green-deep)}
+  /* mini-clave de saldo */
+  .skeyrow{display:flex;gap:10px;align-items:flex-start;background:#f5faf7;border:1px solid #e3efe8;border-radius:10px;padding:9px 11px;margin-bottom:10px}
+  .skeytxt{font-size:11px;color:#23433c;line-height:1.45}
+  .mut{color:#7c8c88}
+  /* leyenda de negocio */
+  .leg{border-collapse:collapse;width:100%;font-size:11px}
+  .leg td{padding:3.2px 6px;border-bottom:1px solid #eef3f0;vertical-align:middle}
+  .leg td.sw{width:16px;padding:0;border:1px solid #ffffff}
+  .leg td.bn{font-weight:800;color:#10241f;width:30px;text-align:center}
+  .leg td.ta{color:#5b6f66;width:52px;text-align:right;font-variant-numeric:tabular-nums}
+  .leg td.ds{color:#23433c;line-height:1.25}
 
   .foot{position:absolute;left:40px;right:40px;bottom:12px;border-top:1px solid #e3ece7;padding-top:7px;font-size:9.4px;color:#8a9b93;line-height:1.45;display:flex;flex-wrap:wrap;gap:3px 18px}
   .foot b{color:var(--green-deep2)}
@@ -98,30 +105,22 @@
 <section class="slide">
   <div class="head">
     <div><h1>Buckets Árbol 2 · 24 meses <span class="sec">| Cubo de reglas (3 variables)</span></h1>
-      <div class="subt">Las 30 reglas se ubican en un espacio de 3 variables: <b>Score Rebank</b> × <b>bucket Árbol 1</b> × <b>saldo</b> → color = bucket final</div></div>
+      <div class="subt">Las 30 reglas se ubican en un espacio de 3 variables: <b>Score Rebank</b> × <b>bucket Árbol 1</b> × <b>Saldo Pasivo</b> → color = bucket final</div></div>
     <span class="badge"><span class="dot"></span>24m_sinedad_6</span>
   </div>
-  <div class="card"><div class="ch">Mapa de reglas en el cubo <small>· cara = Score Rebank × bucket Árbol 1 · profundidad = saldo</small></div>
+  <div class="card"><div class="ch">Mapa de reglas en el cubo <small>· cara = Score Rebank × bucket Árbol 1 · profundidad = Saldo Pasivo</small></div>
     <div class="bd"><div class="cubewrap">
-      <div class="cubebox"><div id="cube24"></div>
-        <div class="note" style="margin-top:6px;text-align:center">
-          <b>Score Rebank</b> (eje vertical): 1 = mejor (arriba) → 6 = peor (abajo) &nbsp;·&nbsp;
-          <b>bucket Árbol 1</b> (eje horizontal): menor → mayor riesgo &nbsp;·&nbsp;
-          celdas partidas: <b>▲ saldo &gt; 349.07</b> / <b>▼ saldo ≤ 349.07</b>
-        </div>
-      </div>
+      <div class="cubebox"><div id="cube24"></div></div>
       <div>
-        <div style="font-weight:700;color:var(--green-deep);font-size:12.5px;margin-bottom:6px">Bucket final → tasa de malos</div>
-        <div class="legend" id="leg24"></div>
-        <div class="note" style="margin-top:12px">
-          <b>Cómo leer:</b> cada casilla es una combinación de Score Rebank (fila) y bucket del Árbol 1 (columna). El color indica el bucket final (verde = menor riesgo). El <b>saldo</b> sólo cambia el resultado en la fila superior (mejor score), por eso esas casillas aparecen partidas.
-        </div>
+        <div class="skeyrow" id="skey24"></div>
+        <div style="font-weight:700;color:var(--green-deep);font-size:12.5px;margin-bottom:4px">Bucket final → ¿qué cliente es?</div>
+        <table class="leg" id="leg24"></table>
       </div>
     </div></div>
   </div>
   <div class="foot">
-    <span><b>Score Rebank:</b> puntuacion_cal_cat (1–6) · <b>bucket Árbol 1:</b> bucket (ordinal) · <b>saldo:</b> saldo_prom_tot_pasivo_u3m.</span>
-    <span><b>Umbral saldo:</b> 349.07.</span>
+    <span><b>Score Rebank:</b> puntuacion_cal_cat (1–6) · <b>bucket Árbol 1:</b> bucket (ordinal) · <b>Saldo Pasivo:</b> saldo_prom_tot_pasivo_u3m.</span>
+    <span><b>Umbral Saldo Pasivo:</b> 349.07.</span>
   </div>
 </section>
 
@@ -176,30 +175,22 @@
 <section class="slide">
   <div class="head">
     <div><h1>Buckets Árbol 2 · 5 años <span class="sec">| Cubo de reglas (3 variables)</span></h1>
-      <div class="subt">Las 16 reglas se ubican en un espacio de 3 variables: <b>Score Rebank</b> × <b>bucket Árbol 1</b> × <b>saldo</b> → color = bucket final</div></div>
+      <div class="subt">Las 16 reglas se ubican en un espacio de 3 variables: <b>Score Rebank</b> × <b>bucket Árbol 1</b> × <b>Saldo Pasivo</b> → color = bucket final</div></div>
     <span class="badge"><span class="dot"></span>5años_sinedad_4</span>
   </div>
-  <div class="card"><div class="ch">Mapa de reglas en el cubo <small>· cara = Score Rebank × bucket Árbol 1 · profundidad = saldo</small></div>
+  <div class="card"><div class="ch">Mapa de reglas en el cubo <small>· cara = Score Rebank × bucket Árbol 1 · profundidad = Saldo Pasivo</small></div>
     <div class="bd"><div class="cubewrap">
-      <div class="cubebox"><div id="cube5"></div>
-        <div class="note" style="margin-top:6px;text-align:center">
-          <b>Score Rebank</b> (eje vertical): 1 = mejor (arriba) → 6 = peor (abajo) &nbsp;·&nbsp;
-          <b>bucket Árbol 1</b> (eje horizontal): menor → mayor riesgo &nbsp;·&nbsp;
-          celdas partidas: <b>▲ saldo &gt; 220.89</b> / <b>▼ saldo ≤ 220.89</b>
-        </div>
-      </div>
+      <div class="cubebox"><div id="cube5"></div></div>
       <div>
-        <div style="font-weight:700;color:var(--green-deep);font-size:12.5px;margin-bottom:6px">Bucket final → tasa de malos</div>
-        <div class="legend" id="leg5"></div>
-        <div class="note" style="margin-top:12px">
-          <b>Cómo leer:</b> cada casilla es una combinación de Score Rebank (fila) y bucket del Árbol 1 (columna). El color indica el bucket final. Aquí el árbol parte primero por <b>Score Rebank</b> y luego por <b>bucket</b>; el <b>saldo</b> sólo separa la fila superior.
-        </div>
+        <div class="skeyrow" id="skey5"></div>
+        <div style="font-weight:700;color:var(--green-deep);font-size:12.5px;margin-bottom:4px">Bucket final → ¿qué cliente es?</div>
+        <table class="leg" id="leg5"></table>
       </div>
     </div></div>
   </div>
   <div class="foot">
-    <span><b>Score Rebank:</b> puntuacion_cal_cat (1–6) · <b>bucket Árbol 1:</b> bucket (ordinal) · <b>saldo:</b> saldo_prom_tot_pasivo_u3m.</span>
-    <span><b>Umbral saldo:</b> 220.89.</span>
+    <span><b>Score Rebank:</b> puntuacion_cal_cat (1–6) · <b>bucket Árbol 1:</b> bucket (ordinal) · <b>Saldo Pasivo:</b> saldo_prom_tot_pasivo_u3m.</span>
+    <span><b>Umbral Saldo Pasivo:</b> 220.89.</span>
   </div>
 </section>
 
@@ -291,20 +282,43 @@ function regRows(tb,data,off){
   data.forEach((r,i)=>{h+=`<tr><td class="bcell" style="background:${colB(r[0])};font-size:9px">B${r[0]}</td><td class="idx">${off+i+1}</td><td class="rule">${r[1]}</td><td>${r[2]}</td><td class="num">${r[3]}</td><td class="num">${r[4]}</td></tr>`;});
   document.getElementById(tb).innerHTML=h;
 }
+const DESC=["Mejor score · Saldo Pasivo alto → riesgo mínimo",
+"Mejor score · Saldo alto · segmento alto",
+"Mejor score · Saldo Pasivo bajo",
+"Score alto · segmento bajo–medio",
+"Score alto · segmento alto",
+"Score medio · segmento bajo",
+"Score medio · segmento medio–alto",
+"Score medio–bajo",
+"Score medio–bajo · segmento medio",
+"Score medio–bajo · segmento alto",
+"Peor score · riesgo alto",
+"Peor score · segmento alto → riesgo máximo"];
 function legend(id,tasa){
   let h="";
-  tasa.forEach((r,i)=>{h+=`<div class="legrow"><span class="sw" style="background:${colB(i+1)}"></span><b style="width:30px">B${i+1}</b><span style="color:#5b6f66">tasa ${r[2]} · n ${r[3]}</span></div>`;});
+  tasa.forEach((r,i)=>{h+=`<tr><td class="sw" style="background:${colB(i+1)}"></td><td class="bn">B${i+1}</td><td class="ta">${r[2]}</td><td class="ds">${DESC[i]}</td></tr>`;});
   document.getElementById(id).innerHTML=h;
+}
+function saldoKey(id,umbral){
+  document.getElementById(id).innerHTML=
+   `<svg width="46" height="46" viewBox="0 0 46 46" style="flex:0 0 46px">
+      <polygon points="3,3 43,3 43,43" fill="hsl(106,60%,78%)" stroke="#fff" stroke-width="1.5"/>
+      <polygon points="3,3 3,43 43,43" fill="hsl(83,60%,78%)" stroke="#fff" stroke-width="1.5"/>
+      <rect x="3" y="3" width="40" height="40" fill="none" stroke="#aebfba"/>
+      <text x="33" y="15" font-size="9" font-weight="700" text-anchor="middle">▲</text>
+      <text x="13" y="38" font-size="9" font-weight="700" text-anchor="middle">▼</text></svg>
+    <div class="skeytxt">La <b>profundidad</b> del cubo es el <b>Saldo Pasivo</b>. Cuando cambia el resultado, la casilla se <b>parte en diagonal</b>:<br>
+      <b>▲ Saldo Pasivo alto</b> <span class="mut">(&gt; ${umbral})</span> &nbsp;·&nbsp; <b>▼ Saldo Pasivo bajo</b> <span class="mut">(≤ ${umbral})</span></div>`;
 }
 
 const SVGNS="http://www.w3.org/2000/svg";
 function E(t,a){const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
 function T(x,y,s,a){const t=E("text",Object.assign({x,y,"text-anchor":"middle","font-size":12,fill:"#10241f"},a||{}));t.textContent=s;return t;}
 function drawCube(id,spec){
-  const cs=60, lp=112, tp=78, dd=26, dyy=-18;
+  const cs=56, lp=126, tp=74, dd=26, dyy=-18;
   const nc=spec.cols.length, nr=spec.rows.length;
   const GW=nc*cs, GH=nr*cs;
-  const W=lp+GW+dd+22, H=tp+GH+58;
+  const W=lp+GW+dd+24, H=tp+GH+74;
   const ox=lp, oy=tp;
   const svg=E("svg",{viewBox:`0 0 ${W} ${H}`,width:W,style:`max-width:100%;height:auto`});
   // caras de profundidad (cubo)
@@ -328,10 +342,17 @@ function drawCube(id,spec){
   for(let r=0;r<nr;r++) svg.appendChild(T(ox-9,oy+r*cs+cs/2+1,spec.rows[r],{"text-anchor":"end","font-size":11,fill:"#23433c","font-family":"Consolas,monospace"}));
   // etiquetas columnas (bucket)
   for(let c=0;c<nc;c++) svg.appendChild(T(ox+c*cs+cs/2,oy+GH+16,spec.cols[c],{"font-size":11.5,"font-weight":700,fill:"#23433c"}));
-  // títulos de ejes
-  svg.appendChild(T(ox-86,oy+GH/2,"Score Rebank ↓",{"font-size":12.5,"font-weight":700,fill:"#007a72",transform:`rotate(-90 ${ox-86} ${oy+GH/2})`}));
-  svg.appendChild(T(ox+GW/2,oy+GH+40,"bucket Árbol 1  →",{"font-size":12.5,"font-weight":700,fill:"#007a72"}));
-  svg.appendChild(T(ox+GW/2+dd+34,oy+dyy-7,"saldo ↗",{"font-size":12.5,"font-weight":700,fill:"#007a72"}));
+  // ----- títulos de ejes (nombre + flecha debajo, mismo sentido) -----
+  // Score Rebank (vertical): nombre y flecha hacia abajo
+  const vx1=ox-74, vx2=ox-90, vmid=oy+GH/2;
+  svg.appendChild(T(vx1,vmid,"Score Rebank",{"font-size":12.5,"font-weight":700,fill:"#007a72",transform:`rotate(-90 ${vx1} ${vmid})`}));
+  svg.appendChild(T(vx2,vmid,"mejor 1  →  6 peor",{"font-size":10,fill:"#7c8c88",transform:`rotate(-90 ${vx2} ${vmid})`}));
+  // bucket Árbol 1 (horizontal): nombre y flecha a la derecha, debajo
+  svg.appendChild(T(ox+GW/2,oy+GH+36,"bucket Árbol 1",{"font-size":12.5,"font-weight":700,fill:"#007a72"}));
+  svg.appendChild(T(ox+GW/2,oy+GH+52,"menor  →  mayor riesgo",{"font-size":10,fill:"#7c8c88"}));
+  // Saldo Pasivo (profundidad)
+  svg.appendChild(T(ox+GW/2+dd+30,oy+dyy-18,"Saldo Pasivo",{"font-size":12,"font-weight":700,fill:"#007a72"}));
+  svg.appendChild(T(ox+GW/2+dd+30,oy+dyy-5,"(profundidad ↗)",{"font-size":9.5,fill:"#7c8c88"}));
   document.getElementById(id).appendChild(svg);
 }
 
@@ -340,6 +361,7 @@ tasaRows("tasa24",TASA24,TASA24T); vRows("v224",V224,V224T); vRows("v324",V324,V
 tasaRows("tasa5",TASA5,TASA5T); vRows("v25",V25,V25T); vRows("v35",V35,V35T); v1Table("v15",V15,V15T);
 regRows("reg24a",REG24.slice(0,15),0); regRows("reg24b",REG24.slice(15),15); regRows("reg5",REG5,0);
 legend("leg24",TASA24); legend("leg5",TASA5);
+saldoKey("skey24","349.07"); saldoKey("skey5","220.89");
 drawCube("cube24",CUBE24); drawCube("cube5",CUBE5);
 </script>
 </body>
