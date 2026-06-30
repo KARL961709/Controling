@@ -55,6 +55,9 @@
 
   table.cmp td{font-size:11px;padding:4px 8px}
   table.cmp td.cat{font-weight:800;color:var(--green-deep);text-align:center;width:34px}
+  table.vars td{padding:3.3px 8px;font-size:10.8px}
+  table.vars th{padding:4px 8px}
+  table.vars td.var{font-size:10.2px}
 
   /* chips */
   .chip{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap}
@@ -128,25 +131,25 @@
   <!-- 1 · Categorías (achicada) -->
   <div class="card">
     <div class="ch"><span class="n">1</span>Categorías del universo de castigados</div>
-    <div class="bd" style="padding:7px 13px">
-      <table style="font-size:10.6px">
-        <thead><tr><th style="width:235px">Categoría</th><th>Descripción</th></tr></thead>
+    <div class="bd" style="padding:6px 13px">
+      <table style="font-size:10.2px">
+        <thead><tr><th style="width:212px">Categoría</th><th>Descripción</th></tr></thead>
         <tbody>
-          <tr><td class="var">CAST_NOIBK_REP&lt;5anios</td><td>Sin nada de IBK, con castigo vigente en otra entidad (no-IBK) en 202601 y mora &lt; 5 años.</td></tr>
-          <tr class="on"><td class="var">CAST_NOIBK_REP&gt;=5anios<span class="mk">modelado</span></td><td>Igual que el anterior, pero la mora del castigo no-IBK es ≥ 5 años (castigos muy antiguos).</td></tr>
-          <tr class="on"><td class="var">NO_CAST_NOIBK_U24M<span class="mk">modelado</span></td><td>Sin IBK ni castigo no-IBK vigente, pero con castigo no-IBK en los últimos 24 meses (histórico).</td></tr>
-          <tr><td class="var">NO_CAST_IBK_U24M</td><td>Sin castigo IBK hoy, pero con castigo IBK en los últimos 24 meses (histórico, ya no vigente).</td></tr>
-          <tr><td class="var">CAST_IBK_REP</td><td>Castigo vigente en Interbank (00002) en el mes actual 202601. Máxima prioridad.</td></tr>
+          <tr><td class="var">CAST_NOIBK_REP&lt;5anios</td><td>Castigo vigente en otra entidad (no-IBK) con mora &lt; 5 años. Sin IBK.</td></tr>
+          <tr class="on"><td class="var">CAST_NOIBK_REP&gt;=5anios<span class="mk">modelado</span></td><td>Igual, pero la mora del castigo no-IBK es ≥ 5 años (muy antiguos).</td></tr>
+          <tr class="on"><td class="var">NO_CAST_NOIBK_U24M<span class="mk">modelado</span></td><td>Sin castigo vigente; con castigo no-IBK en los últimos 24 meses.</td></tr>
+          <tr><td class="var">NO_CAST_IBK_U24M</td><td>Sin castigo IBK hoy; tuvo castigo IBK en los últimos 24 meses.</td></tr>
+          <tr><td class="var">CAST_IBK_REP</td><td>Castigo vigente en Interbank en 202601. Máxima prioridad.</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
-  <div class="grid-5-7" style="margin-top:13px">
+  <div class="grid-5-7" style="margin-top:12px">
     <!-- 2 · Score Rebank + OptBinning -->
     <div class="card">
       <div class="ch"><span class="n">2</span>Score Rebank · OptBinning</div>
-      <div class="bd">
+      <div class="bd" style="padding:10px 12px">
         <table class="cmp">
           <thead><tr><th class="cat" style="text-align:center">Cat</th><th>Bin (score)</th><th class="num">Tasa evento</th><th class="num">% distrib.</th></tr></thead>
           <tbody>
@@ -158,15 +161,15 @@
             <tr><td class="cat">6</td><td class="var">&lt; 426.5</td><td class="num" style="background:#f6d0ca">55.9%</td><td class="num">15.8%</td></tr>
           </tbody>
         </table>
-        <div class="tipnote"><b>Ajuste:</b> sobre la <b>base de entrenamiento del modelo Rebank</b> se aplica <code>OptBinning</code> al <code>score</code> contra el <code>target</code> (6 bins, tendencia descendente). Los cortes resultantes definen la categoría <b>1 (mejor) … 6 (peor)</b>.</div>
+        <div class="tipnote"><b>Ajuste:</b> sobre la <b>base de entrenamiento del modelo Rebank</b> se aplica <code>OptBinning</code> al <code>score</code> contra el <code>target</code> (6 bins, descendente). Los cortes definen la categoría <b>1 (mejor) … 6 (peor)</b>.</div>
       </div>
     </div>
 
     <!-- A · Variables del Árbol 1 -->
     <div class="card alt">
       <div class="ch"><span class="n">A</span>Variables que pueden entrar al Árbol 1</div>
-      <div class="bd">
-        <table>
+      <div class="bd" style="padding:8px 13px">
+        <table class="vars">
           <thead><tr><th>Familia</th><th>Variable</th><th>Dirección de riesgo</th></tr></thead>
           <tbody>
             <tr><td class="fam" rowspan="6">Castigo</td><td class="var">deuda_cas</td><td><span class="chip pos">+ más riesgo</span></td></tr>
