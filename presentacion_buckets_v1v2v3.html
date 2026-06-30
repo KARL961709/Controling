@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buckets definidos — distribución V1/V2/V3</title>
+<style>
+  :root{
+    --green-deep:#1f5130; --green-deep2:#26603a; --green:#1aa44c; --green-bright:#1a9850;
+    --green-teal:#3a7d5c; --green-soft:#e8f5ee; --green-line:#cfe6d8;
+    --gray-title:#9aa6a0; --gray-txt:#5b6f66; --ink:#14271d; --mono:#23433c;
+    --shadow:0 6px 20px rgba(20,60,40,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Roboto,Arial,sans-serif}
+  body{background:#dfe6e2;display:flex;flex-direction:column;align-items:center;gap:26px;padding:26px}
+  .slide{width:1280px;height:720px;background:#fff;position:relative;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);padding:30px 42px 22px}
+
+  .head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+  h1{font-size:27px;font-weight:800;color:var(--green-deep);letter-spacing:-.3px;line-height:1.1}
+  h1 .sec{color:var(--gray-title);font-weight:800}
+  .subt{font-size:12.5px;color:var(--gray-txt);margin-top:5px}
+  .badge{display:inline-flex;align-items:center;gap:8px;background:var(--green-soft);color:var(--green-deep);font-weight:700;font-size:12px;padding:7px 15px;border-radius:30px;white-space:nowrap}
+  .badge .dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
+  .badge.warn{background:#fdeceb;color:#b23b30}
+  .badge.warn .dot{background:#c0392b}
+
+  .card{background:#fff;border:1px solid #e7eee9;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+  .card .ch{background:var(--green-deep);color:#fff;font-weight:700;font-size:13.5px;padding:9px 16px;display:flex;align-items:center;gap:9px}
+  .card.alt .ch{background:var(--green-bright)}
+  .card.teal .ch{background:var(--green-teal)}
+  .card .bd{padding:12px 15px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{background:#0a5a44;color:#fff;text-align:center;font-weight:600;padding:7px 9px;border:1px solid #0a5a44;white-space:nowrap}
+  td{padding:6px 9px;border:1px solid #dde7e4;text-align:center;white-space:nowrap}
+  td.b{text-align:left;font-weight:700;color:#23433c}
+  td.l{text-align:left}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  tr.tot td{background:#cfe9e4;font-weight:800;color:#084b44;border-top:2px solid #0a7d74}
+  td.rj,th.rj{background:#eceff0;color:#4a5a56}
+  td.totc,th.totc{background:#dff0ed;font-weight:700;color:#0a5a52}
+  .bcell{font-weight:800;color:#10241f}
+
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{border-radius:8px;padding:4px 10px;font-size:11.5px;color:#10241f;border:1px solid #0000001f;white-space:nowrap;font-weight:600}
+  .chip b{font-weight:800}
+
+  .distrib{display:flex;height:30px;border-radius:7px;overflow:hidden;border:1px solid #e6efec;margin-top:4px}
+  .distrib > div{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#1a3a16;overflow:hidden}
+
+  .note{font-size:12px;color:var(--gray-txt);margin-top:10px;display:flex;align-items:flex-start;gap:9px}
+  .note .tag{background:#fdeceb;color:#b23b30;font-weight:700;font-size:10.5px;padding:4px 9px;border-radius:6px;white-space:nowrap}
+  .note b{color:var(--green-deep)}
+
+  .foot{position:absolute;left:42px;right:42px;bottom:13px;border-top:1px solid #e3ece7;padding-top:7px;font-size:9.6px;color:#8a9b93;line-height:1.45;display:flex;flex-wrap:wrap;gap:3px 18px}
+  .foot b{color:var(--green-deep2)}
+
+  @media print{ body{background:#fff;padding:0;gap:0} .slide{box-shadow:none;border-radius:0;page-break-after:always;margin:0} }
+</style>
+</head>
+<body>
+
+<!-- =================== ESCENARIO 1 · SLIDE 1 =================== -->
+<section class="slide">
+  <div class="head">
+    <div>
+      <h1>Buckets · 24 meses <span class="sec">| Definición y tasa de riesgo</span></h1>
+      <div class="subt">Escenario <b>24m_sinedad_6</b> · 7 buckets sobre 21 estrategias del Árbol 2 · tasa medida en base de modelamiento (n=45,459)</div>
+    </div>
+    <span class="badge warn"><span class="dot"></span>Secuencia NO monótona</span>
+  </div>
+
+  <div class="card">
+    <div class="ch">Tasa de riesgo por bucket <span style="font-weight:400;opacity:.85;font-size:12px">· verde = menor riesgo, rojo = mayor</span></div>
+    <div class="bd" style="padding:10px 14px">
+      <table>
+        <thead><tr><th style="width:70px">Bucket</th><th class="l" style="text-align:left">Estrategias incluidas</th><th>Tasa malos</th><th>N</th><th>% del total</th></tr></thead>
+        <tbody>
+          <tr><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="l">1, 2, 3</td><td>16.89%</td><td class="num">1,403</td><td class="num">3.1%</td></tr>
+          <tr><td class="bcell" style="background:hsl(108,60%,78%)">B2</td><td class="l">4, 5</td><td>20.56%</td><td class="num">214</td><td class="num">0.5%</td></tr>
+          <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="l">6, 7, 8, 9, 10</td><td>20.75%</td><td class="num">32,719</td><td class="num">72.0%</td></tr>
+          <tr><td class="bcell" style="background:hsl(65,60%,78%)">B4</td><td class="l">11, 12, 13</td><td>21.41%</td><td class="num">4,611</td><td class="num">10.1%</td></tr>
+          <tr><td class="bcell" style="background:hsl(43,60%,78%)">B5</td><td class="l">14, 15, 16, 17</td><td>27.28%</td><td class="num">942</td><td class="num">2.1%</td></tr>
+          <tr><td class="bcell" style="background:hsl(22,60%,78%)">B6</td><td class="l">18, 19</td><td>26.86%</td><td class="num">4,318</td><td class="num">9.5%</td></tr>
+          <tr><td class="bcell" style="background:hsl(0,60%,78%)">B7</td><td class="l">20, 21</td><td>26.92%</td><td class="num">1,252</td><td class="num">2.8%</td></tr>
+          <tr class="tot"><td>Total</td><td class="l">21 estrategias</td><td>21.58%</td><td class="num">45,459</td><td class="num">100.0%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="ch alt" style="background:var(--green-bright)">Distribución de clientes por bucket (% del total)</div>
+    <div class="bd">
+      <div class="distrib">
+        <div style="width:3.1%;background:hsl(130,60%,78%)"></div>
+        <div style="width:0.5%;background:hsl(108,60%,78%)"></div>
+        <div style="width:72.0%;background:hsl(87,60%,78%)">B3 · 72.0%</div>
+        <div style="width:10.1%;background:hsl(65,60%,78%)">B4 10%</div>
+        <div style="width:2.1%;background:hsl(43,60%,78%)"></div>
+        <div style="width:9.5%;background:hsl(22,60%,78%)">B6 9.5%</div>
+        <div style="width:2.8%;background:hsl(0,60%,78%)"></div>
+      </div>
+      <div class="note"><span class="tag">No monótona</span>
+        <div>La tasa crece de B1→B5 pero <b>B6 (26.86%) y B7 (26.92%)</b> quedan por debajo de B5 (27.28%): los buckets de mayor riesgo no quedan perfectamente ordenados. <b>B3 concentra el 72%</b> de la población.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span><b>Tasa malos:</b> % de target_60_12m=1 en la base de modelamiento (RD, n=45,459).</span>
+    <span><b>Estrategias:</b> hojas del Árbol 2 agrupadas manualmente en cada bucket.</span>
+    <span><b>Buckets:</b> ordenados de menor (B1) a mayor (B7) riesgo.</span>
+  </div>
+</section>
+
+<!-- =================== ESCENARIO 1 · SLIDE 2 =================== -->
+<section class="slide">
+  <div class="head">
+    <div>
+      <h1>Buckets · 24 meses <span class="sec">| Distribución V1 / V2 / V3</span></h1>
+      <div class="subt">Escenario <b>24m_sinedad_6</b> · cómo se reparten los clientes entre buckets en cada base</div>
+    </div>
+    <span class="badge"><span class="dot"></span>24m_sinedad_6</span>
+  </div>
+
+  <div class="card">
+    <div class="ch teal" style="background:var(--green-teal)">V1 · Base de campañas <span style="font-weight:400;opacity:.85;font-size:12px">· 3 fechas de junio (5 pilotos) × bucket</span></div>
+    <div class="bd" style="padding:9px 14px">
+      <table style="font-size:12px">
+        <thead><tr><th class="l" style="text-align:left">p_fecinformacion</th><th>B1</th><th>B2</th><th>B3</th><th>B4</th><th>B5</th><th>B6</th><th>B7</th><th class="rj">Rechazo</th><th class="totc">Total</th></tr></thead>
+        <tbody>
+          <tr><td class="b">20260617</td><td class="num">11,889</td><td class="num">8,486</td><td class="num">20,120</td><td class="num">26,544</td><td class="num">5,363</td><td class="num">615</td><td class="num">57</td><td class="num rj">0</td><td class="num totc">73,074</td></tr>
+          <tr><td class="b">20260623</td><td class="num">10,310</td><td class="num">6,806</td><td class="num">17,009</td><td class="num">21,140</td><td class="num">3,942</td><td class="num">472</td><td class="num">42</td><td class="num rj">0</td><td class="num totc">59,721</td></tr>
+          <tr><td class="b">20260624</td><td class="num">10,316</td><td class="num">6,807</td><td class="num">17,007</td><td class="num">21,133</td><td class="num">3,930</td><td class="num">472</td><td class="num">42</td><td class="num rj">0</td><td class="num totc">59,707</td></tr>
+          <tr class="tot"><td>Total</td><td class="num">32,515</td><td class="num">22,099</td><td class="num">54,136</td><td class="num">68,817</td><td class="num">13,235</td><td class="num">1,559</td><td class="num">141</td><td class="num">0</td><td class="num">192,502</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:14px">
+    <div class="card">
+      <div class="ch">V2 · Base inicial <span style="font-weight:400;opacity:.85;font-size:11.5px">· generación de árboles</span></div>
+      <div class="bd" style="padding:8px 13px">
+        <table style="font-size:11.7px">
+          <thead><tr><th style="width:54px">Bucket</th><th>Cantidad</th><th>%</th><th>prob_jd</th><th>score</th></tr></thead>
+          <tbody>
+            <tr><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="num">19,103</td><td class="num">3.3%</td><td class="num">0.330</td><td class="num">669.9</td></tr>
+            <tr><td class="bcell" style="background:hsl(108,60%,78%)">B2</td><td class="num">19,102</td><td class="num">3.3%</td><td class="num">0.354</td><td class="num">646.0</td></tr>
+            <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="num">76,066</td><td class="num">13.0%</td><td class="num">0.395</td><td class="num">604.9</td></tr>
+            <tr><td class="bcell" style="background:hsl(65,60%,78%)">B4</td><td class="num">150,105</td><td class="num">25.8%</td><td class="num">0.422</td><td class="num">577.2</td></tr>
+            <tr><td class="bcell" style="background:hsl(43,60%,78%)">B5</td><td class="num">245,492</td><td class="num">42.1%</td><td class="num">0.446</td><td class="num">553.4</td></tr>
+            <tr><td class="bcell" style="background:hsl(22,60%,78%)">B6</td><td class="num">53,558</td><td class="num">9.2%</td><td class="num">0.463</td><td class="num">536.9</td></tr>
+            <tr><td class="bcell" style="background:hsl(0,60%,78%)">B7</td><td class="num">19,501</td><td class="num">3.3%</td><td class="num">0.482</td><td class="num">517.5</td></tr>
+            <tr class="tot"><td>Total</td><td class="num">582,927</td><td class="num">100%</td><td class="num">0.429</td><td class="num">570.4</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ch">V3 · Fuera de campaña <span style="font-weight:400;opacity:.85;font-size:11.5px">· no incluidos hoy</span></div>
+      <div class="bd" style="padding:8px 13px">
+        <table style="font-size:11.7px">
+          <thead><tr><th style="width:54px">Bucket</th><th>Cantidad</th><th>%</th><th>prob_jd</th><th>score</th></tr></thead>
+          <tbody>
+            <tr><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="num">13,317</td><td class="num">2.5%</td><td class="num">0.337</td><td class="num">663.0</td></tr>
+            <tr><td class="bcell" style="background:hsl(108,60%,78%)">B2</td><td class="num">13,673</td><td class="num">2.6%</td><td class="num">0.363</td><td class="num">636.3</td></tr>
+            <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="num">57,746</td><td class="num">11.0%</td><td class="num">0.404</td><td class="num">595.7</td></tr>
+            <tr><td class="bcell" style="background:hsl(65,60%,78%)">B4</td><td class="num">125,534</td><td class="num">24.0%</td><td class="num">0.430</td><td class="num">569.3</td></tr>
+            <tr><td class="bcell" style="background:hsl(43,60%,78%)">B5</td><td class="num">240,860</td><td class="num">46.0%</td><td class="num">0.447</td><td class="num">552.1</td></tr>
+            <tr><td class="bcell" style="background:hsl(22,60%,78%)">B6</td><td class="num">52,916</td><td class="num">10.1%</td><td class="num">0.463</td><td class="num">536.2</td></tr>
+            <tr><td class="bcell" style="background:hsl(0,60%,78%)">B7</td><td class="num">19,438</td><td class="num">3.7%</td><td class="num">0.482</td><td class="num">517.3</td></tr>
+            <tr class="tot"><td>Total</td><td class="num">523,484</td><td class="num">100%</td><td class="num">0.436</td><td class="num">563.2</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span><b>V1:</b> base de campañas (últimas 3 fechas de junio, 5 pilotos vigentes).</span>
+    <span><b>V2:</b> base de generación de los árboles · <b>V3:</b> clientes fuera de campaña.</span>
+    <span><b>prob_jd / score:</b> promedios por bucket · <b>Rechazo:</b> sin bucket asignado.</span>
+  </div>
+</section>
+
+<!-- =================== ESCENARIO 2 · SLIDE 1 =================== -->
+<section class="slide">
+  <div class="head">
+    <div>
+      <h1>Buckets · 5 años <span class="sec">| Definición y tasa de riesgo</span></h1>
+      <div class="subt">Escenario <b>5años_sinedad_6</b> · 7 buckets sobre 15 estrategias del Árbol 2 · tasa medida en base de modelamiento (n=45,459)</div>
+    </div>
+    <span class="badge warn"><span class="dot"></span>Secuencia NO monótona</span>
+  </div>
+
+  <div class="card">
+    <div class="ch">Tasa de riesgo por bucket <span style="font-weight:400;opacity:.85;font-size:12px">· verde = menor riesgo, rojo = mayor</span></div>
+    <div class="bd" style="padding:10px 14px">
+      <table>
+        <thead><tr><th style="width:70px">Bucket</th><th class="l" style="text-align:left">Estrategias incluidas</th><th>Tasa malos</th><th>N</th><th>% del total</th></tr></thead>
+        <tbody>
+          <tr><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="l">1</td><td>16.82%</td><td class="num">1,290</td><td class="num">2.8%</td></tr>
+          <tr><td class="bcell" style="background:hsl(108,60%,78%)">B2</td><td class="l">2, 3</td><td>19.75%</td><td class="num">319</td><td class="num">0.7%</td></tr>
+          <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="l">5, 6, 7</td><td>20.75%</td><td class="num">32,661</td><td class="num">71.8%</td></tr>
+          <tr><td class="bcell" style="background:hsl(65,60%,78%)">B4</td><td class="l">9, 10</td><td>18.26%</td><td class="num">115</td><td class="num">0.3%</td></tr>
+          <tr><td class="bcell" style="background:hsl(43,60%,78%)">B5</td><td class="l">12</td><td>21.46%</td><td class="num">4,562</td><td class="num">10.0%</td></tr>
+          <tr><td class="bcell" style="background:hsl(22,60%,78%)">B6</td><td class="l">13, 14</td><td>26.96%</td><td class="num">6,496</td><td class="num">14.3%</td></tr>
+          <tr><td class="bcell" style="background:hsl(0,60%,78%)">B7</td><td class="l">15</td><td>18.75%</td><td class="num">16</td><td class="num">0.0%</td></tr>
+          <tr class="tot"><td>Total</td><td class="l">15 estrategias</td><td>21.58%</td><td class="num">45,459</td><td class="num">100.0%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="ch alt" style="background:var(--green-bright)">Distribución de clientes por bucket (% del total)</div>
+    <div class="bd">
+      <div class="distrib">
+        <div style="width:2.8%;background:hsl(130,60%,78%)"></div>
+        <div style="width:0.7%;background:hsl(108,60%,78%)"></div>
+        <div style="width:71.8%;background:hsl(87,60%,78%)">B3 · 71.8%</div>
+        <div style="width:0.3%;background:hsl(65,60%,78%)"></div>
+        <div style="width:10.0%;background:hsl(43,60%,78%)">B5 10%</div>
+        <div style="width:14.3%;background:hsl(22,60%,78%)">B6 14.3%</div>
+        <div style="width:0.0%;background:hsl(0,60%,78%)"></div>
+      </div>
+      <div class="note"><span class="tag">No monótona</span>
+        <div><b>B4 (18.26%)</b> y <b>B7 (18.75%)</b> tienen tasa más baja que buckets anteriores, rompiendo el orden creciente. Además B4 y B7 son muy pequeños (115 y 16 clientes). <b>B3 concentra el 71.8%</b> de la población.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span><b>Tasa malos:</b> % de target_60_12m=1 en la base de modelamiento (RD, n=45,459).</span>
+    <span><b>Estrategias:</b> hojas del Árbol 2 agrupadas manualmente en cada bucket.</span>
+    <span><b>Buckets:</b> ordenados de menor (B1) a mayor (B7) riesgo.</span>
+  </div>
+</section>
+
+<!-- =================== ESCENARIO 2 · SLIDE 2 =================== -->
+<section class="slide">
+  <div class="head">
+    <div>
+      <h1>Buckets · 5 años <span class="sec">| Distribución V1 / V2 / V3</span></h1>
+      <div class="subt">Escenario <b>5años_sinedad_6</b> · cómo se reparten los clientes entre buckets en cada base</div>
+    </div>
+    <span class="badge"><span class="dot"></span>5años_sinedad_6</span>
+  </div>
+
+  <div class="card">
+    <div class="ch teal" style="background:var(--green-teal)">V1 · Base de campañas <span style="font-weight:400;opacity:.85;font-size:12px">· 3 fechas de junio (5 pilotos) × bucket</span></div>
+    <div class="bd" style="padding:9px 14px">
+      <table style="font-size:12px">
+        <thead><tr><th class="l" style="text-align:left">p_fecinformacion</th><th>B1</th><th>B2</th><th>B3</th><th>B4</th><th>B5</th><th>B6</th><th>B7</th><th class="rj">Rechazo</th><th class="totc">Total</th></tr></thead>
+        <tbody>
+          <tr><td class="b">20260617</td><td class="num">4,096</td><td class="num">4,844</td><td class="num">16,199</td><td class="num">3,246</td><td class="num">10,580</td><td class="num">4,779</td><td class="num">754</td><td class="num rj">1,398</td><td class="num totc">45,896</td></tr>
+          <tr><td class="b">20260623</td><td class="num">3,728</td><td class="num">4,276</td><td class="num">14,059</td><td class="num">2,813</td><td class="num">10,099</td><td class="num">4,492</td><td class="num">740</td><td class="num rj">1,213</td><td class="num totc">41,420</td></tr>
+          <tr><td class="b">20260624</td><td class="num">3,723</td><td class="num">4,269</td><td class="num">14,052</td><td class="num">2,809</td><td class="num">10,097</td><td class="num">4,486</td><td class="num">740</td><td class="num rj">1,211</td><td class="num totc">41,387</td></tr>
+          <tr class="tot"><td>Total</td><td class="num">11,547</td><td class="num">13,389</td><td class="num">44,310</td><td class="num">8,868</td><td class="num">30,776</td><td class="num">13,757</td><td class="num">2,234</td><td class="num">3,822</td><td class="num">128,703</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:14px">
+    <div class="card">
+      <div class="ch">V2 · Base inicial <span style="font-weight:400;opacity:.85;font-size:11.5px">· generación de árboles</span></div>
+      <div class="bd" style="padding:8px 13px">
+        <table style="font-size:11.7px">
+          <thead><tr><th style="width:54px">Bucket</th><th>Cantidad</th><th>%</th><th>prob_jd</th><th>score</th></tr></thead>
+          <tbody>
+            <tr><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="num">12,897</td><td class="num">0.8%</td><td class="num">0.321</td><td class="num">678.5</td></tr>
+            <tr><td class="bcell" style="background:hsl(108,60%,78%)">B2</td><td class="num">38,249</td><td class="num">2.3%</td><td class="num">0.355</td><td class="num">645.0</td></tr>
+            <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="num">230,088</td><td class="num">13.6%</td><td class="num">0.388</td><td class="num">611.5</td></tr>
+            <tr><td class="bcell" style="background:hsl(65,60%,78%)">B4</td><td class="num">86,196</td><td class="num">5.1%</td><td class="num">0.400</td><td class="num">599.2</td></tr>
+            <tr><td class="bcell" style="background:hsl(43,60%,78%)">B5</td><td class="num">533,913</td><td class="num">31.4%</td><td class="num">0.409</td><td class="num">590.9</td></tr>
+            <tr><td class="bcell" style="background:hsl(22,60%,78%)">B6</td><td class="num">612,572</td><td class="num">36.1%</td><td class="num">0.429</td><td class="num">570.6</td></tr>
+            <tr><td class="bcell" style="background:hsl(0,60%,78%)">B7</td><td class="num">158,251</td><td class="num">9.3%</td><td class="num">0.446</td><td class="num">553.3</td></tr>
+            <tr class="rjr"><td class="b rj">Rechazo</td><td class="num rj">25,509</td><td class="num rj">1.5%</td><td class="num rj">0.380</td><td class="num rj">619.2</td></tr>
+            <tr class="tot"><td>Total</td><td class="num">1,697,675</td><td class="num">100%</td><td class="num">0.414</td><td class="num">585.6</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ch">V3 · Fuera de campaña <span style="font-weight:400;opacity:.85;font-size:11.5px">· no incluidos hoy</span></div>
+      <div class="bd" style="padding:8px 13px">
+        <table style="font-size:11.7px">
+          <thead><tr><th style="width:54px">Bucket</th><th>Cantidad</th><th>%</th><th>prob_jd</th><th>score</th></tr></thead>
+          <tbody>
+            <tr><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="num">9,525</td><td class="num">0.6%</td><td class="num">0.335</td><td class="num">665.0</td></tr>
+            <tr><td class="bcell" style="background:hsl(108,60%,78%)">B2</td><td class="num">33,778</td><td class="num">2.0%</td><td class="num">0.362</td><td class="num">637.5</td></tr>
+            <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="num">212,618</td><td class="num">12.9%</td><td class="num">0.393</td><td class="num">606.9</td></tr>
+            <tr><td class="bcell" style="background:hsl(65,60%,78%)">B4</td><td class="num">82,531</td><td class="num">5.0%</td><td class="num">0.403</td><td class="num">596.3</td></tr>
+            <tr><td class="bcell" style="background:hsl(43,60%,78%)">B5</td><td class="num">522,188</td><td class="num">31.7%</td><td class="num">0.410</td><td class="num">589.6</td></tr>
+            <tr><td class="bcell" style="background:hsl(22,60%,78%)">B6</td><td class="num">607,375</td><td class="num">36.8%</td><td class="num">0.429</td><td class="num">570.1</td></tr>
+            <tr><td class="bcell" style="background:hsl(0,60%,78%)">B7</td><td class="num">157,434</td><td class="num">9.5%</td><td class="num">0.447</td><td class="num">552.8</td></tr>
+            <tr class="rjr"><td class="b rj">Rechazo</td><td class="num rj">24,225</td><td class="num rj">1.5%</td><td class="num rj">0.384</td><td class="num rj">615.4</td></tr>
+            <tr class="tot"><td>Total</td><td class="num">1,649,674</td><td class="num">100%</td><td class="num">0.416</td><td class="num">583.3</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span><b>V1:</b> base de campañas (últimas 3 fechas de junio, 5 pilotos vigentes).</span>
+    <span><b>V2:</b> base de generación de los árboles · <b>V3:</b> clientes fuera de campaña.</span>
+    <span><b>Rechazo:</b> clientes sin bucket asignado (~1.5% en 5 años).</span>
+  </div>
+</section>
+
+</body>
+</html>
