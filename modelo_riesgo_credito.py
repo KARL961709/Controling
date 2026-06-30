@@ -1176,19 +1176,33 @@ def run(cfg: Config):
     # alimenta por igual a LR y a los GBMs. Las columnas WOE son todas numericas
     # (sin categoricas nativas), por eso gbm_cat = [].
     gbm_feats = keep
-    # variables ORIGINALES del set final (quita el prefijo 'woe_')
-    orig = [c[4:] if c.startswith("woe_") else c for c in keep]
-    cat_raw = [c for c in orig if c in set(cat)]   # categoricas dentro del set final
+    num_set, cat_set = set(num), set(cat)
+    # separa el set final: columnas WOE de NUMERICAS  vs  nombres ORIGINALES de CATEGORICAS
+    woe_num_cols = [c for c in keep if (c[4:] if c.startswith("woe_") else c) in num_set]
+    cat_cols = [(c[4:] if c.startswith("woe_") else c) for c in keep
+                if (c[4:] if c.startswith("woe_") else c) in cat_set]
 
-    # DOS variantes de entrada por cada GBM:
-    #   - 'woe': matriz WOE (numerica)        -> flujo actual
-    #   - 'raw': variables ORIGINALES (sin WOE, categoricas nativas)
+    def _mix(woe_df: pd.DataFrame, raw_df: pd.DataFrame) -> pd.DataFrame:
+        """V2: numericas en WOE + categoricas en su valor ORIGINAL (para tratarlas
+        como categorica NATIVA del GBM)."""
+        ps = []
+        if woe_num_cols:
+            ps.append(woe_df[woe_num_cols].fillna(0.0))
+        if cat_cols:
+            ps.append(raw_df[cat_cols])
+        return pd.concat(ps, axis=1)
+
+    # DOS variantes de entrada por cada GBM (LightGBM y XGBoost):
+    #   - 'woe'   : WOE para numericas Y categoricas (flujo actual)
+    #   - 'catnat': WOE para numericas; categoricas como CATEGORICA NATIVA
     variantes = {
         "woe": dict(Xtr=woe_tr.fillna(0.0), Xte=woe_te.fillna(0.0), Xoo=woe_oo.fillna(0.0),
                     cat=[], is_woe=True),
-        "raw": dict(Xtr=train[orig], Xte=test[orig], Xoo=oot[orig],
-                    cat=cat_raw, is_woe=False),
+        "catnat": dict(Xtr=_mix(woe_tr, train), Xte=_mix(woe_te, test), Xoo=_mix(woe_oo, oot),
+                       cat=cat_cols, is_woe=False),
     }
+    log.info("Variantes GBM -> woe (num+cat WOE) | catnat (num WOE + %d cat nativas)",
+             len(cat_cols))
 
     # VALIDACION para tuning: indices DENTRO de train (mismos para woe y raw).
     # El TEST y el OOT NO intervienen en la optimizacion ni en el early stopping.
