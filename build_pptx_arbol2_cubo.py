@@ -56,8 +56,9 @@ def rect(s,x,y,w,h,fill,line=None,lw=0.75):
     else: sh.line.color.rgb=line; sh.line.width=Pt(lw)
     sh.shadow.inherit=False; return sh
 def poly(s,pts,fill,line=None,lw=0.75):
-    fb=s.shapes.build_freeform(float(pts[0][0]),float(pts[0][1]),scale=EMU)
-    fb.add_line_segments([(float(x),float(y)) for x,y in pts[1:]],close=True)
+    P=[(int(round(x*EMU)),int(round(y*EMU))) for x,y in pts]   # EMU enteros, scale=1 (evita redondeo del path)
+    fb=s.shapes.build_freeform(P[0][0],P[0][1],scale=1)
+    fb.add_line_segments(P[1:],close=True)
     sh=fb.convert_to_shape()
     sh.fill.solid(); sh.fill.fore_color.rgb=fill
     if line is None: sh.line.fill.background()
