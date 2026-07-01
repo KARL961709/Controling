@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Rebank · Modelamiento · ficha</title>
+<style>
+  :root{
+    --green-deep:#1f5130; --green-deep2:#26603a; --green:#1aa44c; --green-bright:#22b24c;
+    --green-teal:#2f7d70; --teal:#007a72; --green-soft:#e8f5ee;
+    --gray-title:#9aa6a0; --gray-txt:#5b6f66; --ink:#14271d; --shadow:0 6px 20px rgba(20,60,40,.08);
+    --navy:#3d4a63;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Roboto,Arial,sans-serif}
+  body{background:#dfe6e2;display:flex;justify-content:center;padding:26px}
+  .slide{width:1280px;height:720px;background:#fff;position:relative;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);padding:22px 38px 14px}
+  h1{font-size:26px;font-weight:800;color:var(--green-deep);letter-spacing:-.3px;line-height:1.05}
+  h1 .sec{color:var(--green-bright)}
+  .subt{font-size:12.5px;color:var(--gray-txt);margin-top:3px}
+  .badge{position:absolute;top:24px;right:38px;display:inline-flex;align-items:center;gap:8px;background:var(--green-soft);color:var(--green-deep);font-weight:700;font-size:12px;padding:7px 14px;border-radius:30px}
+  .badge .dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
+
+  .top{display:grid;grid-template-columns:1.42fr 1fr;gap:16px;margin-top:13px}
+  .card{border:1px solid #e7eee9;border-radius:13px;overflow:hidden;box-shadow:var(--shadow)}
+  .card .ch{background:var(--green-deep);color:#fff;font-weight:800;font-size:14px;padding:9px 14px;text-align:center;letter-spacing:.2px}
+  .card .cb{padding:11px 14px}
+
+  /* ficha */
+  .fila{display:flex;gap:11px;padding:7px 0;border-bottom:1px dashed #eaf1ed;align-items:flex-start}
+  .fila:last-child{border-bottom:none}
+  .lab{flex:0 0 96px;font-size:10px;font-weight:800;color:#fff;background:var(--green-teal);border-radius:7px;padding:4px 8px;text-align:center;line-height:1.1}
+  .lab.o{background:var(--green-deep)} .lab.u{background:var(--green-bright)}
+  .val{font-size:11.4px;color:var(--ink);line-height:1.32;padding-top:1px}
+  .val b{color:var(--green-deep)}
+  .val .mut{color:var(--gray-txt)}
+  .srcs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+  .srcs span{font-size:9px;font-weight:700;background:#eef4f1;color:var(--green-deep2);border:1px solid #dde8e3;border-radius:20px;padding:2px 8px}
+
+  /* resultados */
+  .gini{width:100%;border-collapse:collapse}
+  .gini th{font-size:10px;font-weight:800;color:#fff;background:var(--navy);padding:5px 8px;text-align:center}
+  .gini th.et{background:transparent;color:var(--gray-txt);text-align:left}
+  .gini td{padding:5px 8px;font-size:11px;border-bottom:1px solid #eef3f0;vertical-align:middle}
+  .gini td.stage{font-weight:800;color:var(--green-deep)}
+  .gini td.samp{color:var(--gray-txt);font-size:10.3px}
+  .gini td.g{text-align:center;font-weight:800;color:var(--green-deep2);font-size:13px}
+  .gini .sub td{background:#f7fbf9}
+  .pill-s{display:inline-block;font-size:9.5px;font-weight:800;color:#fff;border-radius:20px;padding:2px 10px}
+  .p-train{background:var(--green-bright)} .p-test{background:#7fb8e0} .p-oot{background:#9aa6a0}
+  .deltas{margin-top:9px;display:flex;gap:9px}
+  .dl{flex:1;background:#eef5fb;border:1px solid #d8e6f3;border-radius:9px;padding:7px 10px}
+  .dl .k{font-size:9.5px;color:#3a6ea5;font-weight:700}
+  .dl .v{font-size:16px;font-weight:800;color:#245b96}
+  .dl .d{font-size:9px;color:var(--gray-txt)}
+
+  /* bottom SHAP */
+  .bot{margin-top:14px;border:1px solid #e7eee9;border-radius:13px;overflow:hidden;box-shadow:var(--shadow)}
+  .bot .ch{background:linear-gradient(90deg,#0a5a34,#1aa44c);color:#fff;font-weight:800;font-size:13px;padding:8px 14px}
+  .botgrid{display:grid;grid-template-columns:1.5fr 1fr;gap:0}
+  .botgrid .l{padding:10px 14px} .botgrid .r{padding:10px 14px;border-left:1px solid #eef3f0;background:#f8fbfa}
+  .stitle{font-size:10.5px;font-weight:800;color:var(--green-deep);margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
+  .bar{display:grid;grid-template-columns:1fr 46px;align-items:center;gap:8px;margin-bottom:2.6px}
+  .bar .nm{font-size:9.8px;color:var(--ink);line-height:1.12}
+  .bar .nm .sr{color:var(--gray-txt);font-weight:600}
+  .bar .tk{display:flex;align-items:center;gap:6px}
+  .bar .tk .fill{height:12px;border-radius:3px;background:linear-gradient(90deg,#7ecb6a,#3fa64a)}
+  .bar .pct{font-size:9.8px;font-weight:800;color:var(--green-deep2);text-align:right}
+  .hl{margin-top:7px;background:#fff4e0;border:1px solid #f4e2bd;border-radius:8px;padding:6px 10px;font-size:10px;color:#9a6a12;line-height:1.28}
+  .hl b{color:#7a5200}
+  .fu{display:flex;flex-direction:column;gap:4px}
+  .fu .rcc{font-size:11px;font-weight:800;color:var(--green-deep)}
+  .fu .row2{display:flex;align-items:center;gap:7px;font-size:9.8px;color:var(--ink)}
+  .fu .row2 .bx{height:9px;border-radius:2px;background:#3fa64a;flex:0 0 auto}
+  .fu .row2 .nm{flex:0 0 62px;font-weight:700;color:var(--green-deep2)}
+  .fu .row2 .pc{color:var(--gray-txt);font-weight:700}
+
+  .foot{position:absolute;left:38px;right:38px;bottom:9px;border-top:1px solid #e3ece7;padding-top:6px;font-size:9.3px;color:#8a9b93;line-height:1.4;display:flex;flex-wrap:wrap;gap:3px 18px}
+  .foot b{color:var(--green-deep2)}
+  @media print{ body{background:#fff;padding:0} .slide{box-shadow:none;border-radius:0} }
+</style>
+</head>
+<body>
+<div class="slide">
+  <h1>Rebank <span class="sec">| Modelamiento</span></h1>
+  <div class="subt">Ficha técnica del modelo, desempeño (Gini) y variables de mayor importancia — modelo de riesgo para la rebancarización de Altas TC</div>
+  <span class="badge"><span class="dot"></span>Altas TC · SSFF</span>
+
+  <div class="top">
+    <!-- FICHA TÉCNICA -->
+    <div class="card">
+      <div class="ch">Ficha técnica</div>
+      <div class="cb">
+        <div class="fila"><span class="lab o">Objetivo</span><div class="val">Estimar el <b>riesgo de mal comportamiento</b> de los clientes con alta de tarjeta de crédito en el sistema financiero, para <b>apoyar la decisión de rebancarización</b>.</div></div>
+        <div class="fila"><span class="lab u">Uso</span><div class="val"><b>Ordenar y priorizar clientes</b> en las campañas: a quién ofrecer y con qué nivel de riesgo, y separar segmentos (TC Bank / TC No Bank).</div></div>
+        <div class="fila"><span class="lab">Población</span><div class="val"><b>Altas de TC en el SSFF</b> <span class="mut">(clientes que sacaron tarjeta en el sistema financiero).</span><div class="srcs"><span>BCP</span><span>BBVA</span><span>Scotiabank</span><span>BanBif</span><span>Falabella</span><span>SIP</span></div></div></div>
+        <div class="fila"><span class="lab">Target</span><div class="val"><b>Cliente malo</b> en horizonte de <b>12 meses</b>: atraso <b>&gt; 60 días</b> <span class="mut">o</span> refinanciado.</div></div>
+        <div class="fila"><span class="lab">Periodos</span><div class="val"><b>Desarrollo:</b> Nov'23 – Ene'25 <span class="mut">(15 meses)</span> · <b>OOT:</b> Feb'25 – Abr'25 <span class="mut">(3 meses)</span>.</div></div>
+        <div class="fila"><span class="lab">Metodología</span><div class="val"><b>LightGBM</b> <span class="mut">(gradient boosting sobre árboles de decisión).</span></div></div>
+        <div class="fila"><span class="lab">Variables</span><div class="val"><b>52 candidatas</b> de múltiples fuentes externas e internas.<div class="srcs"><span>RCC</span><span>Sunedu</span><span>Sentinel</span><span>IBK</span><span>Sunat</span><span>Reniec</span><span>Sunarp</span></div></div></div>
+      </div>
+    </div>
+
+    <!-- RESULTADOS -->
+    <div class="card">
+      <div class="ch">Resultados · poder del modelo (Gini)</div>
+      <div class="cb">
+        <table class="gini">
+          <tr><th class="et">Etapa</th><th class="et">Muestra</th><th>Gini</th></tr>
+          <tr class="sub"><td class="stage" rowspan="2">Desarrollo</td><td><span class="pill-s p-train">Train (80%)</span></td><td class="g">51%</td></tr>
+          <tr class="sub"><td><span class="pill-s p-test">Test (20%)</span></td><td class="g">47%</td></tr>
+          <tr><td class="stage">Validación</td><td><span class="pill-s p-oot">OOT</span></td><td class="g">46%</td></tr>
+          <tr><td class="samp" colspan="2">OOT · segmento <b>TC Bank</b></td><td class="g">29%</td></tr>
+          <tr><td class="samp" colspan="2">OOT · segmento <b>TC No Bank</b></td><td class="g">23%</td></tr>
+        </table>
+        <div class="deltas">
+          <div class="dl"><div class="k">Brecha OOT → TC Bank</div><div class="v">+17 pp</div><div class="d">Gini 46% → 29%</div></div>
+          <div class="dl"><div class="k">Brecha OOT → TC No Bank</div><div class="v">+20 pp</div><div class="d">respecto al Gini global</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHAP + FUENTES -->
+  <div class="bot">
+    <div class="ch">Variables de mayor importancia (SHAP · Top 10) y fuentes de datos</div>
+    <div class="botgrid">
+      <div class="l">
+        <div class="stitle">Variables relevantes · % de importancia</div>
+        <div class="bar"><div class="nm">Nº de deudas castigadas u24m <span class="sr">(RCC)</span></div><div class="pct">19.7%</div></div>
+        <div class="bar"><div class="nm">Máximo saldo peor clasificación u12m <span class="sr">(RCC)</span></div><div class="pct">7.1%</div></div>
+        <div class="bar"><div class="nm">Nivel educativo con títulos profesionales <span class="sr">(Sunedu)</span></div><div class="pct">6.2%</div></div>
+        <div class="bar"><div class="nm">Antigüedad desde alta del último producto en SSFF <span class="sr">(RCC)</span></div><div class="pct">4.7%</div></div>
+        <div class="bar"><div class="nm">Desviación saldo préstamos comerciales y personales u3m <span class="sr">(RCC)</span></div><div class="pct">4.1%</div></div>
+        <div class="bar"><div class="nm">Mínimo saldo total pasivos retail Interbank u12m <span class="sr">(IBK)</span></div><div class="pct">4.1%</div></div>
+        <div class="bar"><div class="nm">Ratio saldo riesgo total u1m / máximo u12m <span class="sr">(RCC)</span></div><div class="pct">3.9%</div></div>
+        <div class="bar"><div class="nm">Cantidad de empresas reportadas u12m <span class="sr">(Sentinel)</span></div><div class="pct">3.8%</div></div>
+        <div class="bar"><div class="nm">Máximo saldo pasivo u12m <span class="sr">(IBK)</span></div><div class="pct">3.6%</div></div>
+        <div class="bar"><div class="nm">Descripción de grupo carrera profesional <span class="sr">(Sunedu)</span></div><div class="pct">2.7%</div></div>
+      </div>
+      <div class="r">
+        <div class="stitle">Fuentes de la importancia</div>
+        <div class="fu">
+          <div class="rcc">RCC · 61% de la importancia total</div>
+          <div class="row2"><span class="nm">Intercorp</span><span class="bx" style="width:52px"></span><span class="pc">13%</span></div>
+          <div class="row2"><span class="nm">Sunedu</span><span class="bx" style="width:36px"></span><span class="pc">9%</span></div>
+          <div class="row2"><span class="nm">Sentinel</span><span class="bx" style="width:28px"></span><span class="pc">7%</span></div>
+          <div class="row2"><span class="nm">IBK</span><span class="bx" style="width:20px"></span><span class="pc">5%</span></div>
+          <div class="row2"><span class="nm">Sunat</span><span class="bx" style="width:12px"></span><span class="pc">3%</span></div>
+          <div class="row2"><span class="nm">Reniec</span><span class="bx" style="width:5px"></span><span class="pc">1%</span></div>
+          <div class="row2"><span class="nm">Sunarp</span><span class="bx" style="width:5px"></span><span class="pc">1%</span></div>
+        </div>
+        <div class="hl">Ingresó al modelo la variable construida de <b>Perfil Castigado</b>: <b>Nº de Deudas Castigadas (19.7%)</b> — la de mayor peso.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span><b>Gini:</b> mide qué tan bien el modelo separa buenos de malos (0 = azar, 100% = perfecto).</span>
+    <span><b>OOT:</b> validación fuera de tiempo, en meses posteriores al desarrollo.</span>
+    <span><b>SHAP:</b> aporte de cada variable a la predicción.</span>
+  </div>
+</div>
+<script>
+// escalar barras SHAP proporcional al máximo (19.7%)
+const vals=[19.7,7.1,6.2,4.7,4.1,4.1,3.9,3.8,3.6,2.7], MAXW=240, MX=19.7;
+document.querySelectorAll('.bar').forEach((b,i)=>{
+  const tk=document.createElement('div'); tk.className='tk';
+  const f=document.createElement('div'); f.className='fill';
+  f.style.width=Math.max(10,vals[i]/MX*MAXW)+'px';
+  const pct=b.querySelector('.pct'); b.insertBefore(tk,pct); tk.appendChild(f);
+  b.style.gridTemplateColumns='1fr '+MAXW+'px 40px'; // nombre | barra | %
+});
+</script>
+</body>
+</html>
