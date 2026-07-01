@@ -8,7 +8,7 @@
   :root{
     --green-deep:#1f5130; --green:#1aa44c; --green-bright:#1a9850; --teal:#007a72;
     --green-soft:#e8f5ee; --gray-title:#9aa6a0; --gray-txt:#5b6f66; --ink:#14271d; --mono:#23433c;
-    --shadow:0 6px 20px rgba(20,60,40,.08);
+    --shadow:0 6px 20px rgba(20,60,40,.08); --s:46px; --h:23px;
   }
   *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Roboto,Arial,sans-serif}
   body{background:#dfe6e2;color:var(--ink);display:flex;flex-direction:column;align-items:center;gap:18px;padding:26px}
@@ -19,40 +19,47 @@
   .subt{font-size:12px;color:var(--gray-txt);margin-top:4px}
   .badge{display:inline-flex;align-items:center;gap:8px;background:var(--green-soft);color:var(--green-deep);font-weight:700;font-size:12px;padding:7px 15px;border-radius:30px;white-space:nowrap}
   .badge .dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
-  /* tabs */
   .tabs{display:flex;gap:8px;margin:2px 0 14px}
   .tab{border:1px solid #cfe0d8;background:#f2f8f5;color:var(--green-deep);font-weight:700;font-size:14px;padding:9px 20px;border-radius:10px 10px 0 0;cursor:pointer}
   .tab.on{background:var(--green-deep);color:#fff;border-color:var(--green-deep)}
   .scn{display:none}.scn.on{display:block}
   .card{background:#fff;border:1px solid #e7eee9;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
-  .card .ch{background:var(--green-deep);color:#fff;font-weight:700;font-size:12.5px;padding:8px 14px;display:flex;align-items:center;gap:8px}
-  .card .ch small{font-weight:400;opacity:.85;font-size:11px}
+  .card .ch{background:var(--green-deep);color:#fff;font-weight:700;font-size:12.5px;padding:8px 14px}
   .wrap{display:grid;grid-template-columns:1fr 430px;gap:16px;align-items:start}
-  /* ===== escena 3D ===== */
-  .stage{position:relative;height:560px;background:linear-gradient(180deg,#fbfdfc,#eef4f1);border-radius:10px;overflow:hidden}
+  /* ===== escena 3D de cubitos ===== */
+  .stage{position:relative;height:566px;background:linear-gradient(180deg,#fbfdfc,#eef4f1);border-radius:10px;overflow:hidden}
   .hint{position:absolute;left:12px;bottom:10px;font-size:11px;color:#8a9b93;background:#ffffffcc;border:1px solid #e3ece7;border-radius:8px;padding:4px 9px;z-index:5}
-  .scene{position:absolute;inset:0;perspective:1500px}
-  .cube{position:absolute;left:52%;top:48%;width:0;height:0;transform-style:preserve-3d;cursor:grab}
+  .scene{position:absolute;inset:0;perspective:1700px}
+  .cube{position:absolute;left:52%;top:47%;width:0;height:0;transform-style:preserve-3d;cursor:grab}
   .cube:active{cursor:grabbing}
-  .face{position:absolute;transform-style:preserve-3d}
-  .plane{position:absolute;transform-style:preserve-3d}
-  .cell{position:absolute;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#10241f;
-        border:1px solid #fff;box-shadow:inset 0 0 0 .6px #aebfba;}
-  .cell small{position:absolute;left:3px;bottom:1px;font-size:8.5px;font-weight:700;opacity:.8}
-  .cell.split{outline:2px dashed rgba(20,40,30,.5);outline-offset:-4px}
-  .side{position:absolute;background:rgba(205,217,212,.32);border:1px solid #cdd9d4}
-  .rlab{position:absolute;text-align:right;line-height:1.05}
-  .rlab b{font-size:11px;color:var(--mono);font-weight:700}
-  .rlab span{display:block;font-size:8.5px;color:var(--gray-txt);font-family:Consolas,monospace}
+  .cubie{position:absolute;left:50%;top:50%;transform-style:preserve-3d}
+  .cf{position:absolute;width:var(--s);height:var(--s);left:calc(var(--s)/-2);top:calc(var(--s)/-2);
+      border:1px solid rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;
+      font-weight:800;font-size:13px;color:#10241f}
+  .cf i{font-style:normal;font-size:8px;margin-left:1px;opacity:.75}
+  .cf.fr{transform:translateZ(var(--h))}
+  .cf.bk{transform:rotateY(180deg) translateZ(var(--h));filter:brightness(.85)}
+  .cf.rg{transform:rotateY(90deg) translateZ(var(--h));filter:brightness(.9)}
+  .cf.lf{transform:rotateY(-90deg) translateZ(var(--h));filter:brightness(.9)}
+  .cf.tp{transform:rotateX(90deg) translateZ(var(--h));filter:brightness(1.13)}
+  .cf.bt{transform:rotateX(-90deg) translateZ(var(--h));filter:brightness(.78)}
+  .cubie.dep .cf{outline:2px dashed rgba(20,45,30,.6);outline-offset:-3px}
+  .cubie:hover .cf{outline:2px solid #0a7d74;outline-offset:-1px}
+  /* etiquetas de ejes, en el plano frontal */
+  .lplane{position:absolute;left:50%;top:50%;transform-style:preserve-3d;pointer-events:none}
+  .rlab{position:absolute;text-align:right;display:flex;flex-direction:column;justify-content:center}
+  .rlab b{font-size:11px;color:var(--mono)}.rlab span{font-size:8.5px;color:var(--gray-txt);font-family:Consolas,monospace}
   .clab{position:absolute;text-align:center;font-size:12px;font-weight:700;color:var(--mono)}
   .czone{position:absolute;text-align:center;font-size:9px;font-weight:700;color:var(--gray-txt)}
   .atitle{position:absolute;color:var(--teal);font-weight:700;font-size:13px;text-align:center}
   .asub{position:absolute;color:var(--gray-txt);font-size:9.5px;text-align:center}
-  .stag{position:absolute;left:0;font-weight:800;font-size:12px;padding:3px 9px;border-radius:14px;white-space:nowrap}
-  .stag small{font-weight:500;opacity:.85}
-  .ftag{background:#0a7d74;color:#fff}
-  .btag{background:#e2e6e5;color:#3a4a46;border:1px solid #cdd9d4}
-  /* ===== panel ===== */
+  .depth{position:absolute;font-size:10px;color:var(--teal);font-weight:700}
+  /* tooltip */
+  .tip{position:fixed;z-index:60;pointer-events:none;background:#10241f;color:#fff;font-size:11px;line-height:1.4;
+       padding:8px 10px;border-radius:8px;max-width:270px;box-shadow:0 8px 20px rgba(0,0,0,.28);display:none}
+  .tip .bk{font-weight:800;font-size:12.5px}
+  .tip small{color:#9fd8bb;display:block;margin-top:3px}
+  /* panel */
   .skeyrow{display:flex;gap:10px;align-items:flex-start;background:#f5faf7;border:1px solid #e3efe8;border-radius:10px;padding:9px 11px;margin-bottom:10px}
   .skeytxt{font-size:11px;color:#23433c;line-height:1.45}.mut{color:#7c8c88}
   .leg{border-collapse:collapse;width:100%;font-size:11px}
@@ -71,29 +78,29 @@
   <div class="head">
     <div>
       <h1>Cubo de reglas · <span id="ttl">24 meses</span> <span class="sec">| 3D · Score Rebank × bucket Árbol 1 × Saldo Pasivo</span></h1>
-      <div class="subt">Las reglas del Árbol 2 en un espacio de 3 variables · la <b>profundidad</b> es el <b>Saldo Pasivo</b> (capa delantera = alto, trasera = bajo) · color = bucket final</div>
+      <div class="subt">Cada <b>cubito</b> = una combinación (Score × segmento × Saldo) → un bucket final · pasa el mouse sobre un cubito para ver qué es · color = bucket</div>
     </div>
     <span class="badge"><span class="dot"></span><span id="bdg">24m_sinedad_6</span></span>
   </div>
 
   <div class="tabs">
-    <div class="tab on" data-i="0" onclick="showScn(0)">24 meses · 24m_sinedad_6</div>
-    <div class="tab" data-i="1" onclick="showScn(1)">5 años · 5años_sinedad_4</div>
+    <div class="tab on" onclick="showScn(0)">24 meses · 24m_sinedad_6</div>
+    <div class="tab" onclick="showScn(1)">5 años · 5años_sinedad_4</div>
   </div>
 
   <div class="scn on" id="scn0"></div>
   <div class="scn" id="scn1"></div>
 
   <div class="foot">
-    <span><b>Score Rebank:</b> puntuacion_cal_cat (1–6, mejor→peor) · <b>bucket Árbol 1:</b> segmento (ordinal, bajo→alto) · <b>Saldo Pasivo:</b> saldo_prom_tot_pasivo_u3m.</span>
-    <span><b>Interacción:</b> arrastra el cubo para girarlo y ver la capa de <b>Saldo bajo</b> (atrás). Las casillas con borde punteado dependen del Saldo.</span>
+    <span><b>Score Rebank:</b> puntuacion_cal_cat (mejor→peor) · <b>bucket Árbol 1:</b> segmento (bajo→alto) · <b>Saldo Pasivo:</b> profundidad (▲ alto adelante · ▼ bajo atrás).</span>
+    <span><b>Interacción:</b> arrastra para girar · pasa el mouse por un cubito para su info · los cubitos con borde punteado dependen del Saldo (por eso se ven en dos capas).</span>
   </div>
 </div>
+<div class="tip" id="tip"></div>
 
 <script>
 const HUE=[130,118,106,95,83,71,59,47,35,24,12,0];
 const colB=n=>`hsl(${HUE[n-1]},60%,78%)`;
-
 const TASA24=[["B1","4.55%"],["B2","5.55%"],["B3","6.69%"],["B4","10.13%"],["B5","11.51%"],["B6","13.40%"],["B7","12.67%"],["B8","17.13%"],["B9","17.69%"],["B10","19.63%"],["B11","36.96%"],["B12","40.82%"]];
 const TASA5=[["B1","7.15%"],["B2","8.14%"],["B3","8.70%"],["B4","9.42%"],["B5","13.36%"],["B6","13.53%"],["B7","13.17%"],["B8","17.07%"],["B9","18.13%"],["B10","19.10%"],["B11","36.89%"],["B12","39.68%"]];
 const DESC24=["Mejor score · Saldo alto · mejor segmento → riesgo mínimo","Mejor score · Saldo alto · segmento alto","Mejor score · Saldo bajo","Score muy bueno · segmento bajo–medio","Score muy bueno · segmento alto","Score medio · segmento bajo–medio","Score medio · segmento alto","Score medio–bajo · segmento bajo","Score medio–bajo · segmento medio","Score medio–bajo · segmento alto","Score bajo · segmento bajo–medio → riesgo alto","Score bajo · segmento alto → riesgo máximo"];
@@ -121,106 +128,101 @@ const SC=[
   tasa:TASA5, desc:DESC5}
 ];
 
-const CS=58, DEPTH=150;   // tamaño de celda y profundidad (Saldo)
+const PITCH=60, HALF=30;   // separación entre cubitos y media profundidad de capa
 
-function planeCells(grid,which){   // which: 'f' (alto) | 'b' (bajo)
-  let h="";
-  grid.forEach((row,r)=>row.forEach((cell,c)=>{
-    const obj=typeof cell==="object";
-    const v = obj ? cell[which] : cell;
-    const other = obj ? (which==='f'?cell.b:cell.f) : null;
-    const mini = obj ? `<small>▼B${cell.b}</small>` : "";   // en la cara alto muestra el valor de saldo bajo
-    h+=`<div class="cell ${obj?'split':''}" style="left:${c*CS}px;top:${r*CS}px;width:${CS}px;height:${CS}px;background:${colB(v)}">B${v}${which==='f'?mini:''}</div>`;
-  }));
-  return h;
+function esc(s){return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function cubie(v,cx,cy,cz,r,c,saldo,spec,dep){
+  const col=colB(v);
+  const mark = saldo==='alto'?'<i>▲</i>' : saldo==='bajo'?'<i>▼</i>' : '';
+  const info = `<span class="bk">B${v}</span> · tasa ${spec.tasa[v-1][1]}`
+    +`<small>${spec.scoreCats[r]} <b style="color:#cfe">(${spec.rows[r]})</b></small>`
+    +`<small>segmento ${spec.colCats[c]} · bucket Árbol 1 = ${spec.cols[c]}</small>`
+    +`<small>Saldo Pasivo: ${saldo==='ambos'?'indiferente':saldo+' ('+(saldo==='alto'?'&gt; ':'≤ ')+spec.umbral+')'}</small>`
+    +`<small style="color:#fff">${spec.desc[v-1]}</small>`;
+  let f="";
+  ["fr","bk","rg","lf","tp","bt"].forEach(k=>{
+    f+=`<div class="cf ${k}" style="background:${col}">${k==='fr'?('B'+v+mark):''}</div>`;
+  });
+  return `<div class="cubie ${dep?'dep':''}" data-info="${esc(info)}" style="transform:translate3d(${cx}px,${cy}px,${cz}px)">${f}</div>`;
 }
 
-function axisLabels(spec){
-  const nr=spec.rows.length, nc=spec.cols.length, W=nc*CS, H=nr*CS;
-  let h="";
-  // filas (Score Rebank): categoría + umbral, a la izquierda
-  spec.rows.forEach((rw,r)=>{
-    h+=`<div class="rlab" style="left:-118px;top:${r*CS}px;width:110px;height:${CS}px;display:flex;flex-direction:column;justify-content:center"><b>${spec.scoreCats[r]}</b><span>${rw}</span></div>`;
-  });
-  // título eje vertical
-  h+=`<div class="atitle" style="left:-186px;top:${H/2-10}px;width:140px;transform:rotate(-90deg);transform-origin:center">Score Rebank</div>`;
-  h+=`<div class="asub" style="left:-205px;top:${H/2-6}px;width:140px;transform:rotate(-90deg);transform-origin:center">mejor (alto) → peor (bajo)</div>`;
-  // columnas (bucket) + zonas de segmento
-  spec.cols.forEach((cl,c)=>{ h+=`<div class="clab" style="left:${c*CS}px;top:${H+8}px;width:${CS}px">${cl}</div>`; });
-  let c=0;
-  while(c<nc){ let e=c; while(e+1<nc && spec.colCats[e+1]===spec.colCats[c]) e++;
-    h+=`<div class="czone" style="left:${c*CS}px;top:${H+26}px;width:${(e-c+1)*CS}px">seg. ${spec.colCats[c]}</div>`; c=e+1; }
+function labels3d(spec){
+  const nr=spec.rows.length, nc=spec.cols.length, W=nc*PITCH, H=nr*PITCH;
+  let h=`<div class="lplane" style="width:${W}px;height:${H}px;transform:translate(-50%,-50%) translateZ(${HALF+2}px)">`;
+  spec.rows.forEach((rw,r)=>{ h+=`<div class="rlab" style="left:-128px;top:${r*PITCH}px;width:120px;height:${PITCH}px"><b>${spec.scoreCats[r]}</b><span>${rw}</span></div>`; });
+  h+=`<div class="atitle" style="left:-208px;top:${H/2-10}px;width:150px;transform:rotate(-90deg);transform-origin:center">Score Rebank</div>`;
+  h+=`<div class="asub" style="left:-228px;top:${H/2-6}px;width:150px;transform:rotate(-90deg);transform-origin:center">mejor (alto) → peor (bajo)</div>`;
+  spec.cols.forEach((cl,c)=>{ h+=`<div class="clab" style="left:${c*PITCH}px;top:${H+8}px;width:${PITCH}px">${cl}</div>`; });
+  let c=0; while(c<nc){ let e=c; while(e+1<nc&&spec.colCats[e+1]===spec.colCats[c])e++;
+    h+=`<div class="czone" style="left:${c*PITCH}px;top:${H+26}px;width:${(e-c+1)*PITCH}px">seg. ${spec.colCats[c]}</div>`; c=e+1; }
   h+=`<div class="atitle" style="left:0;top:${H+46}px;width:${W}px">bucket Árbol 1 · segmento</div>`;
   h+=`<div class="asub" style="left:0;top:${H+64}px;width:${W}px">segmento bajo → alto (menor → mayor riesgo)</div>`;
-  // etiqueta de capa (Saldo alto, sobre la cara delantera)
-  h+=`<div class="stag ftag" style="top:-30px">▲ Saldo Pasivo alto <small>(&gt; ${spec.umbral})</small></div>`;
+  h+=`<div class="depth" style="left:${W+8}px;top:-26px;width:170px">Saldo Pasivo (profundidad)<br><span style="font-weight:500;color:#7c8c88">▲ alto adelante · ▼ bajo atrás</span></div>`;
+  h+=`</div>`;
   return h;
 }
 
 function buildScene(spec){
-  const nr=spec.rows.length, nc=spec.cols.length, W=nc*CS, H=nr*CS;
-  const front=planeCells(spec.grid,'f'), back=planeCells(spec.grid,'b');
-  // caras laterales del cubo (translúcidas) para dar volumen
-  const sides=`
-    <div class="side" style="width:${W}px;height:${DEPTH}px;transform:translate(-50%,-50%) rotateX(90deg) translateZ(${H/2}px)"></div>
-    <div class="side" style="width:${W}px;height:${DEPTH}px;transform:translate(-50%,-50%) rotateX(-90deg) translateZ(${H/2}px)"></div>
-    <div class="side" style="width:${DEPTH}px;height:${H}px;transform:translate(-50%,-50%) rotateY(90deg) translateZ(${W/2}px)"></div>
-    <div class="side" style="width:${DEPTH}px;height:${H}px;transform:translate(-50%,-50%) rotateY(-90deg) translateZ(${W/2}px)"></div>`;
-  return `
-  <div class="stage">
-    <div class="scene"><div class="cube" style="--W:${W};--H:${H}">
-      ${sides}
-      <div class="plane" style="width:${W}px;height:${H}px;transform:translate(-50%,-50%) translateZ(${DEPTH/2}px)">${front}${axisLabels(spec)}</div>
-      <div class="plane" style="width:${W}px;height:${H}px;transform:translate(-50%,-50%) translateZ(${-DEPTH/2}px)">${back}<div class="stag btag" style="top:-30px">▼ Saldo Pasivo bajo <small>(≤ ${spec.umbral})</small></div></div>
-    </div></div>
-    <div class="hint">🖱️ arrastra para girar · profundidad = Saldo Pasivo (▲ alto adelante · ▼ bajo atrás)</div>
-  </div>`;
+  const nr=spec.rows.length, nc=spec.cols.length;
+  let cub="";
+  spec.grid.forEach((row,r)=>row.forEach((cell,c)=>{
+    const cx=(c-(nc-1)/2)*PITCH, cy=(r-(nr-1)/2)*PITCH, obj=typeof cell==="object";
+    if(obj){
+      cub+=cubie(cell.f,cx,cy,+HALF,r,c,'alto',spec,true);
+      cub+=cubie(cell.b,cx,cy,-HALF,r,c,'bajo',spec,true);
+    }else{
+      cub+=cubie(cell,cx,cy,0,r,c,'ambos',spec,false);
+    }
+  }));
+  return `<div class="stage"><div class="scene"><div class="cube">${cub}${labels3d(spec)}</div></div>
+    <div class="hint">🖱️ arrastra para girar · pasa el mouse por un cubito para ver qué es</div></div>`;
 }
 
 function panel(spec){
   let leg="";
   spec.tasa.forEach((r,i)=>{ leg+=`<tr><td class="sw" style="background:${colB(i+1)}"></td><td class="bn">B${i+1}</td><td class="ta">${r[1]}</td><td class="ds">${spec.desc[i]}</td></tr>`; });
-  return `
-  <div class="card"><div class="ch">Bucket final → ¿qué cliente es?</div>
+  return `<div class="card"><div class="ch">Bucket final → ¿qué cliente es?</div>
     <div style="padding:10px 12px">
       <div class="skeyrow">
-        <svg width="44" height="44" viewBox="0 0 46 46" style="flex:0 0 44px">
+        <svg width="42" height="42" viewBox="0 0 46 46" style="flex:0 0 42px">
           <polygon points="3,3 43,3 43,43" fill="hsl(106,60%,78%)" stroke="#fff" stroke-width="1.5"/>
           <polygon points="3,3 3,43 43,43" fill="hsl(83,60%,78%)" stroke="#fff" stroke-width="1.5"/>
           <rect x="3" y="3" width="40" height="40" fill="none" stroke="#aebfba"/>
           <text x="33" y="15" font-size="9" font-weight="700" text-anchor="middle">▲</text>
           <text x="13" y="38" font-size="9" font-weight="700" text-anchor="middle">▼</text></svg>
-        <div class="skeytxt">La <b>profundidad</b> del cubo es el <b>Saldo Pasivo</b>. Donde el resultado cambia con el saldo, la casilla lleva <b>borde punteado</b> y muestra el valor de atrás (<b>▼B#</b>):<br>
-          <b>▲ Saldo alto</b> <span class="mut">(&gt; ${spec.umbral})</span> = cara delantera · <b>▼ Saldo bajo</b> <span class="mut">(≤ ${spec.umbral})</span> = cara trasera</div>
+        <div class="skeytxt">La <b>profundidad</b> es el <b>Saldo Pasivo</b>. Donde el resultado cambia con el saldo, el cubito se <b>desdobla en dos</b> (delante ▲ alto, detrás ▼ bajo) y lleva borde punteado:<br>
+          <b>▲ alto</b> <span class="mut">(&gt; ${spec.umbral})</span> · <b>▼ bajo</b> <span class="mut">(≤ ${spec.umbral})</span></div>
       </div>
       <table class="leg">${leg}</table>
-      <div class="note">Orden por <b>riesgo</b>: domina el <b>Score Rebank</b>; dentro de cada tramo de score sube el <b>segmento</b> del Árbol 1 (por eso el segmento "reinicia" al cambiar de tramo).</div>
-    </div>
-  </div>`;
+      <div class="note">Orden por <b>riesgo</b>: domina el <b>Score Rebank</b>; dentro de cada tramo de score sube el <b>segmento</b> del Árbol 1.</div>
+    </div></div>`;
 }
 
-// montar ambos escenarios
-SC.forEach((spec,i)=>{
-  document.getElementById("scn"+i).innerHTML=`<div class="wrap">${buildScene(spec)}${panel(spec)}</div>`;
-});
+SC.forEach((spec,i)=>{ document.getElementById("scn"+i).innerHTML=`<div class="wrap">${buildScene(spec)}${panel(spec)}</div>`; });
 
-// ----- interacción: girar cada cubo con arrastre -----
-const state=[{rx:16,ry:-26},{rx:16,ry:-26}];
-function applyRot(i){
-  const c=document.querySelectorAll(".cube")[i];
-  if(c) c.style.transform=`rotateX(${state[i].rx}deg) rotateY(${state[i].ry}deg)`;
-}
+// ---- girar cada cubo ----
+const state=[{rx:18,ry:-30},{rx:18,ry:-30}];
+function applyRot(i){ const c=document.querySelectorAll(".cube")[i]; if(c) c.style.transform=`rotateX(${state[i].rx}deg) rotateY(${state[i].ry}deg)`; }
 document.querySelectorAll(".cube").forEach((cube,i)=>{
   applyRot(i);
   let drag=false,px,py;
   cube.addEventListener("mousedown",e=>{drag=true;px=e.clientX;py=e.clientY;e.preventDefault();});
   window.addEventListener("mouseup",()=>drag=false);
-  window.addEventListener("mousemove",e=>{
-    if(!drag)return;
+  window.addEventListener("mousemove",e=>{ if(!drag)return;
     state[i].ry+=(e.clientX-px)*0.4; state[i].rx-=(e.clientY-py)*0.4;
-    state[i].rx=Math.max(-85,Math.min(85,state[i].rx));
-    px=e.clientX;py=e.clientY; applyRot(i);
+    state[i].rx=Math.max(-85,Math.min(85,state[i].rx)); px=e.clientX;py=e.clientY; applyRot(i); });
+});
+
+// ---- tooltip por cubito ----
+const tip=document.getElementById("tip");
+document.querySelectorAll(".scene").forEach(sc=>{
+  sc.addEventListener("mousemove",e=>{
+    const cu=e.target.closest(".cubie");
+    if(cu){ tip.innerHTML=cu.dataset.info; tip.style.display="block";
+      tip.style.left=Math.min(e.clientX+14,window.innerWidth-280)+"px"; tip.style.top=(e.clientY+14)+"px"; }
+    else tip.style.display="none";
   });
+  sc.addEventListener("mouseleave",()=>tip.style.display="none");
 });
 
 function showScn(i){
