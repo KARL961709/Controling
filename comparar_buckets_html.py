@@ -168,6 +168,15 @@ def comparar_buckets_html(
         cap_mask = rd_full[col_id].notna()
         rd_cap = rd_full[cap_mask]; rd_rech = rd_full[~cap_mask]
         n_rech = int(len(rd_rech)); m_rech = int(rd_rech[col_target].sum()) if n_rech else 0
+        # --- diagnóstico de Rechazo: nº de filas con nro_estrategia NULO por base ---
+        diag = []
+        for _base in ('rd', 'v1', 'v2', 'v3'):
+            _df = d.get(_base)
+            if _df is not None and col_id in _df.columns:
+                _nn = int(_df[col_id].isna().sum())
+                diag.append(f"{_base}={_nn:,}/{len(_df):,}")
+        print(f"  [rechazo] {nombre}: filas con {col_id} NULO -> " + " | ".join(diag)
+              + ("   (0 en todas = no debería salir Rechazo)" if all(x.split('=')[1].startswith('0/') for x in diag) else ""))
         res = _res(rd_cap)
         reglamap = dict(zip(res[col_id], res[col_regla]))
         ncl = dict(zip(res[col_id], res['cantidad'])); mal = dict(zip(res[col_id], res['malos']))
