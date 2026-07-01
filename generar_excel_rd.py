@@ -92,6 +92,11 @@ colores = {
 # Periodos ordenados
 periodos = sorted({d[0] for d in datos})
 
+def periodo_mmyy(p):
+    """Convierte 202309 -> '09/23'."""
+    s = str(p)
+    return "{}/{}".format(s[4:6], s[2:4])
+
 # Pivot: dict[bin][periodo] = tasa
 tabla = {b: {} for b in bins_orden}
 for periodo, b, tasa in datos:
@@ -109,7 +114,7 @@ for j, b in enumerate(bins_orden, start=2):
 
 # Filas de datos (una fila por periodo)
 for i, periodo in enumerate(periodos, start=2):
-    ws.cell(row=i, column=1, value=periodo)
+    ws.cell(row=i, column=1, value=periodo_mmyy(periodo))
     for j, b in enumerate(bins_orden, start=2):
         val = tabla[b].get(periodo)
         c = ws.cell(row=i, column=j, value=val)
