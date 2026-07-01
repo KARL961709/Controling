@@ -29,6 +29,7 @@
   .card .bd{padding:9px 12px}
 
   .grid3{display:grid;grid-template-columns:1.32fr 1fr 1fr;gap:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:13px 14px}
 
   table{width:100%;border-collapse:collapse;font-size:11.2px}
   th{background:#0a5a44;color:#fff;text-align:center;font-weight:600;padding:6px 7px;border:1px solid #0a5a44;white-space:nowrap}
@@ -41,8 +42,7 @@
   tr.rjr td{background:#eceff0;color:#4a5a56}
   td.totc,th.totc{background:#dff0ed;font-weight:700;color:#0a5a52}
   .bcell{font-weight:800;color:#10241f;vertical-align:middle}
-  table.camp td{padding:2.8px 8px}
-  table.camp td.l{padding-left:10px}
+  table.camp th{white-space:normal;overflow-wrap:break-word;word-break:break-word;font-size:9.2px;line-height:1.16;padding:5px 5px;vertical-align:middle}
 
   table.rl{font-size:9.8px}
   table.rl td{padding:2.8px 7px}
@@ -68,7 +68,7 @@
     <span class="badge"><span class="dot"></span>24m_sinedad_6</span>
   </div>
 
-  <div class="grid3">
+  <div class="grid2">
     <!-- Tasa por bucket -->
     <div class="card">
       <div class="ch">Tasa de riesgo por bucket</div>
@@ -128,26 +128,24 @@
         </table>
       </div>
     </div>
-  </div>
-
-  <div class="card teal" style="margin:14px auto 0;width:fit-content;min-width:560px">
-    <div class="ch teal">· Base de campañas <small>· periodo 20260624 · por tipo de campaña y bucket</small></div>
-    <div class="bd" style="padding:8px 13px">
-      <table class="camp" style="width:100%;font-size:11.6px">
-        <thead><tr><th class="l" style="text-align:left">p_fecinformacion</th><th class="l" style="text-align:left">tipo</th><th style="width:46px">Buck.</th><th style="width:96px">Cantidad</th></tr></thead>
-        <tbody>
-          <tr><td class="b" rowspan="9">20260624</td><td class="l" rowspan="2">TC_CMP_EST_CAST_24_T_CL1_3</td><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="num">9,641</td></tr>
-          <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="num">12,901</td></tr>
-          <tr><td class="l" rowspan="4">TC_CMP_EST_CAST_24_T_CL4</td><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="num">675</td></tr>
-          <tr><td class="bcell" style="background:hsl(108,60%,78%)">B2</td><td class="num">6,807</td></tr>
-          <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="num">4,106</td></tr>
-          <tr><td class="bcell" style="background:hsl(65,60%,78%)">B4</td><td class="num">21,133</td></tr>
-          <tr><td class="l" rowspan="3">TC_CMP_EST_CAS_24_IC</td><td class="bcell" style="background:hsl(43,60%,78%)">B5</td><td class="num">3,930</td></tr>
-          <tr><td class="bcell" style="background:hsl(22,60%,78%)">B6</td><td class="num">472</td></tr>
-          <tr><td class="bcell" style="background:hsl(0,60%,78%)">B7</td><td class="num">42</td></tr>
-          <tr class="tot"><td colspan="3">Total</td><td class="num">59,707</td></tr>
-        </tbody>
-      </table>
+    <!-- V1 · Base de campañas (pivote tipo × bucket) -->
+    <div class="card teal">
+      <div class="ch teal">· Base de campañas <small>· periodo 20260624 · tipo × bucket</small></div>
+      <div class="bd">
+        <table class="camp">
+          <thead><tr><th style="width:38px">Buck.</th><th>TC_CMP_EST_CAST_24_T_CL1_3</th><th>TC_CMP_EST_CAST_24_T_CL4</th><th>TC_CMP_EST_CAS_24_IC</th><th class="totc">Total</th></tr></thead>
+          <tbody>
+            <tr><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="num">9,641</td><td class="num">675</td><td class="num">0</td><td class="num totc">10,316</td></tr>
+            <tr><td class="bcell" style="background:hsl(108,60%,78%)">B2</td><td class="num">0</td><td class="num">6,807</td><td class="num">0</td><td class="num totc">6,807</td></tr>
+            <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="num">12,901</td><td class="num">4,106</td><td class="num">0</td><td class="num totc">17,007</td></tr>
+            <tr><td class="bcell" style="background:hsl(65,60%,78%)">B4</td><td class="num">0</td><td class="num">21,133</td><td class="num">0</td><td class="num totc">21,133</td></tr>
+            <tr><td class="bcell" style="background:hsl(43,60%,78%)">B5</td><td class="num">0</td><td class="num">0</td><td class="num">3,930</td><td class="num totc">3,930</td></tr>
+            <tr><td class="bcell" style="background:hsl(22,60%,78%)">B6</td><td class="num">0</td><td class="num">0</td><td class="num">472</td><td class="num totc">472</td></tr>
+            <tr><td class="bcell" style="background:hsl(0,60%,78%)">B7</td><td class="num">0</td><td class="num">0</td><td class="num">42</td><td class="num totc">42</td></tr>
+            <tr class="tot"><td>Tot</td><td class="num">22,542</td><td class="num">32,721</td><td class="num">4,444</td><td class="num">59,707</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -223,7 +221,7 @@
     <span class="badge"><span class="dot"></span>5años_sinedad_6</span>
   </div>
 
-  <div class="grid3">
+  <div class="grid2">
     <!-- Tasa por bucket -->
     <div class="card">
       <div class="ch">Tasa de riesgo por bucket</div>
@@ -283,28 +281,24 @@
         </table>
       </div>
     </div>
-  </div>
-
-  <div class="card teal" style="margin:14px auto 0;width:fit-content;min-width:560px">
-    <div class="ch teal">· Base de campañas <small>· periodo 20260624 · por tipo de campaña y bucket</small></div>
-    <div class="bd" style="padding:8px 13px">
-      <table class="camp" style="width:100%;font-size:11.6px">
-        <thead><tr><th class="l" style="text-align:left">p_fecinformacion</th><th class="l" style="text-align:left">tipo</th><th style="width:46px">Buck.</th><th style="width:96px">Cantidad</th></tr></thead>
-        <tbody>
-          <tr><td class="b" rowspan="11">20260624</td><td class="l" rowspan="4">TC_CMP_EST_5A_CAST_T</td><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="num">2,886</td></tr>
-          <tr><td class="bcell" style="background:hsl(108,60%,78%)">B2</td><td class="num">1,195</td></tr>
-          <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="num">7,532</td></tr>
-          <tr><td class="bcell" style="background:hsl(65,60%,78%)">B4</td><td class="num">1,198</td></tr>
-          <tr><td class="l" rowspan="7">TC_CMP_EST_CAS_5A_IC</td><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="num">837</td></tr>
-          <tr><td class="bcell" style="background:hsl(108,60%,78%)">B2</td><td class="num">3,881</td></tr>
-          <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="num">6,520</td></tr>
-          <tr><td class="bcell" style="background:hsl(65,60%,78%)">B4</td><td class="num">2,015</td></tr>
-          <tr><td class="bcell" style="background:hsl(43,60%,78%)">B5</td><td class="num">10,097</td></tr>
-          <tr><td class="bcell" style="background:hsl(22,60%,78%)">B6</td><td class="num">4,486</td></tr>
-          <tr><td class="bcell" style="background:hsl(0,60%,78%)">B7</td><td class="num">740</td></tr>
-          <tr class="tot"><td colspan="3">Total</td><td class="num">41,387</td></tr>
-        </tbody>
-      </table>
+    <!-- V1 · Base de campañas (pivote tipo × bucket) -->
+    <div class="card teal">
+      <div class="ch teal">· Base de campañas <small>· periodo 20260624 · tipo × bucket</small></div>
+      <div class="bd">
+        <table class="camp">
+          <thead><tr><th style="width:38px">Buck.</th><th>TC_CMP_EST_5A_CAST_T</th><th>TC_CMP_EST_CAS_5A_IC</th><th class="totc">Total</th></tr></thead>
+          <tbody>
+            <tr><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="num">2,886</td><td class="num">837</td><td class="num totc">3,723</td></tr>
+            <tr><td class="bcell" style="background:hsl(108,60%,78%)">B2</td><td class="num">1,195</td><td class="num">3,881</td><td class="num totc">5,076</td></tr>
+            <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="num">7,532</td><td class="num">6,520</td><td class="num totc">14,052</td></tr>
+            <tr><td class="bcell" style="background:hsl(65,60%,78%)">B4</td><td class="num">1,198</td><td class="num">2,015</td><td class="num totc">3,213</td></tr>
+            <tr><td class="bcell" style="background:hsl(43,60%,78%)">B5</td><td class="num">0</td><td class="num">10,097</td><td class="num totc">10,097</td></tr>
+            <tr><td class="bcell" style="background:hsl(22,60%,78%)">B6</td><td class="num">0</td><td class="num">4,486</td><td class="num totc">4,486</td></tr>
+            <tr><td class="bcell" style="background:hsl(0,60%,78%)">B7</td><td class="num">0</td><td class="num">740</td><td class="num totc">740</td></tr>
+            <tr class="tot"><td>Tot</td><td class="num">12,811</td><td class="num">28,576</td><td class="num">41,387</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
