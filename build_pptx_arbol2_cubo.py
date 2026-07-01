@@ -142,55 +142,56 @@ def slide_resumen(meses,scn,nestr,tasa,tasaT,v2,v2T,v3,v3T,tipos,tipoT):
     header(s,[(f"Buckets Árbol 2 · {meses} ",{'c':GREEN_DEEP,'b':True}),("| Tasa de riesgo y distribución V1 / V2 / V3",{'c':GRAY_TITLE,'b':True})],
            [(f"Escenario {scn} · 12 buckets sobre {nestr} estrategias del Árbol 2 (3 variables) · verde = menor riesgo, rojo = mayor",{'c':GRAY_TXT})],scn)
     C=PP_ALIGN.CENTER; L=PP_ALIGN.LEFT
-    TY=1.36; TH=3.50; rh=0.205; FS=8; HS=8.5
-    # Tasa (14 filas: hdr + 12 + total) · ahora con columna Prob.
-    ix,iy,iw=card(s,0.46,TY,4.55,TH,"Tasa de riesgo por bucket")
-    t=s.shapes.add_table(14,6,Inches(ix),Inches(iy),Inches(iw),Inches(rh*14)).table; t.first_row=False;t.horz_banding=False
-    ws=[0.4,0.95,0.68,0.68,0.72,iw-0.4-0.95-0.68-0.68-0.72]
+    LX,LW,RX,RW=0.46,6.13,6.74,6.13
+    TY,TH,BY=1.12,2.88,4.10
+    FS=7; HS=7.5; rh=0.165
+    # --- Tasa (arriba-izq) ---
+    ix,iy,iw=card(s,LX,TY,LW,TH,"Tasa de riesgo por bucket")
+    t=s.shapes.add_table(14,6,Inches(ix),Inches(iy),Inches(iw),Inches(0.19+rh*13)).table; t.first_row=False;t.horz_banding=False
+    ws=[0.42,1.4,0.85,0.85,1.05,iw-0.42-1.4-0.85-0.85-1.05]
     for j,wd in enumerate(ws):t.columns[j].width=Inches(wd)
     th_row(t,0,[("Buck.",C,''),("Estrat.",L,''),("Tasa",C,''),("Prob.",C,''),("N",C,''),("% tot",C,'')],size=HS)
     for i,r in enumerate(tasa,1):
-        buckcell(t.cell(i,0),r[0],i-1,size=HS); cell(t.cell(i,1),[(r[1],{'sz':FS})],align=L,nowrap=True)
-        cell(t.cell(i,2),[(r[2],{'sz':FS})],align=C,nowrap=True);cell(t.cell(i,3),[(P(r[5]),{'sz':FS})],align=C,nowrap=True)
-        cell(t.cell(i,4),[(r[3],{'sz':FS})],align=C,nowrap=True);cell(t.cell(i,5),[(R(r[4]),{'sz':FS})],align=C,nowrap=True)
-    cell(t.cell(13,0),"Tot",size=HS,bold=True,fill=TOT_BG,color=TOT_INK,nowrap=True)
+        buckcell(t.cell(i,0),r[0],i-1,size=FS,mgn=0.012); cell(t.cell(i,1),[(r[1],{'sz':FS})],align=L,nowrap=True,mgn=0.012)
+        cell(t.cell(i,2),[(r[2],{'sz':FS})],align=C,nowrap=True,mgn=0.012);cell(t.cell(i,3),[(P(r[5]),{'sz':FS})],align=C,nowrap=True,mgn=0.012)
+        cell(t.cell(i,4),[(r[3],{'sz':FS})],align=C,nowrap=True,mgn=0.012);cell(t.cell(i,5),[(R(r[4]),{'sz':FS})],align=C,nowrap=True,mgn=0.012)
+    cell(t.cell(13,0),"Tot",size=HS,bold=True,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.012)
     tvals=[(tasaT[0],L),(tasaT[1],C),(P(tasaT[4]),C),(tasaT[2],C),(R(tasaT[3]),C)]
-    for j,(v,al) in enumerate(tvals,1):cell(t.cell(13,j),[(v,{'b':True,'sz':FS})],align=al,fill=TOT_BG,color=TOT_INK,nowrap=True)
-    t.rows[0].height=Inches(0.2)
+    for j,(v,al) in enumerate(tvals,1):cell(t.cell(13,j),[(v,{'b':True,'sz':FS})],align=al,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.012)
+    t.rows[0].height=Inches(0.19)
     for i in range(1,14):t.rows[i].height=Inches(rh)
-    # V2/V3 (14 filas) · prob en %, score entero
-    for (cx,cw,ttl,data,tot) in [(5.18,3.66,"· Base inicial",v2,v2T),(9.01,3.86,"· Fuera de campaña",v3,v3T)]:
-        ix,iy,iw=card(s,cx,TY,cw,TH,ttl,hcolor=GREEN_BRIGHT)
-        tt=s.shapes.add_table(14,5,Inches(ix),Inches(iy),Inches(iw),Inches(rh*14)).table; tt.first_row=False;tt.horz_banding=False
-        ws2=[0.4,0.95,0.6,0.72,iw-0.4-0.95-0.6-0.72]
+    # --- V2 (arriba-der) · V3 (abajo-izq) ---
+    for (cx,cy,ttl,data,tot) in [(RX,TY,"· Base inicial",v2,v2T),(LX,BY,"· Fuera de campaña",v3,v3T)]:
+        ix,iy,iw=card(s,cx,cy,LW,TH,ttl,hcolor=GREEN_BRIGHT)
+        tt=s.shapes.add_table(14,5,Inches(ix),Inches(iy),Inches(iw),Inches(0.19+rh*13)).table; tt.first_row=False;tt.horz_banding=False
+        ws2=[0.42,1.45,0.95,1.15,iw-0.42-1.45-0.95-1.15]
         for j,wd in enumerate(ws2):tt.columns[j].width=Inches(wd)
         th_row(tt,0,[("Buck.",C,''),("Cantidad",C,''),("%",C,''),("Prob.",C,''),("score",C,'')],size=HS)
         for i,r in enumerate(data,1):
-            buckcell(tt.cell(i,0),f"B{i}",i-1,size=HS)
-            for j,val in enumerate([r[0],R(r[1]),P(r[2]),S(r[3])]):cell(tt.cell(i,j+1),[(val,{'sz':FS})],align=C,nowrap=True)
-        cell(tt.cell(13,0),"Tot",size=HS,bold=True,fill=TOT_BG,color=TOT_INK,nowrap=True)
-        for j,val in enumerate([tot[0],R(tot[1]),P(tot[2]),S(tot[3])]):cell(tt.cell(13,j+1),[(val,{'b':True,'sz':FS})],align=C,fill=TOT_BG,color=TOT_INK,nowrap=True)
-        tt.rows[0].height=Inches(0.2)
+            buckcell(tt.cell(i,0),f"B{i}",i-1,size=FS,mgn=0.012)
+            for j,val in enumerate([r[0],R(r[1]),P(r[2]),S(r[3])]):cell(tt.cell(i,j+1),[(val,{'sz':FS})],align=C,nowrap=True,mgn=0.012)
+        cell(tt.cell(13,0),"Tot",size=HS,bold=True,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.012)
+        for j,val in enumerate([tot[0],R(tot[1]),P(tot[2]),S(tot[3])]):cell(tt.cell(13,j+1),[(val,{'b':True,'sz':FS})],align=C,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.012)
+        tt.rows[0].height=Inches(0.19)
         for i in range(1,14):tt.rows[i].height=Inches(rh)
-    # V1 pivote por tipo (solo 20260624): tipo rows × 12 buckets + Total
-    nt=len(tipos)
-    VY=TY+TH+0.12
-    ix,iy,iw=card(s,0.46,VY,12.41,0.62+0.245*(nt+2),"· Base de campañas",hcolor=GREEN_TEAL,sub="· periodo 20260624 · tipo × bucket")
-    tv=s.shapes.add_table(nt+2,14,Inches(ix),Inches(iy),Inches(iw),Inches(0.245*(nt+2))).table; tv.first_row=False;tv.horz_banding=False
-    bcol=(iw-2.55-0.9)/12
-    wsv=[2.55]+[bcol]*12+[0.9]
-    for j,wd in enumerate(wsv):tv.columns[j].width=Inches(wd)
-    hv=[("tipo",L,'')]+[(f"B{k}",C,'') for k in range(1,13)]+[("Total",C,'tot')]
-    th_row(tv,0,hv,size=HS)
-    for i,r in enumerate(tipos,1):
-        cell(tv.cell(i,0),[(r[0],{'b':True,'sz':FS})],align=L,color=MONO_INK,nowrap=True)
-        for j in range(1,13):cell(tv.cell(i,j),[(r[j],{'sz':FS})],align=C,nowrap=True)
-        cell(tv.cell(i,13),[(r[13],{'sz':FS,'b':True})],align=C,fill=TOTC_BG,color=TOTC_INK,nowrap=True)
-    rr=nt+1
-    cell(tv.cell(rr,0),[("Total",{'b':True,'sz':FS})],align=L,fill=TOT_BG,color=TOT_INK,nowrap=True)
-    for j in range(12):cell(tv.cell(rr,j+1),[(tipoT[j],{'b':True,'sz':FS})],align=C,fill=TOT_BG,color=TOT_INK,nowrap=True)
-    cell(tv.cell(rr,13),[(tipoT[12],{'b':True,'sz':FS})],align=C,fill=TOT_BG,color=TOT_INK,nowrap=True)
-    for i in range(nt+2):tv.rows[i].height=Inches(0.245)
+    # --- V1 pivote por BUCKET (abajo-der): Buck | tipo1..N | Total ---
+    nt=len(tipos); ncol=1+nt+1; VF=6.5
+    ix,iy,iw=card(s,RX,BY,RW,TH,"· Base de campañas",hcolor=GREEN_TEAL,sub="· 20260624 · tipo × bucket")
+    tv=s.shapes.add_table(14,ncol,Inches(ix),Inches(iy),Inches(iw),Inches(0.34+0.155*13)).table; tv.first_row=False;tv.horz_banding=False
+    bw=0.38; totw=0.85; tw=(iw-bw-totw)/nt
+    for j,wd in enumerate([bw]+[tw]*nt+[totw]):tv.columns[j].width=Inches(wd)
+    cell(tv.cell(0,0),[("Buck.",{'sz':HS})],color=WHITE,bold=True,fill=TH_BG,align=C)
+    for j,tp in enumerate(tipos,1):cell(tv.cell(0,j),[(tp[0],{'sz':6})],color=WHITE,bold=True,fill=TH_BG,align=C)
+    cell(tv.cell(0,ncol-1),[("Total",{'sz':HS})],color=TOTC_INK,bold=True,fill=TOTC_BG,align=C)
+    for k in range(1,13):
+        buckcell(tv.cell(k,0),f"B{k}",k-1,size=VF,mgn=0.01)
+        for j in range(nt):cell(tv.cell(k,1+j),[(tipos[j][k],{'sz':VF})],align=C,nowrap=True,mgn=0.01)
+        cell(tv.cell(k,ncol-1),[(tipoT[k-1],{'sz':VF,'b':True})],align=C,fill=TOTC_BG,color=TOTC_INK,nowrap=True,mgn=0.01)
+    cell(tv.cell(13,0),[("Tot",{'sz':VF})],bold=True,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.01)
+    for j in range(nt):cell(tv.cell(13,1+j),[(tipos[j][13],{'sz':VF,'b':True})],align=C,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.01)
+    cell(tv.cell(13,ncol-1),[(tipoT[12],{'sz':VF,'b':True})],align=C,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.01)
+    tv.rows[0].height=Inches(0.34)
+    for k in range(1,14):tv.rows[k].height=Inches(0.155)
     footer(s,[("Tasa malos:"," % de target_60_12m=1 en la base de modelamiento (RD, n=45,459)."),
               ("V1:"," base de campañas por tipo (20260624) · V2: base de generación · V3: fuera de campaña."),
               ("Prob. / score:"," promedios por bucket.")])
