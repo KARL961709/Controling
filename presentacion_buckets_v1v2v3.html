@@ -41,6 +41,8 @@
   tr.rjr td{background:#eceff0;color:#4a5a56}
   td.totc,th.totc{background:#dff0ed;font-weight:700;color:#0a5a52}
   .bcell{font-weight:800;color:#10241f;vertical-align:middle}
+  table.camp td{padding:2.8px 8px}
+  table.camp td.l{padding-left:10px}
 
   table.rl{font-size:9.8px}
   table.rl td{padding:2.8px 7px}
@@ -128,16 +130,22 @@
     </div>
   </div>
 
-  <div class="card teal" style="margin-top:14px">
-    <div class="ch teal">· Base de campañas <small>· periodo 20260624 · por tipo de campaña × bucket</small></div>
+  <div class="card teal" style="margin:14px auto 0;width:fit-content;min-width:560px">
+    <div class="ch teal">· Base de campañas <small>· periodo 20260624 · por tipo de campaña y bucket</small></div>
     <div class="bd" style="padding:8px 13px">
-      <table style="font-size:11.6px">
-        <thead><tr><th class="l" style="text-align:left">p_fecinformacion</th><th class="l" style="text-align:left">tipo</th><th>B1</th><th>B2</th><th>B3</th><th>B4</th><th>B5</th><th>B6</th><th>B7</th><th class="rj">Rechazo</th><th class="totc">Total</th></tr></thead>
+      <table class="camp" style="width:100%;font-size:11.6px">
+        <thead><tr><th class="l" style="text-align:left">p_fecinformacion</th><th class="l" style="text-align:left">tipo</th><th style="width:46px">Buck.</th><th style="width:96px">Cantidad</th></tr></thead>
         <tbody>
-          <tr><td class="b">20260624</td><td class="l">TC_CMP_EST_CAST_24_T_CL1_3</td><td class="num">9,641</td><td class="num">0</td><td class="num">12,901</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num rj">0</td><td class="num totc">22,542</td></tr>
-          <tr><td class="b">20260624</td><td class="l">TC_CMP_EST_CAST_24_T_CL4</td><td class="num">675</td><td class="num">6,807</td><td class="num">4,106</td><td class="num">21,133</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num rj">0</td><td class="num totc">32,721</td></tr>
-          <tr><td class="b">20260624</td><td class="l">TC_CMP_EST_CAS_24_IC</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">3,930</td><td class="num">472</td><td class="num">42</td><td class="num rj">0</td><td class="num totc">4,444</td></tr>
-          <tr class="tot"><td colspan="2">Total</td><td class="num">10,316</td><td class="num">6,807</td><td class="num">17,007</td><td class="num">21,133</td><td class="num">3,930</td><td class="num">472</td><td class="num">42</td><td class="num">0</td><td class="num">59,707</td></tr>
+          <tr><td class="b" rowspan="9">20260624</td><td class="l" rowspan="2">TC_CMP_EST_CAST_24_T_CL1_3</td><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="num">9,641</td></tr>
+          <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="num">12,901</td></tr>
+          <tr><td class="l" rowspan="4">TC_CMP_EST_CAST_24_T_CL4</td><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="num">675</td></tr>
+          <tr><td class="bcell" style="background:hsl(108,60%,78%)">B2</td><td class="num">6,807</td></tr>
+          <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="num">4,106</td></tr>
+          <tr><td class="bcell" style="background:hsl(65,60%,78%)">B4</td><td class="num">21,133</td></tr>
+          <tr><td class="l" rowspan="3">TC_CMP_EST_CAS_24_IC</td><td class="bcell" style="background:hsl(43,60%,78%)">B5</td><td class="num">3,930</td></tr>
+          <tr><td class="bcell" style="background:hsl(22,60%,78%)">B6</td><td class="num">472</td></tr>
+          <tr><td class="bcell" style="background:hsl(0,60%,78%)">B7</td><td class="num">42</td></tr>
+          <tr class="tot"><td colspan="3">Total</td><td class="num">59,707</td></tr>
         </tbody>
       </table>
     </div>
@@ -277,15 +285,24 @@
     </div>
   </div>
 
-  <div class="card teal" style="margin-top:14px">
-    <div class="ch teal">· Base de campañas <small>· periodo 20260624 · por tipo de campaña × bucket</small></div>
+  <div class="card teal" style="margin:14px auto 0;width:fit-content;min-width:560px">
+    <div class="ch teal">· Base de campañas <small>· periodo 20260624 · por tipo de campaña y bucket</small></div>
     <div class="bd" style="padding:8px 13px">
-      <table style="font-size:11.6px">
-        <thead><tr><th class="l" style="text-align:left">p_fecinformacion</th><th class="l" style="text-align:left">tipo</th><th>B1</th><th>B2</th><th>B3</th><th>B4</th><th>B5</th><th>B6</th><th>B7</th><th class="rj">Rechazo</th><th class="totc">Total</th></tr></thead>
+      <table class="camp" style="width:100%;font-size:11.6px">
+        <thead><tr><th class="l" style="text-align:left">p_fecinformacion</th><th class="l" style="text-align:left">tipo</th><th style="width:46px">Buck.</th><th style="width:96px">Cantidad</th></tr></thead>
         <tbody>
-          <tr><td class="b">20260624</td><td class="l">TC_CMP_EST_5A_CAST_T</td><td class="num">2,886</td><td class="num">1,195</td><td class="num">7,532</td><td class="num">1,198</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num rj">0</td><td class="num totc">12,811</td></tr>
-          <tr><td class="b">20260624</td><td class="l">TC_CMP_EST_CAS_5A_IC</td><td class="num">837</td><td class="num">3,881</td><td class="num">6,520</td><td class="num">2,015</td><td class="num">10,097</td><td class="num">4,486</td><td class="num">740</td><td class="num rj">0</td><td class="num totc">28,576</td></tr>
-          <tr class="tot"><td colspan="2">Total</td><td class="num">3,723</td><td class="num">5,076</td><td class="num">14,052</td><td class="num">3,213</td><td class="num">10,097</td><td class="num">4,486</td><td class="num">740</td><td class="num">0</td><td class="num">41,387</td></tr>
+          <tr><td class="b" rowspan="11">20260624</td><td class="l" rowspan="4">TC_CMP_EST_5A_CAST_T</td><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="num">2,886</td></tr>
+          <tr><td class="bcell" style="background:hsl(108,60%,78%)">B2</td><td class="num">1,195</td></tr>
+          <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="num">7,532</td></tr>
+          <tr><td class="bcell" style="background:hsl(65,60%,78%)">B4</td><td class="num">1,198</td></tr>
+          <tr><td class="l" rowspan="7">TC_CMP_EST_CAS_5A_IC</td><td class="bcell" style="background:hsl(130,60%,78%)">B1</td><td class="num">837</td></tr>
+          <tr><td class="bcell" style="background:hsl(108,60%,78%)">B2</td><td class="num">3,881</td></tr>
+          <tr><td class="bcell" style="background:hsl(87,60%,78%)">B3</td><td class="num">6,520</td></tr>
+          <tr><td class="bcell" style="background:hsl(65,60%,78%)">B4</td><td class="num">2,015</td></tr>
+          <tr><td class="bcell" style="background:hsl(43,60%,78%)">B5</td><td class="num">10,097</td></tr>
+          <tr><td class="bcell" style="background:hsl(22,60%,78%)">B6</td><td class="num">4,486</td></tr>
+          <tr><td class="bcell" style="background:hsl(0,60%,78%)">B7</td><td class="num">740</td></tr>
+          <tr class="tot"><td colspan="3">Total</td><td class="num">41,387</td></tr>
         </tbody>
       </table>
     </div>
