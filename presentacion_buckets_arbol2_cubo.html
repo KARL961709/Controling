@@ -261,13 +261,15 @@ const V1P5T=["2,358","642","13,937","5,434","4,018","3,483","1,306","1,798","1,0
 const REG24=[[1,"pcc ≤ 1.5 & saldo > 349.07 & bk ≤ 1.5","5.0%","0.4%","161"],[1,"pcc ≤ 1.5 & saldo > 349.07 & bk (1.5, 2.5]","0.0%","0.0%","15"],[2,"pcc ≤ 1.5 & saldo > 349.07 & bk > 2.5","5.5%","5.6%","2,524"],[3,"pcc ≤ 1.5 & saldo ≤ 349.07 & bk ≤ 1.5","8.8%","0.6%","273"],[3,"pcc ≤ 1.5 & saldo ≤ 349.07 & bk (1.5, 2.5]","16.7%","0.1%","30"],[3,"pcc ≤ 1.5 & saldo ≤ 349.07 & bk (2.5, 3.5]","6.4%","6.3%","2,884"],[3,"pcc ≤ 1.5 & saldo ≤ 349.07 & bk > 3.5","6.3%","1.3%","600"],[3,"pcc (1.5, 2.5] & bk ≤ 2.5 & saldo > 349.07","7.3%","0.1%","55"],[4,"pcc (1.5, 2.5] & bk ≤ 2.5 & saldo ≤ 349.07","10.5%","0.6%","277"],[4,"pcc (1.5, 2.5] & bk (2.5, 3.5]","10.1%","11.0%","5,013"],[5,"pcc (1.5, 2.5] & bk (3.5, 4.5]","11.2%","1.6%","717"],[5,"pcc (1.5, 2.5] & bk > 4.5","11.9%","1.3%","604"],[6,"pcc (2.5, 3.5] & bk ≤ 1.5","14.8%","0.6%","257"],[6,"pcc (2.5, 3.5] & bk (1.5, 2.5]","14.3%","0.1%","49"],[6,"pcc (2.5, 3.5] & bk (2.5, 3.5]","13.3%","13.2%","6,023"],[7,"pcc (2.5, 3.5] & bk (3.5, 4.5]","13.3%","2.0%","919"],[7,"pcc (2.5, 3.5] & bk (4.5, 5.5]","12.4%","0.4%","186"],[7,"pcc (2.5, 3.5] & bk (5.5, 6.5]","12.0%","1.6%","750"],[8,"pcc (2.5, 3.5] & bk > 6.5","18.2%","0.5%","220"],[8,"pcc (3.5, 4.5] & bk ≤ 3.5","17.1%","11.2%","5,091"],[9,"pcc (3.5, 4.5] & bk (3.5, 4.5]","17.9%","1.5%","686"],[9,"pcc (3.5, 4.5] & bk (4.5, 5.5] & saldo > 349.07","11.8%","0.0%","17"],[9,"pcc (3.5, 4.5] & bk (4.5, 5.5] & saldo ≤ 349.07","17.4%","0.4%","190"],[10,"pcc (3.5, 4.5] & bk (5.5, 6.5]","19.9%","1.7%","787"],[10,"pcc (3.5, 4.5] & bk > 6.5","18.5%","0.5%","232"],[11,"pcc > 4.5 & bk ≤ 2.5","39.3%","0.7%","323"],[11,"pcc > 4.5 & bk (2.5, 3.5]","36.8%","25.9%","11,796"],[11,"pcc > 4.5 & bk (3.5, 4.5]","37.5%","3.7%","1,666"],[12,"pcc > 4.5 & bk (4.5, 6.5]","41.2%","5.5%","2,502"],[12,"pcc > 4.5 & bk > 6.5","39.1%","1.3%","612"]];
 const REG5=[[1,"pcc ≤ 2.5 & saldo > 220.89 & bk ≤ 4.5","7.2%","8.2%","3,733"],[2,"pcc ≤ 2.5 & saldo > 220.89 & bk > 4.5","8.1%","1.8%","835"],[3,"pcc ≤ 2.5 & saldo ≤ 220.89 & bk ≤ 4.5","8.7%","15.6%","7,078"],[4,"pcc ≤ 2.5 & saldo ≤ 220.89 & bk > 4.5","9.4%","3.3%","1,507"],[5,"pcc (2.5, 3.5] & bk ≤ 3.5","13.4%","13.9%","6,317"],[6,"pcc (2.5, 3.5] & bk (3.5, 5.5]","13.5%","2.0%","931"],[7,"pcc (2.5, 3.5] & bk (5.5, 6.5]","13.2%","2.5%","1,154"],[8,"pcc (2.5, 3.5] & bk > 6.5","50.0%","0.0%","2"],[8,"pcc (3.5, 4.5] & bk ≤ 3.5","17.1%","11.2%","5,082"],[9,"pcc (3.5, 4.5] & bk (3.5, 5.5]","18.1%","1.5%","695"],[10,"pcc (3.5, 4.5] & bk (5.5, 6.5]","19.1%","2.7%","1,225"],[11,"pcc (3.5, 4.5] & bk > 6.5","100%","0.0%","1"],[11,"pcc > 4.5 & bk ≤ 3.5","36.9%","26.6%","12,108"],[11,"pcc > 4.5 & bk (3.5, 4.5]","32.1%","0.1%","28"],[12,"pcc > 4.5 & bk (4.5, 6.5]","39.7%","10.5%","4,757"],[12,"pcc > 4.5 & bk > 6.5","16.7%","0.0%","6"]];
 
-const CUBE24={umbral:"349.07", rows:["≤ 1.5","(1.5, 2.5]","(2.5, 3.5]","(3.5, 4.5]","> 4.5"], cols:["1","2","3","4","5","6","7+"],
+const CUBE24={umbral:"349.07", rows:["≤ 1.5","(1.5, 2.5]","(2.5, 3.5]","(3.5, 4.5]","> 4.5"],
+ scoreCats:["Mejor score","Score muy bueno","Score medio","Score medio–bajo","Score bajo"], cols:["1","2","3","4","5","6","7+"],
  grid:[[{f:1,b:3},{f:1,b:3},{f:2,b:3},{f:2,b:3},{f:2,b:3},{f:2,b:3},{f:2,b:3}],
        [{f:3,b:4},{f:3,b:4},4,5,5,5,5],
        [6,6,6,7,7,7,8],
        [8,8,8,9,9,10,10],
        [11,11,11,11,12,12,12]]};
-const CUBE5={umbral:"220.89", rows:["≤ 2.5","(2.5, 3.5]","(3.5, 4.5]","> 4.5"], cols:["≤3","4","5","6","7+"],
+const CUBE5={umbral:"220.89", rows:["≤ 2.5","(2.5, 3.5]","(3.5, 4.5]","> 4.5"],
+ scoreCats:["Mejor score","Score medio","Score medio–bajo","Score bajo"], cols:["≤3","4","5","6","7+"],
  grid:[[{f:1,b:3},{f:1,b:3},{f:2,b:4},{f:2,b:4},{f:2,b:4}],
        [5,6,6,7,8],
        [8,9,9,10,11],
@@ -355,7 +357,7 @@ const SVGNS="http://www.w3.org/2000/svg";
 function E(t,a){const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
 function T(x,y,s,a){const t=E("text",Object.assign({x,y,"text-anchor":"middle","font-size":12,fill:"#10241f"},a||{}));t.textContent=s;return t;}
 function drawCube(id,spec){
-  const cs=56, lp=126, tp=74, dd=26, dyy=-18;
+  const cs=56, lp=152, tp=74, dd=26, dyy=-18;
   const nc=spec.cols.length, nr=spec.rows.length;
   const GW=nc*cs, GH=nr*cs;
   const W=lp+GW+dd+24, H=tp+GH+74;
@@ -378,21 +380,29 @@ function drawCube(id,spec){
     }
     svg.appendChild(E("rect",{x,y,width:cs,height:cs,fill:"none",stroke:"#aebfba","stroke-width":0.6}));
   }
-  // etiquetas filas (Score Rebank)
-  for(let r=0;r<nr;r++) svg.appendChild(T(ox-9,oy+r*cs+cs/2+1,spec.rows[r],{"text-anchor":"end","font-size":11,fill:"#23433c","font-family":"Consolas,monospace"}));
+  // etiquetas filas (Score Rebank): categoría + umbral (para corresponder con la tabla)
+  for(let r=0;r<nr;r++){
+    const cy=oy+r*cs+cs/2;
+    if(spec.scoreCats){
+      svg.appendChild(T(ox-11,cy-3,spec.scoreCats[r],{"text-anchor":"end","font-size":10.5,"font-weight":700,fill:"#23433c"}));
+      svg.appendChild(T(ox-11,cy+11,spec.rows[r],{"text-anchor":"end","font-size":9,fill:"#7c8c88","font-family":"Consolas,monospace"}));
+    }else{
+      svg.appendChild(T(ox-9,cy+1,spec.rows[r],{"text-anchor":"end","font-size":11,fill:"#23433c","font-family":"Consolas,monospace"}));
+    }
+  }
   // etiquetas columnas (bucket)
   for(let c=0;c<nc;c++) svg.appendChild(T(ox+c*cs+cs/2,oy+GH+16,spec.cols[c],{"font-size":11.5,"font-weight":700,fill:"#23433c"}));
-  // ----- títulos de ejes (nombre + flecha debajo, mismo sentido) -----
-  // Score Rebank (vertical): nombre y flecha hacia abajo
-  const vx1=ox-74, vx2=ox-90, vmid=oy+GH/2;
+  // ----- títulos de ejes (nombre + categoría/flecha debajo) -----
+  // Score Rebank (vertical)
+  const vx1=ox-112, vx2=ox-127, vmid=oy+GH/2;
   svg.appendChild(T(vx1,vmid,"Score Rebank",{"font-size":12.5,"font-weight":700,fill:"#007a72",transform:`rotate(-90 ${vx1} ${vmid})`}));
-  svg.appendChild(T(vx2,vmid,"mejor 1  →  6 peor",{"font-size":10,fill:"#7c8c88",transform:`rotate(-90 ${vx2} ${vmid})`}));
-  // bucket Árbol 1 (horizontal): nombre y flecha a la derecha, debajo
-  svg.appendChild(T(ox+GW/2,oy+GH+36,"bucket Árbol 1",{"font-size":12.5,"font-weight":700,fill:"#007a72"}));
-  svg.appendChild(T(ox+GW/2,oy+GH+52,"menor  →  mayor riesgo",{"font-size":10,fill:"#7c8c88"}));
+  svg.appendChild(T(vx2,vmid,"mejor (alto)  →  peor (bajo)",{"font-size":9.5,fill:"#7c8c88",transform:`rotate(-90 ${vx2} ${vmid})`}));
+  // bucket Árbol 1 (horizontal) = segmento
+  svg.appendChild(T(ox+GW/2,oy+GH+36,"bucket Árbol 1 · segmento",{"font-size":12.5,"font-weight":700,fill:"#007a72"}));
+  svg.appendChild(T(ox+GW/2,oy+GH+52,"segmento bajo  →  alto   (menor → mayor riesgo)",{"font-size":9.5,fill:"#7c8c88"}));
   // Saldo Pasivo (profundidad)
   svg.appendChild(T(ox+GW/2+dd+30,oy+dyy-18,"Saldo Pasivo",{"font-size":12,"font-weight":700,fill:"#007a72"}));
-  svg.appendChild(T(ox+GW/2+dd+30,oy+dyy-5,"(profundidad ↗)",{"font-size":9.5,fill:"#7c8c88"}));
+  svg.appendChild(T(ox+GW/2+dd+30,oy+dyy-5,"alto ▲  /  bajo ▼",{"font-size":9.5,fill:"#7c8c88"}));
   document.getElementById(id).appendChild(svg);
 }
 
