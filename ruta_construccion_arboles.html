@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ruta de construcción · Score Rebank</title>
+<style>
+  :root{
+    --green-deep:#1f5130; --green-deep2:#26603a; --green:#1aa44c; --green-bright:#1a9850;
+    --green-teal:#3a7d5c; --teal:#007a72; --green-soft:#e8f5ee;
+    --gray-title:#9aa6a0; --gray-txt:#5b6f66; --ink:#14271d; --mono:#23433c; --shadow:0 6px 20px rgba(20,60,40,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Roboto,Arial,sans-serif}
+  body{background:#dfe6e2;color:var(--ink);display:flex;justify-content:center;padding:26px}
+  .slide{width:1280px;min-height:720px;background:#fff;position:relative;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);padding:26px 40px 26px}
+  .head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+  h1{font-size:25px;font-weight:800;color:var(--green-deep);letter-spacing:-.3px;line-height:1.1}
+  h1 .sec{color:var(--gray-title)}
+  .subt{font-size:12.5px;color:var(--gray-txt);margin-top:4px}
+  .badge{display:inline-flex;align-items:center;gap:8px;background:var(--green-soft);color:var(--green-deep);font-weight:700;font-size:12px;padding:7px 14px;border-radius:30px;white-space:nowrap}
+  .badge .dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
+  /* toggles */
+  .tg{display:flex;gap:20px;align-items:center;margin:6px 0 4px;flex-wrap:wrap}
+  .tgset{display:flex;align-items:center;gap:8px}
+  .tgset .lb{font-size:11.5px;color:var(--gray-txt);font-weight:700}
+  .seg{display:inline-flex;background:#eef4f1;border:1px solid #d7e4de;border-radius:11px;padding:3px}
+  .seg button{border:none;background:transparent;color:var(--green-deep);font-weight:700;font-size:12.5px;padding:6px 15px;border-radius:8px;cursor:pointer}
+  .seg button.on{background:var(--green-deep);color:#fff}
+  .seg.sc button.on{background:var(--green-teal)}
+  /* ruta */
+  .route{margin:6px 0 2px}
+  svg.map{width:100%;height:auto;display:block}
+  .stn{cursor:pointer}
+  .stn circle.c{transition:.15s}
+  .stn:hover circle.c{filter:brightness(1.06)}
+  .stlabel{font-size:11px;fill:var(--mono);font-weight:700}
+  .stlabel.sub{font-size:9px;fill:var(--gray-txt);font-weight:600}
+  /* detalle */
+  .panel{display:grid;grid-template-columns:64px 1fr;gap:16px;background:#f7faf8;border:1px solid #e7eee9;border-radius:14px;padding:16px 18px;margin-top:8px;min-height:150px}
+  .pnum{width:52px;height:52px;border-radius:14px;background:var(--green-deep);color:#fff;font-weight:800;font-size:22px;display:flex;align-items:center;justify-content:center}
+  .ptitle{font-size:18px;font-weight:800;color:var(--green-deep);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .tag{font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px}
+  .tag.shared{background:#e9eefb;color:#34529c}
+  .tag.spec{background:#fff4e0;color:#b9821f}
+  .pbody{font-size:13px;color:var(--ink);line-height:1.55;margin-top:5px}
+  .pbody b{color:var(--green-deep)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}
+  .chip{font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:20px;background:var(--green-soft);color:var(--green-deep);border:1px solid #cfe6d8}
+  .chip.mono{font-family:Consolas,monospace;font-size:11px;background:#eef4f1;color:var(--mono);border-color:#dbe7e1}
+  .chip.mth{background:#e9eefb;color:#34529c;border-color:#d4ddf6}
+  /* bases (validación) */
+  .bases{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-top:11px}
+  .vc{border:1px solid #e7eee9;border-radius:11px;overflow:hidden;box-shadow:var(--shadow)}
+  .vc .vh{padding:6px 11px;color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;gap:7px}
+  .vc.v1 .vh{background:var(--green-deep)} .vc.v2 .vh{background:var(--green-bright)} .vc.v3 .vh{background:var(--green-teal)}
+  .vc .vh .t{background:rgba(255,255,255,.22);font-weight:800;font-size:10.5px;padding:1px 7px;border-radius:6px}
+  .vc .vb{padding:8px 11px;font-size:11px;color:var(--ink);line-height:1.4}
+  .nav{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+  .nav button{border:1px solid #cfe0d8;background:#fff;color:var(--green-deep);font-weight:700;font-size:12.5px;padding:7px 14px;border-radius:9px;cursor:pointer}
+  .nav button:hover{background:#f2f8f5}
+  .foot{margin-top:12px;border-top:1px solid #e3ece7;padding-top:8px;font-size:10px;color:#8a9b93;line-height:1.5;display:flex;flex-wrap:wrap;gap:3px 18px}
+  .foot b{color:var(--green-deep2)}
+</style>
+</head>
+<body>
+<div class="slide">
+  <div class="head">
+    <div>
+      <h1>Ruta de construcción <span class="sec">| Score Rebank · Árbol 1 → Árbol 2</span></h1>
+      <div class="subt">Recorre el proceso: del score bineado a los buckets finales · <b>el mismo motor corre en ambos árboles</b> · pincha una estación para ver el detalle</div>
+    </div>
+    <span class="badge"><span class="dot"></span><span id="ctx">Árbol 1 · 24 meses</span></span>
+  </div>
+
+  <div class="tg">
+    <div class="tgset"><span class="lb">Árbol</span>
+      <div class="seg" id="segTree">
+        <button class="on" data-t="a1" onclick="setTree('a1')">Árbol 1</button>
+        <button data-t="a2" onclick="setTree('a2')">Árbol 2</button>
+      </div>
+    </div>
+    <div class="tgset"><span class="lb">Escenario</span>
+      <div class="seg sc" id="segScn">
+        <button class="on" data-s="m24" onclick="setScn('m24')">24 meses</button>
+        <button data-s="a5" onclick="setScn('a5')">5 años</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--gray-txt)"><span style="color:#34529c;font-weight:700">■</span> paso común &nbsp; <span style="color:#b9821f;font-weight:700">■</span> depende del árbol/escenario</div>
+  </div>
+
+  <div class="route"><svg class="map" id="map" viewBox="0 0 1200 210" preserveAspectRatio="xMidYMid meet"></svg></div>
+
+  <div class="panel" id="panel"></div>
+
+  <div class="nav">
+    <button onclick="step(-1)">◀ Anterior</button>
+    <button onclick="step(1)">Siguiente ▶</button>
+  </div>
+
+  <div class="foot">
+    <span><b>Objetivo del árbol:</b> score (mayor score → menor riesgo) · <b>monotonic_cst / DIRECCION_NEGOCIO:</b> dirección esperada de cada variable.</span>
+    <span><b>Se prueba en:</b> V1 base de campañas · V2 base inicial · V3 fuera de campaña (pilotos actuales).</span>
+  </div>
+</div>
+
+<script>
+const SCN={m24:"24 meses",a5:"5 años"};
+const TREE={
+ a1:{nombre:"Árbol 1",
+     entradas:"Variables crudas del cliente (target = score). El árbol parte de las candidatas y conserva solo las de importancia > 0.",
+     vars:{m24:["segmentacion_gdp_v2 (ordinal)","rk_ing_num","meses_desde_primer_castigo"],
+           a5:["segmentacion_gdp_v2 (ordinal)","rk_ing_num","nro_entidades_castigo","deuda_cas"]},
+     cand:["castigo: deuda_cas · montos · nro_entidades · meses_desde_castigo","ingreso: rk_ing_num","demográficas: sexo · nivel_profesional · tipinstitucion","segmentacion_gdp_v2 (G1–G8)","edad_num (solo versión con edad)"],
+     estr:{m24:"21",a5:"15"}, bk:{m24:"7",a5:"7"}},
+ a2:{nombre:"Árbol 2",
+     entradas:"Re-segmenta usando el resultado del Árbol 1 + saldo + score (target = score). FAMILIAS_UNICAS deja una sola variable de saldo.",
+     vars:{m24:["bucket (resultado Árbol 1, ordinal)","saldo_prom_tot_pasivo_u3m","puntuacion_cal_cat (Score Rebank)"],
+           a5:["bucket (resultado Árbol 1, ordinal)","saldo_prom_tot_pasivo_u3m","puntuacion_cal_cat (Score Rebank)"]},
+     cand:["bucket B1–B8 (Árbol 1, ordinal)","saldo_prom_tot_pasivo_u3m (2–7 bins)","puntuacion_cal_cat (1–6)"],
+     estr:{m24:"30",a5:"16"}, bk:{m24:"12",a5:"12"}}
+};
+
+const STEPS=[
+ {n:"S", lab:"Score Rebank", sub:"base RD", shared:true,
+  title:"Base RD → Score Rebank",
+  body:(t,s)=>"Sobre la <b>base de desarrollo (RD, n=45,459)</b> se aplica <b>OptBinning</b> al <code>score</code> contra el <code>target</code> (6 bins, descendente). Los cortes fijan el <b>Score Rebank</b>: 1 (≥682.5, mejor) … 6 (&lt;426.5, peor).",
+  chips:()=>["OptBinning","score → target","6 bins","1 mejor … 6 peor"], cls:"" },
+ {n:1, lab:"Entradas", sub:"variables", shared:false,
+  title:(t)=>"Entradas · "+TREE[t].nombre,
+  body:(t,s)=>TREE[t].entradas,
+  chips:(t,s)=>TREE[t].vars[s], cls:"mono", cand:true },
+ {n:2, lab:"OptBinning", sub:"por variable", shared:true,
+  title:"OptBinning por variable (WoE)",
+  body:()=>"Cada variable se binea con <b>OptBinning (WoE)</b> forzando la <b>tendencia monótona por negocio</b> (<code>DIRECCION_NEGOCIO</code>). Ej.: <code>deuda_cas</code> + (más → más riesgo), <code>rk_ing_num</code> − (más → menos), <code>saldo</code> −. El saldo usa 2–7 bins.",
+  chips:()=>["WoE","monotonic_trend","DIRECCION_NEGOCIO","saldo 2–7 bins"], cls:"" },
+ {n:3, lab:"Imputación", sub:"missing", shared:true,
+  title:"Imputación de missing",
+  body:()=>"Los clientes <b>sin dato</b> se imputan con el <b>WoE del peor bin</b> (mayor riesgo): «sin información = más riesgo».",
+  chips:()=>["missing → peor bin","imputa siempre"], cls:"" },
+ {n:4, lab:"Árbol monótono", sub:"prof 4–7", shared:true,
+  title:"Árbol monótono",
+  body:()=>"<code>DecisionTreeRegressor</code> con <code>monotonic_cst</code> (respeta la dirección de cada variable) y <code>min_samples_leaf</code>. Se evalúan <b>profundidades 4, 5, 6 y 7</b>; el target es el score.",
+  chips:()=>["DecisionTreeRegressor","monotonic_cst","prof 4–7","target = score"], cls:"" },
+ {n:5, lab:"Poda", sub:"+ familias únicas", shared:true,
+  title:"Poda + Familias únicas",
+  body:()=>"<b>Poda:</b> se re-entrena solo con las variables de <b>importancia &gt; 0</b> (el modelo no exige columnas que no usa). <b>FAMILIAS_UNICAS:</b> de la familia «saldo» se conserva <b>una sola</b> variable (la de mayor importancia).",
+  chips:()=>["importancia > 0","FAMILIAS_UNICAS = saldo"], cls:"" },
+ {n:6, lab:"Estrategias", sub:"hojas", shared:false,
+  title:"Estrategias (hojas del árbol)",
+  body:(t,s)=>`Cada <b>hoja</b> es una <b>estrategia</b> rankeada por riesgo. Salida: <b>Excel + modelo <code>.pkl</code></b>. En ${TREE[t].nombre} · ${SCN[s]}: <b>${TREE[t].estr[s]} estrategias</b>.`,
+  chips:(t,s)=>[TREE[t].estr[s]+" estrategias","ranked por riesgo",".pkl + Excel"], cls:"" },
+ {n:7, lab:"Buckets", sub:"agrupación", shared:false,
+  title:"Agrupación en buckets",
+  body:(t,s)=>`Las estrategias se agrupan en <b>${TREE[t].bk[s]} buckets monótonos</b> probando <b>5 métodos de ordenamiento</b>. En ${TREE[t].nombre} (${SCN[s]}): <b>${TREE[t].estr[s]} → ${TREE[t].bk[s]}</b>.`,
+  chips:()=>["Cascada","ChiMerge","OptBin","Shrinkage","MDLP"], cls:"mth" },
+ {n:"✓", lab:"Validación", sub:"3 bases", shared:true,
+  title:"Se prueba en 3 bases",
+  body:()=>"Los buckets se validan midiendo su <b>distribución</b> en tres poblaciones distintas:",
+  chips:()=>[], cls:"", bases:true }
+];
+
+const BASES=[
+ ["v1","V1","Base de campañas","Clientes que hoy se envían en las <b>campañas piloto</b> (por tipo y fecha, p_fecinformacion)."],
+ ["v2","V2","Base inicial","Base completa de <b>generación</b> con la que se construyen los árboles (24m: 582,927 · 5a: 1,697,675)."],
+ ["v3","V3","Fuera de campaña","Clientes de la base que <b>no están</b> en las campañas piloto actuales (distribución de los no incluidos)."]
+];
+
+let T="a1", S="m24", CUR=0;
+
+// ---- dibujar la ruta ----
+function drawMap(){
+  const n=STEPS.length, W=1200, xL=64, xR=1136, dx=(xR-xL)/(n-1);
+  const pts=STEPS.map((st,i)=>({x:xL+i*dx, y:i%2===0?70:140}));
+  let path="M "+pts.map(p=>`${p.x} ${p.y}`).join(" L ");
+  let g=`<path id="rp" d="${path}" fill="none" stroke="#cfe0d8" stroke-width="5" stroke-linecap="round"/>`;
+  g+=`<path d="${path}" fill="none" stroke="#1aa44c" stroke-width="5" stroke-linecap="round" stroke-dasharray="3 1200"><animate attributeName="stroke-dashoffset" from="1203" to="3" dur="2.4s" fill="freeze"/></path>`;
+  // dot viajero
+  g+=`<circle r="7" fill="#007a72"><animateMotion dur="7s" repeatCount="indefinite" rotate="auto"><mpath href="#rp"/></animateMotion></circle>`;
+  STEPS.forEach((st,i)=>{
+    const p=pts[i], hue=130-(i/(n-1))*130, col=`hsl(${hue},52%,45%)`;
+    const active=i===CUR;
+    const ring=st.shared?"#34529c":"#b9821f";
+    g+=`<g class="stn" onclick="go(${i})">`;
+    if(active) g+=`<circle cx="${p.x}" cy="${p.y}" r="27" fill="none" stroke="${col}" stroke-width="2.5" opacity=".55"/>`;
+    g+=`<circle class="c" cx="${p.x}" cy="${p.y}" r="21" fill="${col}" stroke="${ring}" stroke-width="3"/>`;
+    g+=`<text x="${p.x}" y="${p.y+5}" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">${st.n}</text>`;
+    const ly=i%2===0?p.y-34:p.y+40;
+    g+=`<text class="stlabel" x="${p.x}" y="${ly}" text-anchor="middle">${st.lab}</text>`;
+    g+=`<text class="stlabel sub" x="${p.x}" y="${ly+11}" text-anchor="middle">${st.sub}</text>`;
+    g+=`</g>`;
+  });
+  document.getElementById("map").innerHTML=g;
+}
+
+function val(f){ return typeof f==="function" ? f(T,S) : f; }
+function renderPanel(){
+  const st=STEPS[CUR];
+  let chips="";
+  (val(st.chips)||[]).forEach(c=>{ chips+=`<span class="chip ${st.cls}">${c}</span>`; });
+  let extra="";
+  if(st.cand){ // muestra candidatas del árbol
+    extra=`<div style="margin-top:11px;font-size:11px;color:var(--gray-txt)"><b>Candidatas del ${TREE[T].nombre}:</b> `+
+          TREE[T].cand.join(" · ")+`</div>`;
+  }
+  if(st.bases){
+    extra=`<div class="bases">`+BASES.map(b=>
+      `<div class="vc ${b[0]}"><div class="vh"><span class="t">${b[1]}</span>${b[2]}</div><div class="vb">${b[3]}</div></div>`).join("")+`</div>`;
+    chips="";
+  }
+  const tag=st.shared?`<span class="tag shared">paso común</span>`:`<span class="tag spec">${TREE[T].nombre} · ${SCN[S]}</span>`;
+  document.getElementById("panel").innerHTML=
+    `<div class="pnum">${st.n}</div>`+
+    `<div><div class="ptitle">${val(st.title)} ${tag}</div>`+
+    `<div class="pbody">${val(st.body)}</div>`+
+    `<div class="chips">${chips}</div>${extra}</div>`;
+}
+function go(i){ CUR=Math.max(0,Math.min(STEPS.length-1,i)); drawMap(); renderPanel(); }
+function step(d){ go(CUR+d); }
+function refresh(){ document.getElementById("ctx").textContent=`${TREE[T].nombre} · ${SCN[S]}`; drawMap(); renderPanel(); }
+function setTree(t){ T=t; document.querySelectorAll("#segTree button").forEach(b=>b.classList.toggle("on",b.dataset.t===t)); refresh(); }
+function setScn(s){ S=s; document.querySelectorAll("#segScn button").forEach(b=>b.classList.toggle("on",b.dataset.s===s)); refresh(); }
+
+drawMap(); go(0);
+</script>
+</body>
+</html>
