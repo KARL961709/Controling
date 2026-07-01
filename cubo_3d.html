@@ -8,7 +8,7 @@
   :root{
     --green-deep:#1f5130; --green:#1aa44c; --green-bright:#1a9850; --teal:#007a72;
     --green-soft:#e8f5ee; --gray-title:#9aa6a0; --gray-txt:#5b6f66; --ink:#14271d; --mono:#23433c;
-    --shadow:0 6px 20px rgba(20,60,40,.08); --s:46px; --h:23px;
+    --shadow:0 6px 20px rgba(20,60,40,.08); --s:50px; --h:25px;
   }
   *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Roboto,Arial,sans-serif}
   body{background:#dfe6e2;color:var(--ink);display:flex;flex-direction:column;align-items:center;gap:18px;padding:26px}
@@ -29,21 +29,25 @@
   /* ===== escena 3D de cubitos ===== */
   .stage{position:relative;height:566px;background:linear-gradient(180deg,#fbfdfc,#eef4f1);border-radius:10px;overflow:hidden}
   .hint{position:absolute;left:12px;bottom:10px;font-size:11px;color:#8a9b93;background:#ffffffcc;border:1px solid #e3ece7;border-radius:8px;padding:4px 9px;z-index:5}
+  .flip{position:absolute;right:12px;top:12px;z-index:6;background:#0a7d74;color:#fff;border:none;border-radius:8px;
+        font-size:12px;font-weight:700;padding:7px 12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)}
   .scene{position:absolute;inset:0;perspective:1700px}
-  .cube{position:absolute;left:52%;top:47%;width:0;height:0;transform-style:preserve-3d;cursor:grab}
+  .cube{position:absolute;left:52%;top:47%;width:0;height:0;transform-style:preserve-3d;cursor:grab;transition:transform .45s ease}
+  .cube.drag{transition:none}
   .cube:active{cursor:grabbing}
   .cubie{position:absolute;left:50%;top:50%;transform-style:preserve-3d}
   .cf{position:absolute;width:var(--s);height:var(--s);left:calc(var(--s)/-2);top:calc(var(--s)/-2);
       border:1px solid rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;
-      font-weight:800;font-size:13px;color:#10241f}
-  .cf i{font-style:normal;font-size:8px;margin-left:1px;opacity:.75}
+      font-weight:800;font-size:13.5px;color:#10241f}
+  .cf i{font-style:normal;font-size:8px;margin-left:1px;opacity:.7;align-self:flex-start;margin-top:4px}
+  .cf em{position:absolute;left:3px;bottom:1px;font-size:8px;font-style:normal;font-weight:700;opacity:.8}
   .cf.fr{transform:translateZ(var(--h))}
-  .cf.bk{transform:rotateY(180deg) translateZ(var(--h));filter:brightness(.85)}
+  .cf.bk{transform:rotateY(180deg) translateZ(var(--h))}
   .cf.rg{transform:rotateY(90deg) translateZ(var(--h));filter:brightness(.9)}
   .cf.lf{transform:rotateY(-90deg) translateZ(var(--h));filter:brightness(.9)}
   .cf.tp{transform:rotateX(90deg) translateZ(var(--h));filter:brightness(1.13)}
-  .cf.bt{transform:rotateX(-90deg) translateZ(var(--h));filter:brightness(.78)}
-  .cubie.dep .cf{outline:2px dashed rgba(20,45,30,.6);outline-offset:-3px}
+  .cf.bt{transform:rotateX(-90deg) translateZ(var(--h));filter:brightness(.82)}
+  .cubie.dep .cf.fr,.cubie.dep .cf.bk{outline:2px dashed rgba(20,45,30,.6);outline-offset:-3px}
   .cubie:hover .cf{outline:2px solid #0a7d74;outline-offset:-1px}
   /* etiquetas de ejes, en el plano frontal */
   .lplane{position:absolute;left:50%;top:50%;transform-style:preserve-3d;pointer-events:none}
@@ -56,9 +60,10 @@
   .depth{position:absolute;font-size:10px;color:var(--teal);font-weight:700}
   /* tooltip */
   .tip{position:fixed;z-index:60;pointer-events:none;background:#10241f;color:#fff;font-size:11px;line-height:1.4;
-       padding:8px 10px;border-radius:8px;max-width:270px;box-shadow:0 8px 20px rgba(0,0,0,.28);display:none}
-  .tip .bk{font-weight:800;font-size:12.5px}
-  .tip small{color:#9fd8bb;display:block;margin-top:3px}
+       padding:8px 10px;border-radius:8px;max-width:280px;box-shadow:0 8px 20px rgba(0,0,0,.28);display:none}
+  .tip .bk{font-weight:800;font-size:12px;color:#fff}
+  .tip small{display:block;margin-top:3px}
+  .tip .mut2{color:#9fb3ac}
   /* panel */
   .skeyrow{display:flex;gap:10px;align-items:flex-start;background:#f5faf7;border:1px solid #e3efe8;border-radius:10px;padding:9px 11px;margin-bottom:10px}
   .skeytxt{font-size:11px;color:#23433c;line-height:1.45}.mut{color:#7c8c88}
@@ -78,7 +83,7 @@
   <div class="head">
     <div>
       <h1>Cubo de reglas · <span id="ttl">24 meses</span> <span class="sec">| 3D · Score Rebank × bucket Árbol 1 × Saldo Pasivo</span></h1>
-      <div class="subt">Cada <b>cubito</b> = una combinación (Score × segmento × Saldo) → un bucket final · pasa el mouse sobre un cubito para ver qué es · color = bucket</div>
+      <div class="subt">Cada <b>cubito</b> = una celda Score × segmento (cubo 3D rotable) · el <b>Saldo Pasivo</b> se elige con el botón (▲ alto / ▼ bajo) · las celdas con borde punteado cambian según el saldo · color = bucket · pasa el mouse por un cubito para ver qué es</div>
     </div>
     <span class="badge"><span class="dot"></span><span id="bdg">24m_sinedad_6</span></span>
   </div>
@@ -92,8 +97,8 @@
   <div class="scn" id="scn1"></div>
 
   <div class="foot">
-    <span><b>Score Rebank:</b> puntuacion_cal_cat (mejor→peor) · <b>bucket Árbol 1:</b> segmento (bajo→alto) · <b>Saldo Pasivo:</b> profundidad (▲ alto adelante · ▼ bajo atrás).</span>
-    <span><b>Interacción:</b> arrastra para girar · pasa el mouse por un cubito para su info · los cubitos con borde punteado dependen del Saldo (por eso se ven en dos capas).</span>
+    <span><b>Score Rebank:</b> puntuacion_cal_cat (mejor→peor) · <b>bucket Árbol 1:</b> segmento (bajo→alto) · <b>Saldo Pasivo:</b> capa seleccionable (▲ alto / ▼ bajo).</span>
+    <span><b>Interacción:</b> arrastra para girar los cubitos · usa el botón para alternar entre Saldo alto ▲ y bajo ▼ · las celdas con borde punteado son las que cambian con el saldo.</span>
   </div>
 </div>
 <div class="tip" id="tip"></div>
@@ -128,53 +133,58 @@ const SC=[
   tasa:TASA5, desc:DESC5}
 ];
 
-const PITCH=60, HALF=30;   // separación entre cubitos y media profundidad de capa
+const PITCH=66;   // separación entre cubitos (deja el hueco entre cubos)
 
 function esc(s){return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
-function cubie(v,cx,cy,cz,r,c,saldo,spec,dep){
-  const col=colB(v);
-  const mark = saldo==='alto'?'<i>▲</i>' : saldo==='bajo'?'<i>▼</i>' : '';
-  const info = `<span class="bk">B${v}</span> · tasa ${spec.tasa[v-1][1]}`
-    +`<small>${spec.scoreCats[r]} <b style="color:#cfe">(${spec.rows[r]})</b></small>`
-    +`<small>segmento ${spec.colCats[c]} · bucket Árbol 1 = ${spec.cols[c]}</small>`
-    +`<small>Saldo Pasivo: ${saldo==='ambos'?'indiferente':saldo+' ('+(saldo==='alto'?'&gt; ':'≤ ')+spec.umbral+')'}</small>`
-    +`<small style="color:#fff">${spec.desc[v-1]}</small>`;
+
+function cubie(cell,cx,cy,r,c,spec,mode){
+  const obj=typeof cell==="object";
+  const a=obj?cell.f:cell, b=obj?cell.b:cell;
+  const v = mode==='bajo'? b : a;
+  const cv=colB(v);
+  const info = `<span class="bk">Score: ${spec.scoreCats[r]} <span class="mut2">${spec.rows[r]}</span></span>`
+    +`<small class="mut2">segmento ${spec.colCats[c]} · bucket Árbol 1 = ${spec.cols[c]}</small>`
+    +`<small>▲ Saldo alto <span class="mut2">(&gt; ${spec.umbral})</span> → <b>B${a}</b> · tasa ${spec.tasa[a-1][1]}</small>`
+    +(obj?`<small>▼ Saldo bajo <span class="mut2">(≤ ${spec.umbral})</span> → <b>B${b}</b> · tasa ${spec.tasa[b-1][1]}</small>`
+         :`<small class="mut2">Saldo Pasivo: no cambia el resultado</small>`)
+    +`<small class="mut2">${spec.desc[a-1]}</small>`;
+  const mark = obj ? (mode==='bajo'? '<i>▼</i>' : '<i>▲</i>') : '';
+  const other = obj ? (mode==='bajo'? `<em>▲B${a}</em>` : `<em>▼B${b}</em>`) : '';
+  const lbl=`B${v}${mark}${other}`;
   let f="";
-  ["fr","bk","rg","lf","tp","bt"].forEach(k=>{
-    f+=`<div class="cf ${k}" style="background:${col}">${k==='fr'?('B'+v+mark):''}</div>`;
-  });
-  return `<div class="cubie ${dep?'dep':''}" data-info="${esc(info)}" style="transform:translate3d(${cx}px,${cy}px,${cz}px)">${f}</div>`;
+  f+=`<div class="cf fr" style="background:${cv}">${lbl}</div>`;
+  f+=`<div class="cf bk" style="background:${cv}">B${v}</div>`;
+  ["rg","lf","tp","bt"].forEach(k=>{ f+=`<div class="cf ${k}" style="background:${cv}"></div>`; });
+  return `<div class="cubie ${obj?'dep':''}" data-info="${esc(info)}" style="transform:translate3d(${cx}px,${cy}px,0)">${f}</div>`;
+}
+function cubesHTML(spec,mode){
+  const nr=spec.rows.length, nc=spec.cols.length; let cub="";
+  spec.grid.forEach((row,r)=>row.forEach((cell,c)=>{
+    cub+=cubie(cell,(c-(nc-1)/2)*PITCH,(r-(nr-1)/2)*PITCH,r,c,spec,mode);
+  }));
+  return cub;
 }
 
 function labels3d(spec){
   const nr=spec.rows.length, nc=spec.cols.length, W=nc*PITCH, H=nr*PITCH;
-  let h=`<div class="lplane" style="width:${W}px;height:${H}px;transform:translate(-50%,-50%) translateZ(${HALF+2}px)">`;
+  let h=`<div class="lplane" style="width:${W}px;height:${H}px;transform:translate(-50%,-50%) translateZ(26px)">`;
   spec.rows.forEach((rw,r)=>{ h+=`<div class="rlab" style="left:-128px;top:${r*PITCH}px;width:120px;height:${PITCH}px"><b>${spec.scoreCats[r]}</b><span>${rw}</span></div>`; });
-  h+=`<div class="atitle" style="left:-208px;top:${H/2-10}px;width:150px;transform:rotate(-90deg);transform-origin:center">Score Rebank</div>`;
-  h+=`<div class="asub" style="left:-228px;top:${H/2-6}px;width:150px;transform:rotate(-90deg);transform-origin:center">mejor (alto) → peor (bajo)</div>`;
+  h+=`<div class="atitle" style="left:-210px;top:${H/2-10}px;width:150px;transform:rotate(-90deg);transform-origin:center">Score Rebank</div>`;
+  h+=`<div class="asub" style="left:-230px;top:${H/2-6}px;width:150px;transform:rotate(-90deg);transform-origin:center">mejor (alto) → peor (bajo)</div>`;
   spec.cols.forEach((cl,c)=>{ h+=`<div class="clab" style="left:${c*PITCH}px;top:${H+8}px;width:${PITCH}px">${cl}</div>`; });
   let c=0; while(c<nc){ let e=c; while(e+1<nc&&spec.colCats[e+1]===spec.colCats[c])e++;
     h+=`<div class="czone" style="left:${c*PITCH}px;top:${H+26}px;width:${(e-c+1)*PITCH}px">seg. ${spec.colCats[c]}</div>`; c=e+1; }
   h+=`<div class="atitle" style="left:0;top:${H+46}px;width:${W}px">bucket Árbol 1 · segmento</div>`;
   h+=`<div class="asub" style="left:0;top:${H+64}px;width:${W}px">segmento bajo → alto (menor → mayor riesgo)</div>`;
-  h+=`<div class="depth" style="left:${W+8}px;top:-26px;width:170px">Saldo Pasivo (profundidad)<br><span style="font-weight:500;color:#7c8c88">▲ alto adelante · ▼ bajo atrás</span></div>`;
+  h+=`<div class="depth" style="left:${W+6}px;top:-24px;width:150px">Saldo Pasivo<br><span style="font-weight:500;color:#7c8c88">▲ alto / ▼ bajo (botón)</span></div>`;
   h+=`</div>`;
   return h;
 }
 
-function buildScene(spec){
-  const nr=spec.rows.length, nc=spec.cols.length;
-  let cub="";
-  spec.grid.forEach((row,r)=>row.forEach((cell,c)=>{
-    const cx=(c-(nc-1)/2)*PITCH, cy=(r-(nr-1)/2)*PITCH, obj=typeof cell==="object";
-    if(obj){
-      cub+=cubie(cell.f,cx,cy,+HALF,r,c,'alto',spec,true);
-      cub+=cubie(cell.b,cx,cy,-HALF,r,c,'bajo',spec,true);
-    }else{
-      cub+=cubie(cell,cx,cy,0,r,c,'ambos',spec,false);
-    }
-  }));
-  return `<div class="stage"><div class="scene"><div class="cube">${cub}${labels3d(spec)}</div></div>
+function buildScene(spec,mode){
+  return `<div class="stage">
+    <button class="flip" onclick="flip(this)">Ver Saldo bajo ▼</button>
+    <div class="scene"><div class="cube">${cubesHTML(spec,mode)}${labels3d(spec)}</div></div>
     <div class="hint">🖱️ arrastra para girar · pasa el mouse por un cubito para ver qué es</div></div>`;
 }
 
@@ -190,7 +200,7 @@ function panel(spec){
           <rect x="3" y="3" width="40" height="40" fill="none" stroke="#aebfba"/>
           <text x="33" y="15" font-size="9" font-weight="700" text-anchor="middle">▲</text>
           <text x="13" y="38" font-size="9" font-weight="700" text-anchor="middle">▼</text></svg>
-        <div class="skeytxt">La <b>profundidad</b> es el <b>Saldo Pasivo</b>. Donde el resultado cambia con el saldo, el cubito se <b>desdobla en dos</b> (delante ▲ alto, detrás ▼ bajo) y lleva borde punteado:<br>
+        <div class="skeytxt">El <b>Saldo Pasivo</b> es la 3ª variable: con el botón <b>Ver Saldo alto/bajo</b> alternas la capa mostrada. Las celdas que <b>cambian</b> con el saldo llevan <b>borde punteado</b> y un <b>▼B#/▲B#</b> con el valor de la otra capa:<br>
           <b>▲ alto</b> <span class="mut">(&gt; ${spec.umbral})</span> · <b>▼ bajo</b> <span class="mut">(≤ ${spec.umbral})</span></div>
       </div>
       <table class="leg">${leg}</table>
@@ -198,20 +208,31 @@ function panel(spec){
     </div></div>`;
 }
 
-SC.forEach((spec,i)=>{ document.getElementById("scn"+i).innerHTML=`<div class="wrap">${buildScene(spec)}${panel(spec)}</div>`; });
+const modes=["alto","alto"];
+SC.forEach((spec,i)=>{ document.getElementById("scn"+i).innerHTML=`<div class="wrap">${buildScene(spec,modes[i])}${panel(spec)}</div>`; });
 
 // ---- girar cada cubo ----
-const state=[{rx:18,ry:-30},{rx:18,ry:-30}];
+const state=[{rx:16,ry:-26},{rx:16,ry:-26}];
 function applyRot(i){ const c=document.querySelectorAll(".cube")[i]; if(c) c.style.transform=`rotateX(${state[i].rx}deg) rotateY(${state[i].ry}deg)`; }
 document.querySelectorAll(".cube").forEach((cube,i)=>{
   applyRot(i);
   let drag=false,px,py;
-  cube.addEventListener("mousedown",e=>{drag=true;px=e.clientX;py=e.clientY;e.preventDefault();});
-  window.addEventListener("mouseup",()=>drag=false);
+  cube.addEventListener("mousedown",e=>{drag=true;px=e.clientX;py=e.clientY;cube.classList.add("drag");e.preventDefault();});
+  window.addEventListener("mouseup",()=>{drag=false;cube.classList.remove("drag");});
   window.addEventListener("mousemove",e=>{ if(!drag)return;
     state[i].ry+=(e.clientX-px)*0.4; state[i].rx-=(e.clientY-py)*0.4;
     state[i].rx=Math.max(-85,Math.min(85,state[i].rx)); px=e.clientX;py=e.clientY; applyRot(i); });
 });
+// ---- alternar capa de Saldo (sin voltear: evita ejes espejados) ----
+function flip(btn){
+  const scn=btn.closest(".scn"); const i=[...document.querySelectorAll(".scn")].indexOf(scn);
+  modes[i]= modes[i]==="alto" ? "bajo" : "alto";
+  const cube=document.querySelectorAll(".cube")[i];
+  cube.classList.add("drag");                       // sin transición al reconstruir
+  cube.innerHTML=cubesHTML(SC[i],modes[i])+labels3d(SC[i]);
+  cube.classList.remove("drag");
+  btn.textContent = modes[i]==="alto" ? "Ver Saldo bajo ▼" : "Ver Saldo alto ▲";
+}
 
 // ---- tooltip por cubito ----
 const tip=document.getElementById("tip");
@@ -219,7 +240,7 @@ document.querySelectorAll(".scene").forEach(sc=>{
   sc.addEventListener("mousemove",e=>{
     const cu=e.target.closest(".cubie");
     if(cu){ tip.innerHTML=cu.dataset.info; tip.style.display="block";
-      tip.style.left=Math.min(e.clientX+14,window.innerWidth-280)+"px"; tip.style.top=(e.clientY+14)+"px"; }
+      tip.style.left=Math.min(e.clientX+14,window.innerWidth-290)+"px"; tip.style.top=Math.min(e.clientY+14,window.innerHeight-140)+"px"; }
     else tip.style.display="none";
   });
   sc.addEventListener("mouseleave",()=>tip.style.display="none");
