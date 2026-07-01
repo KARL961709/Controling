@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ruta de construcción · slide</title>
+<style>
+  :root{
+    --green-deep:#1f5130; --green-deep2:#26603a; --green:#1aa44c; --green-bright:#1a9850;
+    --green-teal:#2f7d70; --teal:#007a72; --green-soft:#e8f5ee;
+    --gray-title:#9aa6a0; --gray-txt:#5b6f66; --ink:#14271d; --shadow:0 6px 20px rgba(20,60,40,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Roboto,Arial,sans-serif}
+  body{background:#dfe6e2;display:flex;justify-content:center;padding:26px}
+  .slide{width:1280px;height:720px;background:#fff;position:relative;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);padding:26px 40px 16px}
+  .head{margin-bottom:6px}
+  h1{font-size:25px;font-weight:800;color:var(--green-deep);letter-spacing:-.3px;line-height:1.1}
+  h1 .sec{color:var(--gray-title)}
+  .subt{font-size:12.5px;color:var(--gray-txt);margin-top:4px}
+  .badge{position:absolute;top:26px;right:40px;display:inline-flex;align-items:center;gap:8px;background:var(--green-soft);color:var(--green-deep);font-weight:700;font-size:12px;padding:7px 14px;border-radius:30px}
+  .badge .dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
+  svg.route{width:100%;height:118px;display:block;margin-top:8px}
+  .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-top:2px}
+  .card{border:1px solid #e7eee9;border-radius:12px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:430px}
+  .card .ch{color:#fff;padding:8px 10px;display:flex;align-items:center;gap:8px}
+  .card .ch .n{background:rgba(255,255,255,.24);width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:0 0 20px}
+  .card .ch .tt{font-weight:800;font-size:12.5px;line-height:1.12}
+  .card.deep .ch{background:var(--green-deep)}
+  .card.t1 .ch{background:var(--green-teal)}
+  .card.t2 .ch{background:var(--green-bright)}
+  .card .bd{padding:9px 11px;flex:1}
+  .blt{list-style:none;display:flex;flex-direction:column;gap:7px}
+  .blt li{position:relative;padding-left:13px;font-size:10.6px;line-height:1.36;color:var(--ink)}
+  .blt li:before{content:"";position:absolute;left:0;top:6px;width:5px;height:5px;border-radius:50%;background:var(--green)}
+  .blt li b{color:var(--green-deep)}
+  .blt li .hi{background:#fff4e0;color:#9a6a12;font-weight:700;border-radius:5px;padding:0 4px}
+  .mth{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}
+  .mth span{font-size:9.5px;font-weight:700;background:#e9eefb;color:#34529c;border:1px solid #d4ddf6;border-radius:20px;padding:2px 8px}
+  .foot{position:absolute;left:40px;right:40px;bottom:10px;border-top:1px solid #e3ece7;padding-top:7px;font-size:9.6px;color:#8a9b93;line-height:1.45;display:flex;flex-wrap:wrap;gap:3px 18px}
+  .foot b{color:var(--green-deep2)}
+  @media print{ body{background:#fff;padding:0} .slide{box-shadow:none;border-radius:0} }
+</style>
+</head>
+<body>
+<div class="slide">
+  <div class="head">
+    <h1>Ruta de construcción <span class="sec">| Score Rebank · el Árbol 1 alimenta al Árbol 2</span></h1>
+    <div class="subt">Un solo recorrido: del score a los buckets finales · el <b>resultado del Árbol 1 entra como insumo del Árbol 2</b></div>
+  </div>
+  <span class="badge"><span class="dot"></span>24 meses y 5 años</span>
+
+  <svg class="route" viewBox="0 0 1200 118" preserveAspectRatio="xMidYMid meet">
+    <!-- línea base -->
+    <line x1="100" y1="70" x2="1100" y2="70" stroke="#cfe0d8" stroke-width="5" stroke-linecap="round"/>
+    <!-- tramo enfatizado 3 -> 4 (el bucket entra al Árbol 2) -->
+    <line x1="500" y1="70" x2="700" y2="70" stroke="#1aa44c" stroke-width="6" stroke-linecap="round"/>
+    <polygon points="694,63 712,70 694,77" fill="#1aa44c"/>
+    <text x="600" y="52" text-anchor="middle" font-size="11.5" font-weight="800" fill="#137a4a">el bucket del Árbol 1</text>
+    <text x="600" y="98" text-anchor="middle" font-size="10.5" fill="#5b6f66">entra al Árbol 2</text>
+    <!-- brackets de grupo -->
+    <text x="400" y="16" text-anchor="middle" font-size="12" font-weight="800" fill="#2f7d70">ÁRBOL 1 · segmentación base</text>
+    <path d="M300 24 L300 32 L500 32 L500 24" fill="none" stroke="#2f7d70" stroke-width="1.6"/>
+    <text x="800" y="16" text-anchor="middle" font-size="12" font-weight="800" fill="#1a9850">ÁRBOL 2 · refinamiento</text>
+    <path d="M700 24 L700 32 L900 32 L900 24" fill="none" stroke="#1a9850" stroke-width="1.6"/>
+    <!-- estaciones -->
+    <g id="stations"></g>
+  </svg>
+
+  <div class="grid">
+    <div class="card deep"><div class="ch"><span class="n">1</span><span class="tt">Score Rebank</span></div>
+      <div class="bd"><ul class="blt">
+        <li>Se parte de la <b>base de desarrollo</b> (clientes con resultado conocido de riesgo).</li>
+        <li>El score se <b>agrupa en 6 tramos</b> según su nivel de riesgo.</li>
+        <li>Resultado: <b>categoría de Score Rebank</b>, de <b>1 (mejor)</b> a <b>6 (peor)</b>.</li>
+      </ul></div>
+    </div>
+
+    <div class="card t1"><div class="ch"><span class="n">2</span><span class="tt">Árbol 1 · segmentación</span></div>
+      <div class="bd"><ul class="blt">
+        <li>Entra: <b>variables del cliente</b> — segmento comercial, ranking de ingreso y comportamiento de castigo (deuda, entidades, meses desde el castigo).</li>
+        <li>Cada variable se <b>agrupa en tramos ordenados por riesgo</b>; sin dato = mayor riesgo.</li>
+        <li>Un <b>árbol de decisión</b> que respeta la dirección de riesgo de cada variable (se prueban profundidades 4 a 7).</li>
+        <li>Se conserva <b>solo las variables que aportan</b>.</li>
+        <li>Salida: <b>estrategias</b> (hojas) ordenadas por riesgo.</li>
+      </ul></div>
+    </div>
+
+    <div class="card t1"><div class="ch"><span class="n">3</span><span class="tt">Buckets del Árbol 1</span></div>
+      <div class="bd"><ul class="blt">
+        <li>Las estrategias se <b>agrupan en 7 buckets</b>, de menor a mayor riesgo.</li>
+        <li><b>24 meses:</b> 21 estrategias → 7 buckets.</li>
+        <li><b>5 años:</b> 15 estrategias → 7 buckets.</li>
+        <li><span class="hi">Este bucket es el insumo del Árbol 2.</span></li>
+      </ul></div>
+    </div>
+
+    <div class="card t2"><div class="ch"><span class="n">4</span><span class="tt">Árbol 2 · refinamiento</span></div>
+      <div class="bd"><ul class="blt">
+        <li>Entra: el <b>bucket del Árbol 1</b> + el <b>saldo pasivo promedio (3 meses)</b> + la <b>categoría de Score Rebank</b>.</li>
+        <li><b>Mismo procedimiento</b>: agrupar variables por riesgo → árbol de decisión monótono → conservar solo lo que aporta.</li>
+        <li>De las variables de <b>saldo pasivo</b> se deja <b>una sola</b> (la más importante).</li>
+        <li>Salida: <b>estrategias más finas</b>.</li>
+      </ul></div>
+    </div>
+
+    <div class="card t2"><div class="ch"><span class="n">5</span><span class="tt">Buckets finales</span></div>
+      <div class="bd"><ul class="blt">
+        <li>Las estrategias se <b>agrupan en 12 buckets finales</b> ordenados por riesgo.</li>
+        <li><b>24 meses:</b> 30 estrategias → 12 · <b>5 años:</b> 16 → 12.</li>
+        <li>Métodos de <b>ordenamiento</b> probados:</li>
+      </ul>
+      <div class="mth"><span>Cascada</span><span>ChiMerge</span><span>OptBin</span><span>Shrinkage</span><span>MDLP</span></div>
+      </div>
+    </div>
+
+    <div class="card deep"><div class="ch"><span class="n">6</span><span class="tt">Validación</span></div>
+      <div class="bd"><ul class="blt">
+        <li><b>Base de campañas:</b> clientes que hoy se envían en los pilotos.</li>
+        <li><b>Base inicial:</b> la base con la que se construyen los árboles.</li>
+        <li><b>Base fuera de campaña:</b> clientes que no están en los pilotos actuales.</li>
+        <li>En cada una se mide la <b>distribución de los buckets</b>.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span><b>Objetivo del árbol:</b> ordenar por score (mayor score → menor riesgo) · las variables entran con su dirección de riesgo esperada.</span>
+    <span><b>Árbol 1 → Árbol 2:</b> el bucket del primer árbol es una entrada del segundo · el saldo pasivo solo aparece en el Árbol 2.</span>
+  </div>
+</div>
+
+<script>
+// dibuja las 6 estaciones alineadas con las 6 columnas
+const N=6, xs=[100,300,500,700,900,1100];
+const cols=["#1f5130","#2f7d70","#2f7d70","#1a9850","#1a9850","#1f5130"];
+let g="";
+for(let i=0;i<N;i++){
+  g+=`<circle cx="${xs[i]}" cy="70" r="21" fill="${cols[i]}" stroke="#fff" stroke-width="3"/>`;
+  g+=`<text x="${xs[i]}" y="76" text-anchor="middle" font-size="16" font-weight="800" fill="#fff">${i+1}</text>`;
+}
+document.getElementById("stations").innerHTML=g;
+</script>
+</body>
+</html>
