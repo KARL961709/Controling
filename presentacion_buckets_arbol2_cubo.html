@@ -263,6 +263,7 @@ const REG5=[[1,"pcc ≤ 2.5 & saldo > 220.89 & bk ≤ 4.5","7.2%","8.2%","3,733"
 
 const CUBE24={umbral:"349.07", rows:["≤ 1.5","(1.5, 2.5]","(2.5, 3.5]","(3.5, 4.5]","> 4.5"],
  scoreCats:["Mejor score","Score muy bueno","Score medio","Score medio–bajo","Score bajo"], cols:["1","2","3","4","5","6","7+"],
+ colCats:["bajo","bajo","medio","medio","medio","alto","alto"],
  grid:[[{f:1,b:3},{f:1,b:3},{f:2,b:3},{f:2,b:3},{f:2,b:3},{f:2,b:3},{f:2,b:3}],
        [{f:3,b:4},{f:3,b:4},4,5,5,5,5],
        [6,6,6,7,7,7,8],
@@ -270,6 +271,7 @@ const CUBE24={umbral:"349.07", rows:["≤ 1.5","(1.5, 2.5]","(2.5, 3.5]","(3.5, 
        [11,11,11,11,12,12,12]]};
 const CUBE5={umbral:"220.89", rows:["≤ 2.5","(2.5, 3.5]","(3.5, 4.5]","> 4.5"],
  scoreCats:["Mejor score","Score medio","Score medio–bajo","Score bajo"], cols:["≤3","4","5","6","7+"],
+ colCats:["bajo","bajo","medio","alto","alto"],
  grid:[[{f:1,b:3},{f:1,b:3},{f:2,b:4},{f:2,b:4},{f:2,b:4}],
        [5,6,6,7,8],
        [8,9,9,10,11],
@@ -360,7 +362,7 @@ function drawCube(id,spec){
   const cs=56, lp=152, tp=74, dd=26, dyy=-18;
   const nc=spec.cols.length, nr=spec.rows.length;
   const GW=nc*cs, GH=nr*cs;
-  const W=lp+GW+dd+24, H=tp+GH+74;
+  const W=lp+GW+dd+24, H=tp+GH+86;
   const ox=lp, oy=tp;
   const svg=E("svg",{viewBox:`0 0 ${W} ${H}`,width:W,style:`max-width:100%;height:auto`});
   // caras de profundidad (cubo)
@@ -390,19 +392,30 @@ function drawCube(id,spec){
       svg.appendChild(T(ox-9,cy+1,spec.rows[r],{"text-anchor":"end","font-size":11,fill:"#23433c","font-family":"Consolas,monospace"}));
     }
   }
-  // etiquetas columnas (bucket)
-  for(let c=0;c<nc;c++) svg.appendChild(T(ox+c*cs+cs/2,oy+GH+16,spec.cols[c],{"font-size":11.5,"font-weight":700,fill:"#23433c"}));
+  // etiquetas columnas (bucket) + categoría de segmento por zona
+  for(let c=0;c<nc;c++) svg.appendChild(T(ox+c*cs+cs/2,oy+GH+15,spec.cols[c],{"font-size":11.5,"font-weight":700,fill:"#23433c"}));
+  if(spec.colCats){
+    let c=0;
+    while(c<nc){
+      let e=c; while(e+1<nc && spec.colCats[e+1]===spec.colCats[c]) e++;
+      const zx=ox+((c+e)/2)*cs+cs/2;
+      svg.appendChild(T(zx,oy+GH+29,"seg. "+spec.colCats[c],{"font-size":9,"font-weight":600,fill:"#7c8c88"}));
+      c=e+1;
+    }
+  }
   // ----- títulos de ejes (nombre + categoría/flecha debajo) -----
   // Score Rebank (vertical)
   const vx1=ox-112, vx2=ox-127, vmid=oy+GH/2;
   svg.appendChild(T(vx1,vmid,"Score Rebank",{"font-size":12.5,"font-weight":700,fill:"#007a72",transform:`rotate(-90 ${vx1} ${vmid})`}));
   svg.appendChild(T(vx2,vmid,"mejor (alto)  →  peor (bajo)",{"font-size":9.5,fill:"#7c8c88",transform:`rotate(-90 ${vx2} ${vmid})`}));
   // bucket Árbol 1 (horizontal) = segmento
-  svg.appendChild(T(ox+GW/2,oy+GH+36,"bucket Árbol 1 · segmento",{"font-size":12.5,"font-weight":700,fill:"#007a72"}));
-  svg.appendChild(T(ox+GW/2,oy+GH+52,"segmento bajo  →  alto   (menor → mayor riesgo)",{"font-size":9.5,fill:"#7c8c88"}));
-  // Saldo Pasivo (profundidad)
-  svg.appendChild(T(ox+GW/2+dd+30,oy+dyy-18,"Saldo Pasivo",{"font-size":12,"font-weight":700,fill:"#007a72"}));
-  svg.appendChild(T(ox+GW/2+dd+30,oy+dyy-5,"alto ▲  /  bajo ▼",{"font-size":9.5,fill:"#7c8c88"}));
+  svg.appendChild(T(ox+GW/2,oy+GH+46,"bucket Árbol 1 · segmento",{"font-size":12.5,"font-weight":700,fill:"#007a72"}));
+  svg.appendChild(T(ox+GW/2,oy+GH+61,"segmento bajo  →  alto   (menor → mayor riesgo)",{"font-size":9.5,fill:"#7c8c88"}));
+  // Saldo Pasivo (profundidad): dos categorías + umbral
+  const dcx=ox+GW/2+dd+34, dcy=oy+dyy;
+  svg.appendChild(T(dcx,dcy-30,"Saldo Pasivo",{"font-size":12,"font-weight":700,fill:"#007a72"}));
+  svg.appendChild(T(dcx,dcy-16,`▲ alto (> ${spec.umbral})`,{"font-size":9,fill:"#7c8c88"}));
+  svg.appendChild(T(dcx,dcy-3,`▼ bajo (≤ ${spec.umbral})`,{"font-size":9,fill:"#7c8c88"}));
   document.getElementById(id).appendChild(svg);
 }
 
