@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """PPTX nativo y editable del deck de buckets (4 slides) — replica
-presentacion_buckets_v1v2v3.html con tablas/formas/textos reales."""
+presentacion_buckets_v1v2v3.html (layout 2x2 + tabla V1 pivoteada)."""
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
@@ -19,6 +19,7 @@ TOT_BG=RGBColor(0xCF,0xE9,0xE4); TOT_INK=RGBColor(0x08,0x4B,0x44)
 RJ_BG=RGBColor(0xEC,0xEF,0xF0); RJ_INK=RGBColor(0x4A,0x5A,0x56)
 TOTC_BG=RGBColor(0xDF,0xF0,0xED); TOTC_INK=RGBColor(0x0A,0x5A,0x52)
 FONT="Segoe UI"; MONO="Consolas"
+C=PP_ALIGN.CENTER; L=PP_ALIGN.LEFT; R=PP_ALIGN.RIGHT
 
 def hsl(h, s=0.60, l=0.78):
     c=(1-abs(2*l-1))*s; x=c*(1-abs((h/60.0)%2-1)); m=l-c/2
@@ -70,7 +71,7 @@ def set_border(cell,color=BORDER,w=9525):
 def cell(c,runs,size=11,color=INK,bold=False,align=PP_ALIGN.CENTER,fill=None,font=FONT,anchor=MSO_ANCHOR.MIDDLE,mgn=0.03,nowrap=False):
     if fill is not None: c.fill.solid(); c.fill.fore_color.rgb=fill
     else: c.fill.background()
-    c.vertical_anchor=anchor; c.margin_left=Inches(0.06); c.margin_right=Inches(0.05)
+    c.vertical_anchor=anchor; c.margin_left=Inches(0.05); c.margin_right=Inches(0.04)
     c.margin_top=Inches(mgn); c.margin_bottom=Inches(mgn)
     tf=c.text_frame; tf.word_wrap=(not nowrap)
     p=tf.paragraphs[0]; p.alignment=align
@@ -86,7 +87,7 @@ def card(s,x,y,w,h,title,hcolor=GREEN_DEEP,sub=None,hh=0.34):
     rrect(s,x,y,w,h,WHITE,line=CARD_LINE,radius=0.12)
     rrect(s,x,y,w,hh,hcolor,radius=0.12); rect(s,x,y+hh-0.13,w,0.13,hcolor)
     runs=[(title,{'b':True,'sz':13,'c':WHITE})]
-    if sub: runs.append(("   "+sub,{'sz':10.5,'c':WHITE}))
+    if sub: runs.append(("   "+sub,{'sz':10,'c':WHITE}))
     tb(s,x+0.15,y,w-0.3,hh,runs,anchor=MSO_ANCHOR.MIDDLE)
     return x+0.14,y+hh+0.07,w-0.28
 
@@ -106,50 +107,56 @@ def footer(s,items):
 
 def add_slide(): return prs.slides.add_slide(BLANK)
 
-# ---- tablas reutilizables ----
-def th_row(t,row,headers,widths):
+def th_row(t,row,headers,size=10.5):
     for j,(htxt,al,sp) in enumerate(headers):
         fill=TH_BG; col=WHITE
         if sp=='rj': fill=RJ_BG; col=RJ_INK
         if sp=='tot': fill=TOTC_BG; col=TOTC_INK
-        cell(t.cell(row,j),htxt,size=10.5,color=col,bold=True,fill=fill,align=al)
+        cell(t.cell(row,j),[(htxt,{'sz':size})],color=col,bold=True,fill=fill,align=al)
 
-def buckcell(c,label,hue_idx,size=10.5,mgn=0.03):
-    cell(c,label,size=size,color=INK,bold=True,fill=BUCK[hue_idx],align=PP_ALIGN.CENTER,mgn=mgn)
+def buckcell(c,label,hue_idx,size=10.5,mgn=0.02):
+    cell(c,[(label,{'sz':size})],color=INK,bold=True,fill=BUCK[hue_idx],align=PP_ALIGN.CENTER,mgn=mgn)
 
-# ====== datos ======
-TASA_24=[("B1","1, 2, 3","16.89%","1,403","3.1%"),("B2","4, 5","20.56%","214","0.5%"),
- ("B3","6, 7, 8, 9, 10","20.75%","32,719","72.0%"),("B4","11, 12, 13","21.41%","4,611","10.1%"),
- ("B5","14, 15, 16, 17","27.28%","942","2.1%"),("B6","18, 19","26.86%","4,318","9.5%"),
- ("B7","20, 21","26.92%","1,252","2.8%")]
-TASA_24_TOT=("21 estrat.","21.58%","45,459","100%")
-V2_24=[("19,103","3.3%","0.330","669.9"),("19,102","3.3%","0.354","646.0"),("76,066","13.0%","0.395","604.9"),
- ("150,105","25.8%","0.422","577.2"),("245,492","42.1%","0.446","553.4"),("53,558","9.2%","0.463","536.9"),
- ("19,501","3.3%","0.482","517.5")]; V2_24_TOT=("582,927","100%","0.429","570.4"); V2_24_RJ=None
-V3_24=[("13,317","2.5%","0.337","663.0"),("13,673","2.6%","0.363","636.3"),("57,746","11.0%","0.404","595.7"),
- ("125,534","24.0%","0.430","569.3"),("240,860","46.0%","0.447","552.1"),("52,916","10.1%","0.463","536.2"),
- ("19,438","3.7%","0.482","517.3")]; V3_24_TOT=("523,484","100%","0.436","563.2"); V3_24_RJ=None
-V1_24=[("20260617","11,889","8,486","20,120","26,544","5,363","615","57","0","73,074"),
- ("20260623","10,310","6,806","17,009","21,140","3,942","472","42","0","59,721"),
- ("20260624","10,316","6,807","17,007","21,133","3,930","472","42","0","59,707")]
-V1_24_TOT=("Total","32,515","22,099","54,136","68,817","13,235","1,559","141","0","192,502")
+def setw(t,ws):
+    for j,wd in enumerate(ws): t.columns[j].width=Inches(wd)
 
-TASA_5=[("B1","1","16.82%","1,290","2.8%"),("B2","2, 3","19.75%","319","0.7%"),
- ("B3","5, 6, 7","20.75%","32,661","71.8%"),("B4","9, 10","18.26%","115","0.3%"),
- ("B5","12","21.46%","4,562","10.0%"),("B6","13, 14","26.96%","6,496","14.3%"),
- ("B7","15","18.75%","16","0.0%")]
-TASA_5_TOT=("15 estrat.","21.58%","45,459","100%")
-V2_5=[("12,897","0.8%","0.321","678.5"),("38,249","2.3%","0.355","645.0"),("230,088","13.6%","0.388","611.5"),
- ("86,196","5.1%","0.400","599.2"),("533,913","31.4%","0.409","590.9"),("612,572","36.1%","0.429","570.6"),
- ("158,251","9.3%","0.446","553.3")]; V2_5_RJ=("25,509","1.5%","0.380","619.2"); V2_5_TOT=("1,697,675","100%","0.414","585.6")
-V3_5=[("9,525","0.6%","0.335","665.0"),("33,778","2.0%","0.362","637.5"),("212,618","12.9%","0.393","606.9"),
- ("82,531","5.0%","0.403","596.3"),("522,188","31.7%","0.410","589.6"),("607,375","36.8%","0.429","570.1"),
- ("157,434","9.5%","0.447","552.8")]; V3_5_RJ=("24,225","1.5%","0.384","615.4"); V3_5_TOT=("1,649,674","100%","0.416","583.3")
-V1_5=[("20260617","4,096","4,844","16,199","3,246","10,580","4,779","754","1,398","45,896"),
- ("20260623","3,728","4,276","14,059","2,813","10,099","4,492","740","1,213","41,420"),
- ("20260624","3,723","4,269","14,052","2,809","10,097","4,486","740","1,211","41,387")]
-V1_5_TOT=("Total","11,547","13,389","44,310","8,868","30,776","13,757","2,234","3,822","128,703")
+# ====== datos resumen ======
+# Tasa: (Estrat, Tasa, Prob, N, %tot)
+TASA_24=[("1, 2, 3","16.89%","31.6%","1,403","3.1%"),("4, 5","20.56%","35.3%","214","0.5%"),
+ ("6–10","20.75%","40.6%","32,719","72%"),("11, 12, 13","21.41%","42.4%","4,611","10.1%"),
+ ("14–17","27.28%","44.4%","942","2.1%"),("18, 19","26.86%","45.7%","4,318","9.5%"),
+ ("20, 21","26.92%","47.5%","1,252","2.8%")]
+TASA_24_TOT=("21 est.","21.58%","41.2%","45,459","100%")
+# V2/V3: (Cantidad, %, Prob, score)
+V2_24=[("19,103","3.3%","33%","670"),("19,102","3.3%","35.4%","646"),("76,066","13%","39.5%","605"),
+ ("150,105","25.8%","42.2%","577"),("245,492","42.1%","44.6%","553"),("53,558","9.2%","46.3%","537"),
+ ("19,501","3.3%","48.2%","518")]; V2_24_TOT=("582,927","100%","42.9%","570")
+V3_24=[("13,317","2.5%","33.7%","663"),("13,673","2.6%","36.3%","636"),("57,746","11%","40.4%","596"),
+ ("125,534","24%","43%","569"),("240,860","46%","44.7%","552"),("52,916","10.1%","46.3%","536"),
+ ("19,438","3.7%","48.2%","517")]; V3_24_TOT=("523,484","100%","43.6%","563")
+# V1 pivote: tipos + filas por bucket (valor por tipo, Total)
+V1_24_TIPOS=["TC_CMP_EST_CAST_24_T_CL1_3","TC_CMP_EST_CAST_24_T_CL4","TC_CMP_EST_CAS_24_IC"]
+V1_24=[("9,641","675","0","10,316"),("0","6,807","0","6,807"),("12,901","4,106","0","17,007"),
+ ("0","21,133","0","21,133"),("0","0","3,930","3,930"),("0","0","472","472"),("0","0","42","42")]
+V1_24_TOT=("22,542","32,721","4,444","59,707")
 
+TASA_5=[("1","16.82%","32.1%","1,290","2.8%"),("2, 3","19.75%","35.5%","319","0.7%"),
+ ("5, 6, 7","20.75%","38.5%","32,661","71.8%"),("9, 10","18.26%","40.1%","115","0.3%"),
+ ("12","21.46%","40.9%","4,562","10%"),("13, 14","26.96%","42.8%","6,496","14.3%"),
+ ("15","18.75%","44.6%","16","0%")]
+TASA_5_TOT=("15 est.","21.58%","39.1%","45,459","100%")
+V2_5=[("12,897","0.8%","32.1%","679"),("51,199","3%","35.6%","644"),("230,088","13.6%","38.8%","612"),
+ ("98,755","5.8%","40.1%","599"),("533,913","31.4%","40.9%","591"),("612,572","36.1%","42.9%","571"),
+ ("158,251","9.3%","44.6%","553")]; V2_5_TOT=("1,697,675","100%","41.4%","586")
+V3_5=[("9,525","0.6%","33.5%","665"),("45,934","2.8%","36.2%","637"),("212,618","12.9%","39.3%","607"),
+ ("94,600","5.7%","40.4%","596"),("522,188","31.7%","41%","590"),("607,375","36.8%","42.9%","570"),
+ ("157,434","9.5%","44.7%","553")]; V3_5_TOT=("1,649,674","100%","41.6%","583")
+V1_5_TIPOS=["TC_CMP_EST_5A_CAST_T","TC_CMP_EST_CAS_5A_IC"]
+V1_5=[("2,886","837","3,723"),("1,195","3,881","5,076"),("7,532","6,520","14,052"),
+ ("1,198","2,015","3,213"),("0","10,097","10,097"),("0","4,486","4,486"),("0","740","740")]
+V1_5_TOT=("12,811","28,576","41,387")
+
+# ====== datos reglas (sin cambios) ======
 REGLAS_24=[("B1",0,[("1","segmentacion_gdp_v2 ≤ 2.5 & rk_ing_num > 3,383.5","16.8%","2.8%","1,294"),
   ("2","segmentacion_gdp_v2 (2.5, 3.5] & rk_ing_num > 3,383.5 & meses_desde_primer_castigo > 22.5","16.5%","0.2%","79"),
   ("3","segmentacion_gdp_v2 (2.5, 3.5] & rk_ing_num > 3,383.5 & meses_desde_primer_castigo ≤ 22.5","20.0%","0.1%","30")]),
@@ -159,13 +166,13 @@ REGLAS_24=[("B1",0,[("1","segmentacion_gdp_v2 ≤ 2.5 & rk_ing_num > 3,383.5","1
   ("7","segmentacion_gdp_v2 ≤ 3.5 & rk_ing_num (2,746.5, 3,088.5]","20.5%","1.2%","533"),
   ("8","segmentacion_gdp_v2 ≤ 3.5 & rk_ing_num (1,411.5, 2,746.5] & meses_desde_primer_castigo > 22.5","19.1%","4.6%","2,071"),
   ("9","segmentacion_gdp_v2 ≤ 3.5 & rk_ing_num (1,411.5, 2,746.5] & meses_desde_primer_castigo ≤ 22.5","20.1%","1.6%","730"),
-  ("10","segmentacion_gdp_v2 ≤ 3.5 & rk_ing_num ≤ 1,411.5","20.9%","64.0%","29,084")]),
+  ("10","segmentacion_gdp_v2 ≤ 3.5 & rk_ing_num ≤ 1,411.5","20.9%","64%","29,084")]),
  ("B4",3,[("11","segmentacion_gdp_v2 (3.5, 4.5] & rk_ing_num (2,910.5, 3,383.5]","23.7%","0.2%","97"),
   ("12","segmentacion_gdp_v2 (3.5, 4.5] & rk_ing_num (2,746.5, 2,910.5]","15.7%","0.1%","51"),
   ("13","segmentacion_gdp_v2 (3.5, 4.5] & rk_ing_num ≤ 2,746.5","21.4%","9.8%","4,463")]),
  ("B5",4,[("14","segmentacion_gdp_v2 > 4.5 & rk_ing_num > 2,746.5 & meses_desde_primer_castigo > 22.5","26.4%","0.6%","269"),
   ("15","segmentacion_gdp_v2 > 4.5 & rk_ing_num > 2,746.5 & meses_desde_primer_castigo (9.5, 22.5]","17.6%","0.2%","74"),
-  ("16","segmentacion_gdp_v2 > 4.5 & rk_ing_num > 2,746.5 & meses_desde_primer_castigo ≤ 9.5","20.0%","0.0%","5"),
+  ("16","segmentacion_gdp_v2 > 4.5 & rk_ing_num > 2,746.5 & meses_desde_primer_castigo ≤ 9.5","20.0%","0%","5"),
   ("17","segmentacion_gdp_v2 > 4.5 & rk_ing_num (1,348.5, 2,746.5] & meses_desde_primer_castigo > 22.5","29.0%","1.3%","594")]),
  ("B6",5,[("18","segmentacion_gdp_v2 > 4.5 & rk_ing_num ≤ 1,348.5 & meses_desde_primer_castigo > 22.5","26.8%","9.1%","4,155"),
   ("19","segmentacion_gdp_v2 > 4.5 & rk_ing_num (1,348.5, 2,746.5] & meses_desde_primer_castigo (9.5, 22.5]","28.2%","0.4%","163")]),
@@ -180,73 +187,84 @@ REGLAS_5=[("B1",0,[("1","segmentacion_gdp_v2 ≤ 2.5 & rk_ing_num > 3,391.5","16
   ("7","segmentacion_gdp_v2 ≤ 3.5 & rk_ing_num ≤ 3,100.5 & nro_entidades_castigo ≤ 1.5 & deuda_cas > 218.33","21.0%","47.7%","21,674")]),
  ("B4",3,[("9","segmentacion_gdp_v2 ≤ 3.5 & rk_ing_num ≤ 3,100.5 & nro_entidades_castigo > 1.5","21.0%","0.1%","62"),
   ("10","segmentacion_gdp_v2 (3.5, 4.5] & rk_ing_num (3,100.5, 3,391.5] & nro_entidades_castigo ≤ 1.5","15.1%","0.1%","53")]),
- ("B5",4,[("12","segmentacion_gdp_v2 (3.5, 4.5] & rk_ing_num ≤ 3,100.5","21.5%","10.0%","4,562")]),
- ("B6",5,[("13","segmentacion_gdp_v2 > 4.5 & nro_entidades_castigo ≤ 1.5 & deuda_cas ≤ 218.33","26.7%","4.0%","1,818"),
+ ("B5",4,[("12","segmentacion_gdp_v2 (3.5, 4.5] & rk_ing_num ≤ 3,100.5","21.5%","10%","4,562")]),
+ ("B6",5,[("13","segmentacion_gdp_v2 > 4.5 & nro_entidades_castigo ≤ 1.5 & deuda_cas ≤ 218.33","26.7%","4%","1,818"),
   ("14","segmentacion_gdp_v2 > 4.5 & nro_entidades_castigo ≤ 1.5 & deuda_cas > 218.33","27.1%","10.3%","4,678")]),
- ("B7",6,[("15","segmentacion_gdp_v2 > 4.5 & nro_entidades_castigo > 1.5","18.8%","0.0%","16")])]
+ ("B7",6,[("15","segmentacion_gdp_v2 > 4.5 & nro_entidades_castigo > 1.5","18.8%","0%","16")])]
 
 
-def slide_resumen(meses, scn, n_estr, tasa, tasa_tot, v2, v2rj, v2tot, v3, v3rj, v3tot, v1, v1tot):
+def dist_table(s,cx,cy,cw,ttl,data,tot):
+    """Card V2/V3: Buck | Cantidad | % | Prob. | score."""
+    ix,iy,iw=card(s,cx,cy,cw,TH,ttl,hcolor=GREEN_BRIGHT)
+    t=s.shapes.add_table(9,5,Inches(ix),Inches(iy),Inches(iw),Inches(2.144)).table
+    t.first_row=False; t.horz_banding=False
+    ws=[0.5, iw-0.5-1.05-1.35-1.4, 1.05, 1.35, 1.4]
+    setw(t,ws)
+    th_row(t,0,[("Buck.",C,''),("Cantidad",C,''),("%",C,''),("Prob.",C,''),("score",C,'')])
+    for i,(cn,pc,pj,sc) in enumerate(data,1):
+        buckcell(t.cell(i,0),f"B{i}",i-1,size=BF)
+        cell(t.cell(i,1),[(cn,{'sz':BF})],align=C,mgn=0.02)
+        cell(t.cell(i,2),[(pc,{'sz':BF})],align=C,mgn=0.02)
+        cell(t.cell(i,3),[(pj,{'sz':BF})],align=C,mgn=0.02)
+        cell(t.cell(i,4),[(sc,{'sz':BF})],align=C,mgn=0.02)
+    cell(t.cell(8,0),[("Tot",{'sz':BF})],bold=True,fill=TOT_BG,color=TOT_INK,mgn=0.02)
+    for j,v in enumerate(tot,1): cell(t.cell(8,j),[(v,{'sz':BF,'b':True})],align=C,fill=TOT_BG,color=TOT_INK,mgn=0.02)
+    t.rows[0].height=Inches(0.28)
+    for i in range(1,9): t.rows[i].height=Inches(0.233)
+
+
+BF=9.5
+LX,LW,RX,RW=0.46,6.13,6.74,6.13
+TY,TH,BY=1.24,2.74,4.06
+
+def slide_resumen(meses, scn, n_estr, tasa, tasa_tot, v2, v2tot, v3, v3tot, tipos, v1, v1tot):
     s=add_slide()
     header(s,[(f"Buckets · {meses} ",{'c':GREEN_DEEP,'b':True}),("| Tasa de riesgo y distribución V1 / V2 / V3",{'c':GRAY_TITLE,'b':True})],
            [(f"Escenario {scn} · 7 buckets sobre {n_estr} estrategias del Árbol 2 · verde = menor riesgo, rojo = mayor",{'c':GRAY_TXT})], scn)
-    TY=1.40; TH=3.28
-    # Tasa
-    ix,iy,iw=card(s,0.46,TY,4.85,TH,"Tasa de riesgo por bucket")
-    t=s.shapes.add_table(9,5,Inches(ix),Inches(iy),Inches(iw),Inches(2.3)).table; t.first_row=False; t.horz_banding=False
-    ws=[0.5,1.5,0.85,1.0,iw-0.5-1.5-0.85-1.0]
-    for j,wd in enumerate(ws): t.columns[j].width=Inches(wd)
-    th_row(t,0,[("Buck.",PP_ALIGN.CENTER,''),("Estrategias",PP_ALIGN.LEFT,''),("Tasa",PP_ALIGN.CENTER,''),("N",PP_ALIGN.CENTER,''),("% tot",PP_ALIGN.CENTER,'')],ws)
-    for i,(b,est,ta,n,p) in enumerate(tasa,1):
-        buckcell(t.cell(i,0),b,i-1); cell(t.cell(i,1),[(est,{'sz':10})],align=PP_ALIGN.LEFT,mgn=0.025)
-        cell(t.cell(i,2),[(ta,{'sz':10})],mgn=0.025); cell(t.cell(i,3),[(n,{'sz':10})],align=PP_ALIGN.RIGHT,mgn=0.025); cell(t.cell(i,4),[(p,{'sz':10})],align=PP_ALIGN.RIGHT,mgn=0.025)
-    cell(t.cell(8,0),"Tot",size=10,bold=True,fill=TOT_BG,color=TOT_INK,mgn=0.025); cell(t.cell(8,1),[(tasa_tot[0],{'b':True})],align=PP_ALIGN.LEFT,fill=TOT_BG,color=TOT_INK,mgn=0.025)
-    cell(t.cell(8,2),[(tasa_tot[1],{'b':True})],fill=TOT_BG,color=TOT_INK,mgn=0.025); cell(t.cell(8,3),[(tasa_tot[2],{'b':True})],align=PP_ALIGN.RIGHT,fill=TOT_BG,color=TOT_INK,mgn=0.025); cell(t.cell(8,4),[(tasa_tot[3],{'b':True})],align=PP_ALIGN.RIGHT,fill=TOT_BG,color=TOT_INK,mgn=0.025)
-    t.rows[0].height=Inches(0.24)
-    for i in range(1,9): t.rows[i].height=Inches(0.235)
-    # V2 / V3
-    for (cx,cw,ttl,data,rj,tot) in [(5.49,3.66,"V2 · Base inicial",v2,v2rj,v2tot),(9.33,3.54,"V3 · Fuera de campaña",v3,v3rj,v3tot)]:
-        nrows=1+7+(1 if rj else 0)+1
-        ix,iy,iw=card(s,cx,TY,cw,TH,ttl,hcolor=GREEN_BRIGHT)
-        tt=s.shapes.add_table(nrows,5,Inches(ix),Inches(iy),Inches(iw),Inches(0.235*nrows)).table; tt.first_row=False; tt.horz_banding=False
-        ws2=[0.46,0.96,0.55,0.70,iw-0.46-0.96-0.55-0.70]
-        for j,wd in enumerate(ws2): tt.columns[j].width=Inches(wd)
-        th_row(tt,0,[("Buck.",PP_ALIGN.CENTER,''),("Cantidad",PP_ALIGN.CENTER,''),("%",PP_ALIGN.CENTER,''),("prob_jd",PP_ALIGN.CENTER,''),("score",PP_ALIGN.CENTER,'')],ws2)
-        for i,(cn,pc,pj,sc) in enumerate(data,1):
-            buckcell(tt.cell(i,0),f"B{i}",i-1)
-            cell(tt.cell(i,1),[(cn,{'sz':10})],align=PP_ALIGN.RIGHT,mgn=0.025); cell(tt.cell(i,2),[(pc,{'sz':10})],align=PP_ALIGN.RIGHT,mgn=0.025)
-            cell(tt.cell(i,3),[(pj,{'sz':10})],align=PP_ALIGN.RIGHT,mgn=0.025); cell(tt.cell(i,4),[(sc,{'sz':10})],align=PP_ALIGN.RIGHT,mgn=0.025)
-        r=8
-        if rj:
-            cell(tt.cell(r,0),"Rech.",size=9.5,bold=True,fill=RJ_BG,color=RJ_INK,mgn=0.025)
-            for j,v in enumerate(rj,1): cell(tt.cell(r,j),[(v,{'sz':10})],align=PP_ALIGN.RIGHT,fill=RJ_BG,color=RJ_INK,mgn=0.025)
-            r=9
-        cell(tt.cell(r,0),"Tot",size=10,bold=True,fill=TOT_BG,color=TOT_INK,mgn=0.025)
-        for j,v in enumerate(tot,1): cell(tt.cell(r,j),[(v,{'b':True})],align=PP_ALIGN.RIGHT,fill=TOT_BG,color=TOT_INK,mgn=0.025)
-        tt.rows[0].height=Inches(0.24)
-        for i in range(1,nrows): tt.rows[i].height=Inches(0.235)
-    # V1
-    VY=TY+TH+0.16
-    ix,iy,iw=card(s,0.46,VY,12.41,1.88,"V1 · Base de campañas",hcolor=GREEN_TEAL,sub="· 3 fechas de junio (5 pilotos) × bucket")
-    nv=5
-    tv=s.shapes.add_table(nv,10,Inches(ix),Inches(iy),Inches(iw),Inches(1.35)).table; tv.first_row=False; tv.horz_banding=False
-    bcol=(iw-1.6-1.05-1.05)/7
-    wsv=[1.6]+[bcol]*7+[1.05,1.05]
-    for j,wd in enumerate(wsv): tv.columns[j].width=Inches(wd)
-    hv=[("p_fecinformacion",PP_ALIGN.LEFT,'')]+[(f"B{k}",PP_ALIGN.CENTER,'') for k in range(1,8)]+[("Rechazo",PP_ALIGN.CENTER,'rj'),("Total",PP_ALIGN.CENTER,'tot')]
-    th_row(tv,0,hv,wsv)
+    # --- Tasa (arriba-izquierda) ---
+    ix,iy,iw=card(s,LX,TY,LW,TH,"Tasa de riesgo por bucket")
+    t=s.shapes.add_table(9,6,Inches(ix),Inches(iy),Inches(iw),Inches(2.144)).table
+    t.first_row=False; t.horz_banding=False
+    ws=[0.5, 1.42, 0.95, 0.95, 1.05, iw-0.5-1.42-0.95-0.95-1.05]
+    setw(t,ws)
+    th_row(t,0,[("Buck.",C,''),("Estrat.",L,''),("Tasa",C,''),("Prob.",C,''),("N",C,''),("% tot",C,'')])
+    for i,(est,ta,pj,n,pt) in enumerate(tasa,1):
+        buckcell(t.cell(i,0),f"B{i}",i-1,size=BF)
+        cell(t.cell(i,1),[(est,{'sz':BF})],align=L,mgn=0.02)
+        cell(t.cell(i,2),[(ta,{'sz':BF})],align=C,mgn=0.02)
+        cell(t.cell(i,3),[(pj,{'sz':BF})],align=C,mgn=0.02)
+        cell(t.cell(i,4),[(n,{'sz':BF})],align=C,mgn=0.02)
+        cell(t.cell(i,5),[(pt,{'sz':BF})],align=C,mgn=0.02)
+    cell(t.cell(8,0),[("Tot",{'sz':BF})],bold=True,fill=TOT_BG,color=TOT_INK,mgn=0.02)
+    cell(t.cell(8,1),[(tasa_tot[0],{'sz':BF,'b':True})],align=L,fill=TOT_BG,color=TOT_INK,mgn=0.02)
+    for j,v in enumerate(tasa_tot[1:],2): cell(t.cell(8,j),[(v,{'sz':BF,'b':True})],align=C,fill=TOT_BG,color=TOT_INK,mgn=0.02)
+    t.rows[0].height=Inches(0.28)
+    for i in range(1,9): t.rows[i].height=Inches(0.233)
+    # --- V2 (arriba-derecha) · V3 (abajo-izquierda) ---
+    dist_table(s,RX,TY,RW,"· Base inicial",v2,v2tot)
+    dist_table(s,LX,BY,LW,"· Fuera de campaña",v3,v3tot)
+    # --- V1 pivote (abajo-derecha) ---
+    ncol=1+len(tipos)+1
+    ix,iy,iw=card(s,RX,BY,RW,TH,"· Base de campañas",hcolor=GREEN_TEAL,sub="· periodo 20260624 · tipo × bucket")
+    tv=s.shapes.add_table(9,ncol,Inches(ix),Inches(iy),Inches(iw),Inches(2.18)).table
+    tv.first_row=False; tv.horz_banding=False
+    bw=0.44; totw=0.92; tw=(iw-bw-totw)/len(tipos)
+    setw(tv,[bw]+[tw]*len(tipos)+[totw])
+    cell(tv.cell(0,0),[("Buck.",{'sz':10})],color=WHITE,bold=True,fill=TH_BG,align=C)
+    for j,tp in enumerate(tipos,1): cell(tv.cell(0,j),[(tp,{'sz':8.3})],color=WHITE,bold=True,fill=TH_BG,align=C)
+    cell(tv.cell(0,ncol-1),[("Total",{'sz':10})],color=TOTC_INK,bold=True,fill=TOTC_BG,align=C)
     for i,row in enumerate(v1,1):
-        cell(tv.cell(i,0),[(row[0],{'b':True,'sz':11})],align=PP_ALIGN.LEFT,color=MONO_INK)
-        for j in range(1,8): cell(tv.cell(i,j),[(row[j],{'sz':11})],align=PP_ALIGN.RIGHT)
-        cell(tv.cell(i,8),[(row[8],{'sz':11})],align=PP_ALIGN.RIGHT,fill=RJ_BG,color=RJ_INK)
-        cell(tv.cell(i,9),[(row[9],{'sz':11,'b':True})],align=PP_ALIGN.RIGHT,fill=TOTC_BG,color=TOTC_INK)
-    cell(tv.cell(4,0),[("Total",{'b':True})],align=PP_ALIGN.CENTER,fill=TOT_BG,color=TOT_INK)
-    for j in range(1,10): cell(tv.cell(4,j),[(v1tot[j],{'b':True})],align=PP_ALIGN.RIGHT,fill=TOT_BG,color=TOT_INK)
-    tv.rows[0].height=Inches(0.26)
-    for i in range(1,nv): tv.rows[i].height=Inches(0.26)
+        buckcell(tv.cell(i,0),f"B{i}",i-1,size=BF)
+        for j in range(len(tipos)): cell(tv.cell(i,1+j),[(row[j],{'sz':BF})],align=C,mgn=0.02)
+        cell(tv.cell(i,ncol-1),[(row[len(tipos)],{'sz':BF,'b':True})],align=C,fill=TOTC_BG,color=TOTC_INK,mgn=0.02)
+    cell(tv.cell(8,0),[("Tot",{'sz':BF})],bold=True,fill=TOT_BG,color=TOT_INK,mgn=0.02)
+    for j in range(len(tipos)): cell(tv.cell(8,1+j),[(v1tot[j],{'sz':BF,'b':True})],align=C,fill=TOT_BG,color=TOT_INK,mgn=0.02)
+    cell(tv.cell(8,ncol-1),[(v1tot[-1],{'sz':BF,'b':True})],align=C,fill=TOT_BG,color=TOT_INK,mgn=0.02)
+    tv.rows[0].height=Inches(0.38)
+    for i in range(1,9): tv.rows[i].height=Inches(0.225)
     footer(s,[("Tasa malos:"," % de target_60_12m=1 en la base de modelamiento (RD, n=45,459)."),
-              ("V1:"," base de campañas (5 pilotos) · V2: base de generación · V3: fuera de campaña."),
-              ("prob_jd / score:"," promedios por bucket · Rechazo: sin bucket asignado.")])
+              ("V1:"," base de campañas por tipo · V2: base de generación · V3: fuera de campaña."),
+              ("Prob. / score:"," promedios por bucket · Rechazo: sin bucket asignado.")])
 
 
 def slide_reglas(meses, scn, n_estr, reglas, rowh, varsline):
@@ -254,22 +272,21 @@ def slide_reglas(meses, scn, n_estr, reglas, rowh, varsline):
     header(s,[(f"Buckets · {meses} ",{'c':GREEN_DEEP,'b':True}),("| Reglas por bucket",{'c':GRAY_TITLE,'b':True})],
            [(f"Escenario {scn} · {n_estr} estrategias del Árbol 2 agrupadas en 7 buckets · cada regla = una hoja del árbol",{'c':GRAY_TXT})], scn)
     nrows=1+sum(len(g[2]) for g in reglas)
-    TY=1.28; hh0=0.26
+    TYr=1.28; hh0=0.26
     ch=0.41+hh0+rowh*(nrows-1)+0.14
-    ix,iy,iw=card(s,0.46,TY,12.41,ch,"Reglas por bucket",sub="· estrategia → condición de la hoja → tasa de malos")
+    ix,iy,iw=card(s,0.46,TYr,12.41,ch,"Reglas por bucket",sub="· estrategia → condición de la hoja → tasa de malos")
     t=s.shapes.add_table(nrows,6,Inches(ix),Inches(iy),Inches(iw),Inches(hh0+rowh*(nrows-1))).table; t.first_row=False; t.horz_banding=False
     ws=[0.5,0.4,iw-0.5-0.4-0.8-0.65-0.85,0.8,0.65,0.85]
-    for j,wd in enumerate(ws): t.columns[j].width=Inches(wd)
-    th_row(t,0,[("Buck.",PP_ALIGN.CENTER,''),("#",PP_ALIGN.CENTER,''),("Regla (condición de la hoja)",PP_ALIGN.LEFT,''),("Tasa",PP_ALIGN.CENTER,''),("% tot",PP_ALIGN.CENTER,''),("N",PP_ALIGN.CENTER,'')],ws)
+    setw(t,ws)
+    th_row(t,0,[("Buck.",C,''),("#",C,''),("Regla (condición de la hoja)",L,''),("Tasa",C,''),("% tot",C,''),("N",C,'')])
     r=1
     for (b,hue,rules) in reglas:
         r0=r
         for (idx,rule,ta,pc,n) in rules:
             cell(t.cell(r,1),[(idx,{'b':True,'sz':9,'c':RGBColor(0x0A,0x5A,0x44)})],mgn=0.02)
-            cell(t.cell(r,2),[(rule,{'f':MONO,'sz':8.8,'c':MONO_INK})],align=PP_ALIGN.LEFT,nowrap=True,mgn=0.02)
-            cell(t.cell(r,3),[(ta,{'sz':9})],mgn=0.02); cell(t.cell(r,4),[(pc,{'sz':9})],align=PP_ALIGN.RIGHT,mgn=0.02); cell(t.cell(r,5),[(n,{'sz':9})],align=PP_ALIGN.RIGHT,mgn=0.02)
+            cell(t.cell(r,2),[(rule,{'f':MONO,'sz':8.8,'c':MONO_INK})],align=L,nowrap=True,mgn=0.02)
+            cell(t.cell(r,3),[(ta,{'sz':9})],align=C,mgn=0.02); cell(t.cell(r,4),[(pc,{'sz':9})],align=C,mgn=0.02); cell(t.cell(r,5),[(n,{'sz':9})],align=C,mgn=0.02)
             r+=1
-        # merge bucket col
         a=t.cell(r0,0)
         if r-1>r0: a.merge(t.cell(r-1,0))
         buckcell(a,b,hue,size=10,mgn=0.02)
@@ -280,9 +297,9 @@ def slide_reglas(meses, scn, n_estr, reglas, rowh, varsline):
               ("Variables:"," "+varsline)])
 
 
-slide_resumen("24 meses","24m_sinedad_6","21",TASA_24,TASA_24_TOT,V2_24,V2_24_RJ,V2_24_TOT,V3_24,V3_24_RJ,V3_24_TOT,V1_24,V1_24_TOT)
+slide_resumen("24 meses","24m_sinedad_6","21",TASA_24,TASA_24_TOT,V2_24,V2_24_TOT,V3_24,V3_24_TOT,V1_24_TIPOS,V1_24,V1_24_TOT)
 slide_reglas("24 meses","24m_sinedad_6","21",REGLAS_24,0.228,"segmentacion_gdp_v2, rk_ing_num, meses_desde_primer_castigo.")
-slide_resumen("5 años","5años_sinedad_6","15",TASA_5,TASA_5_TOT,V2_5,V2_5_RJ,V2_5_TOT,V3_5,V3_5_RJ,V3_5_TOT,V1_5,V1_5_TOT)
+slide_resumen("5 años","5años_sinedad_6","15",TASA_5,TASA_5_TOT,V2_5,V2_5_TOT,V3_5,V3_5_TOT,V1_5_TIPOS,V1_5,V1_5_TOT)
 slide_reglas("5 años","5años_sinedad_6","15",REGLAS_5,0.30,"segmentacion_gdp_v2, rk_ing_num, nro_entidades_castigo, deuda_cas.")
 
 prs.save("/home/user/Controling/presentacion_buckets_v1v2v3.pptx")
