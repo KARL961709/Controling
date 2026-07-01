@@ -58,13 +58,13 @@
   <h1>Rebank <span class="sec">| Caídas (exclusiones) aplicadas a la base</span></h1>
   <div class="subt">Marcas que <b>sacan al cliente de la base elegible</b> — se conserva a quien <b>no tiene ninguna</b> de estas caídas (regla <code style="font-family:Consolas,monospace">COALESCE(flg,0) &lt;&gt; 1</code>)</div>
   <div class="badge">
-    <span class="b"><span class="n">28</span> caídas activas + fallecido</span>
+    <span class="b"><span class="n">28</span> caídas activas</span>
     <span class="b amb"><span class="n">2</span> desactivadas</span>
   </div>
 
   <div class="cols">
     <div class="col c1">
-      <div class="ch"><span class="ic">⚠</span><span class="tt">Fraude, listas y<br>clientes no elegibles</span><span class="cnt">8</span></div>
+      <div class="ch"><span class="ic">⚠</span><span class="tt">Fraude, listas y<br>clientes no elegibles</span><span class="cnt">7</span></div>
       <ul>
         <li>En <b>base de fraude</b></li>
         <li>Cliente con <b>marca FEVE</b></li>
@@ -73,7 +73,6 @@
         <li><b>Empresa empleadora mala</b> (dudoso / pérdida)</li>
         <li><b>Empresa no deseada</b></li>
         <li>Empresa con <b>marca FEVE</b></li>
-        <li><b>Fallecido</b> <span class="mut">(filtro aparte)</span></li>
       </ul>
     </div>
 
@@ -88,7 +87,7 @@
         <li>Comportamiento en IBK <b>distinto de Normal</b></li>
         <li><b>Refinanciado</b> en el RCC (últ. 6 meses)</li>
         <li><b>Refinanciado</b> con buró</li>
-        <li>Buró <b>mayor a CPP</b> en los últ. 5 meses</li>
+        <li><b>Sin buró</b> y clasificación <b>mayor a CPP</b> (últ. 5 m) · <span class="mut">1ra llamada banc.</span></li>
       </ul>
     </div>
 
@@ -120,7 +119,7 @@
   <div class="bottom">
     <div class="pane lg">
       <div class="ph">Cómo se lee la regla</div>
-      <div class="pb">Cada condición <code>COALESCE(flg_x, 0) &lt;&gt; 1</code> <b>mantiene</b> a los clientes cuya marca <b>no está prendida</b>: si el cliente tiene la caída, <b>se excluye</b>. Las marcas se arman pivoteando la tabla <code>caidas</code> (una fila por <code>descripcion</code>) con <code>MAX(CASE…)</code> por cliente.</div>
+      <div class="pb">Cada condición <code>COALESCE(flg_x, 0) &lt;&gt; 1</code> <b>mantiene</b> a los clientes cuya marca <b>no está prendida</b>: si el cliente tiene la caída, <b>se excluye</b>. Son <b>28 marcas activas</b>; aparte se excluye a los <b>fallecidos</b> con <code>flg_f = 'Fallecido'</code> (no es marca de caída).</div>
     </div>
     <div class="pane am">
       <div class="ph">Desactivadas hoy (comentadas)</div>

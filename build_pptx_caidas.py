@@ -77,7 +77,7 @@ tb(12.00,0.30,0.91,0.36,[("2",{'sz':13,'b':True,'c':AMB_INK}),(" desact.",{'sz':
 
 # ---------- 4 tarjetas ----------
 COLS=[
- ("⚠","Fraude, listas y clientes no elegibles",8,GREEN_DEEP,[
+ ("⚠","Fraude, listas y clientes no elegibles",7,GREEN_DEEP,[
    [("En ",{}),("base de fraude",B())],
    [("Cliente con ",{}),("marca FEVE",B())],
    [("En lista de ",{}),("clientes especiales",B())],
@@ -85,7 +85,6 @@ COLS=[
    [("Empresa empleadora mala",B()),(" (dudoso / pérdida)",{})],
    [("Empresa no deseada",B())],
    [("Empresa con ",{}),("marca FEVE",B())],
-   [("Fallecido",B()),("  (filtro aparte)",MUT)],
  ]),
  ("◆","Riesgo y comportamiento crediticio",9,GREEN_TEAL,[
    [("Con ",{}),("castigo en IBK",B()),(" (últ. 24 meses)",{})],
@@ -96,7 +95,7 @@ COLS=[
    [("Comportamiento en IBK ",{}),("distinto de Normal",B())],
    [("Refinanciado",B()),(" en el RCC (últ. 6 meses)",{})],
    [("Refinanciado",B()),(" con buró",{})],
-   [("Buró ",{}),("mayor a CPP",B()),(" en los últ. 5 meses",{})],
+   [("Sin buró",B()),(" y clasificación ",{}),("mayor a CPP",B()),(" (últ. 5 m) · 1ra llamada banc.",{})],
  ]),
  ("▼","Endeudamiento y capacidad de pago",5,GREEN_BRIGHT,[
    [("Sobreendeudado",B())],
@@ -147,8 +146,8 @@ def run(p,t,sz=11,b=False,c=INK,f=FONT):
 run(p,"Cada condición "); run(p,"COALESCE(flg_x, 0) <> 1",10,False,CODE_INK,MONO); run(p," ")
 run(p,"mantiene",11,True,GREEN_DEEP); run(p," a los clientes cuya marca "); run(p,"no está prendida",11,True,GREEN_DEEP)
 run(p,": si el cliente tiene la caída, "); run(p,"se excluye",11,True,GREEN_DEEP)
-run(p,". Las marcas se arman pivoteando la tabla "); run(p,"caidas",10,False,CODE_INK,MONO)
-run(p," (una fila por "); run(p,"descripcion",10,False,CODE_INK,MONO); run(p,") con "); run(p,"MAX(CASE…)",10,False,CODE_INK,MONO); run(p," por cliente.")
+run(p,". Son "); run(p,"28 marcas activas",11,True,GREEN_DEEP); run(p,"; aparte se excluye a los ")
+run(p,"fallecidos",11,True,GREEN_DEEP); run(p," con "); run(p,"flg_f = 'Fallecido'",10,False,CODE_INK,MONO); run(p," (no es marca de caída).")
 
 # panel desactivadas
 px=L+pw1+0.20; pw2=12.91-px
