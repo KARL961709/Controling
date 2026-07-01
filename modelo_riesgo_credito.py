@@ -341,13 +341,20 @@ def split_train_oot(cfg: Config, df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
         oot = df[vals.isin(["oot", "validation", "valid", "oos"])].copy()
         rest = df[~vals.isin(["oot", "validation", "valid", "oos"])].copy()
         if cfg.repartition_test_size is not None:
-            # OOT intacto; train/test se RE-PARTICIONAN con la razon pedida (70/30, 80/20)
-            train, test = train_test_split(
-                rest, test_size=cfg.repartition_test_size, random_state=cfg.random_state,
-                stratify=rest[cfg.target])
-            log.info("Particion: OOT de '%s' + train/test re-particionado %d/%d",
-                     cfg.split_col, round(100 * (1 - cfg.repartition_test_size)),
-                     round(100 * cfg.repartition_test_size))
+            if cfg.repartition_test_size <= 0:
+                # test_size=0: SIN test propio -> train = todo lo no-OOT; 'test' = OOT
+                train = rest.copy()
+                test = oot.copy()
+                log.info("Particion: test_size=0 -> train = TODO lo no-OOT (%d); 'test'=OOT",
+                         len(train))
+            else:
+                # OOT intacto; train/test se RE-PARTICIONAN con la razon pedida (70/30...)
+                train, test = train_test_split(
+                    rest, test_size=cfg.repartition_test_size, random_state=cfg.random_state,
+                    stratify=rest[cfg.target])
+                log.info("Particion: OOT de '%s' + train/test re-particionado %d/%d",
+                         cfg.split_col, round(100 * (1 - cfg.repartition_test_size)),
+                         round(100 * cfg.repartition_test_size))
         elif {"train", "test"}.issubset(set(vals.unique())):
             train = rest[vals.loc[rest.index] == "train"].copy()
             test = rest[vals.loc[rest.index] == "test"].copy()
