@@ -82,7 +82,7 @@
   <div class="kpis">
     <div class="kpi k1"><div class="t">Leads elegibles<br>(base inicial)</div><div class="v" id="kLeads">—</div><div class="s"><span id="kPct">—</span> de la base inicial</div></div>
     <div class="kpi k2"><div class="t">Nuevos leads<br>(incremento vs. campaña)</div><div class="v" id="kNew">—</div><div class="s">× <span id="kMult">—</span> vs. campaña actual</div></div>
-    <div class="kpi k3"><div class="t">Hoy en campaña<br>(en estos buckets)</div><div class="v" id="kCamp">—</div><div class="s">base de campañas · 20260624</div></div>
+    <div class="kpi k3"><div class="t">Hoy en campaña<br>(en estos buckets)</div><div class="v" id="kCamp">—</div><div class="s">base de campañas · 20260617</div></div>
     <div class="kpi k4"><div class="t">Riesgo del pool seleccionado</div><div class="risk"><div>Prob. prom<b id="kProb">—</b></div><div>RD prom<b id="kTasa">—</b></div><div>Score<b id="kScore">—</b></div></div></div>
     <div class="kpi k5"><div class="t">Nuevos leads<br>por mes</div><div class="v" id="kMes">—</div><div class="s"><span id="kMesTot">—</span> elegibles / mes</div></div>
   </div>
@@ -110,18 +110,19 @@
 
 <script>
 const B=[
- {b:'B1', prob:28.2, cant:20304, camp:2358, fuera:17656, tasa:7.15, score:718},
- {b:'B2', prob:31.5, cant:28500, camp:642,  fuera:27642, tasa:8.14, score:685},
- {b:'B3', prob:33.5, cant:140065,camp:13937,fuera:117373,tasa:8.70, score:664},
- {b:'B4', prob:35.2, cant:187958,camp:5434, fuera:177463,tasa:9.42, score:647},
- {b:'B5', prob:39.6, cant:114041,camp:4018, fuera:110285,tasa:13.36,score:603},
- {b:'B6', prob:39.8, cant:289713,camp:3483, fuera:285437,tasa:13.53,score:602},
- {b:'B7', prob:40.1, cant:278690,camp:1306, fuera:276720,tasa:13.17,score:598},
- {b:'B8', prob:42.1, cant:86512, camp:1798, fuera:85882, tasa:17.07,score:579},
- {b:'B9', prob:44.9, cant:111032,camp:1049, fuera:110728,tasa:18.13,score:550},
- {b:'B10',prob:45.0, cant:147087,camp:420,  fuera:146876,tasa:19.10,score:549},
- {b:'B11',prob:47.8, cant:70579, camp:3300, fuera:70510, tasa:36.89,score:522},
- {b:'B12',prob:52.2, cant:223194,camp:3642, fuera:223102,tasa:39.68,score:478},
+ {b:'B1', prob:28.2, cant:20304, camp:4389, fuera:15839, tasa:7.15, score:718},
+ {b:'B2', prob:31.5, cant:28500, camp:4578, fuera:23084, tasa:8.14, score:685},
+ {b:'B3', prob:29.0, cant:35069, camp:8788, fuera:23489, tasa:6.84, score:710},
+ {b:'B4', prob:35.0, cant:104996,camp:7713, fuera:94328, tasa:10.12,score:649},
+ {b:'B5', prob:35.2, cant:187958,camp:6726, fuera:176976,tasa:9.42, score:647},
+ {b:'B6', prob:39.6, cant:114041,camp:5248, fuera:110243,tasa:13.36,score:603},
+ {b:'B7', prob:39.8, cant:289713,camp:4731, fuera:284907,tasa:13.53,score:602},
+ {b:'B8', prob:40.1, cant:278690,camp:4806, fuera:273776,tasa:13.17,score:598},
+ {b:'B9', prob:42.1, cant:86512, camp:2536, fuera:85508, tasa:17.07,score:579},
+ {b:'B10',prob:44.9, cant:111032,camp:1460, fuera:110475,tasa:18.13,score:550},
+ {b:'B11',prob:45.0, cant:147087,camp:1871, fuera:145556,tasa:19.10,score:549},
+ {b:'B12',prob:47.8, cant:70579, camp:3844, fuera:70323, tasa:36.89,score:522},
+ {b:'B13',prob:52.2, cant:223194,camp:4592, fuera:222592,tasa:39.68,score:478},
 ];
 const BASE_TOT=1697675;
 const fmt=n=>Math.round(n).toLocaleString('en-US');

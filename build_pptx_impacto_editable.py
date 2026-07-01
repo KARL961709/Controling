@@ -26,18 +26,19 @@ def hsl(i):
     return RGBColor(int(r*255),int(g*255),int(b*255))
 
 # ---- datos por escenario ----
-D24=[('B1',24.4,4442,1102,3233,4.55,756),('B2',26.9,7021,708,5668,5.55,730),
-     ('B3',28.8,27721,5045,17052,6.69,711),('B4',34.6,26961,5587,18067,10.13,654),
-     ('B5',35.1,51215,2983,42440,11.51,649),('B6',40.0,32686,6747,24750,13.40,599),
-     ('B7',40.3,132679,5418,121324,12.67,597),('B8',44.4,20663,5167,17990,17.13,555),
-     ('B9',45.1,108579,5243,103892,17.69,549),('B10',45.3,28296,145,28128,19.63,547),
-     ('B11',51.8,38475,19931,37084,36.96,482),('B12',52.3,104189,1631,103856,40.82,477)]
-D5=[('B1',28.2,20304,2358,17656,7.15,718),('B2',31.5,28500,642,27642,8.14,685),
-    ('B3',33.5,140065,13937,117373,8.70,664),('B4',35.2,187958,5434,177463,9.42,647),
-    ('B5',39.6,114041,4018,110285,13.36,603),('B6',39.8,289713,3483,285437,13.53,602),
-    ('B7',40.1,278690,1306,276720,13.17,598),('B8',42.1,86512,1798,85882,17.07,579),
-    ('B9',44.9,111032,1049,110728,18.13,550),('B10',45.0,147087,420,146876,19.10,549),
-    ('B11',47.8,70579,3300,70510,36.89,522),('B12',52.2,223194,3642,223102,39.68,478)]
+D24=[('B1',24.4,4442,1362,2954,4.55,756),('B2',26.9,7021,1128,4902,5.55,730),
+     ('B3',28.8,27721,6142,16929,6.69,711),('B4',34.6,26961,6637,18063,10.13,654),
+     ('B5',35.1,51215,4564,41532,11.51,649),('B6',40.0,32686,8438,24734,13.40,599),
+     ('B7',40.3,132679,8466,120012,12.67,597),('B8',44.4,20663,6063,17898,17.13,555),
+     ('B9',45.1,108579,6900,103198,17.69,549),('B10',45.3,28296,435,27765,19.63,547),
+     ('B11',51.8,38475,24874,36960,36.96,482),('B12',52.3,104189,4188,103089,40.82,477)]
+D5=[('B1',28.2,20304,4389,15839,7.15,718),('B2',31.5,28500,4578,23084,8.14,685),
+    ('B3',29.0,35069,8788,23489,6.84,710),('B4',35.0,104996,7713,94328,10.12,649),
+    ('B5',35.2,187958,6726,176976,9.42,647),('B6',39.6,114041,5248,110243,13.36,603),
+    ('B7',39.8,289713,4731,284907,13.53,602),('B8',40.1,278690,4806,273776,13.17,598),
+    ('B9',42.1,86512,2536,85508,17.07,579),('B10',44.9,111032,1460,110475,18.13,550),
+    ('B11',45.0,147087,1871,145556,19.10,549),('B12',47.8,70579,3844,70323,36.89,522),
+    ('B13',52.2,223194,4592,222592,39.68,478)]
 
 SCEN=[
  dict(rows=D24, base_tot=582927, name="24 meses", thr=11.0, link="impacto_leads_24m.html", out="presentacion_impacto_24m_editable.pptx"),
@@ -102,7 +103,7 @@ def build(sc):
         tb(x+0.14,KY+0.92,KW-0.24,0.2,[(sub,{'sz':8.7,'c':(RGBColor(0xE6,0xF3,0xEC) if dark else GRAY_TXT)})])
     kpi(0,GREEN_DEEP,WHITE,"Leads elegibles (base inicial)",fmt(leads),f"{leads/BT*100:.1f}% de la base inicial")
     kpi(1,GREEN_BRIGHT,WHITE,"Nuevos leads (incremento vs. campaña)","+"+fmt(nuevos),f"× {mult:.1f} vs. campaña actual")
-    kpi(2,LIGHT,None,"Hoy en campaña (en estos buckets)",fmt(camp),"base de campañas · 20260624",dark=False)
+    kpi(2,LIGHT,None,"Hoy en campaña (en estos buckets)",fmt(camp),"base de campañas · 20260617",dark=False)
     # tarjeta riesgo (3 mini)
     x=KX+3*(KW+KG); rrect(x,KY,KW,KH,LIGHT,line=CARD_LINE,radius=0.11)
     tb(x+0.14,KY+0.12,KW-0.24,0.3,[("Riesgo del pool seleccionado",{'sz':9.5,'b':True,'c':GRAY_TXT})],ls=1.05)
@@ -115,15 +116,16 @@ def build(sc):
     kpi(4,TEALD,WHITE,"Nuevos leads por mes","+"+fmt(nuevos/meses),f"{fmt(leads/meses)} elegibles / mes")
 
     # tabla nativa
+    NR=len(rows); RH=0.245
     TX=0.42; TY=2.52; TW=12.49
-    gf=s.shapes.add_table(14,8,Inches(TX),Inches(TY),Inches(TW),Inches(0.3)); tbl=gf.table
+    gf=s.shapes.add_table(NR+2,8,Inches(TX),Inches(TY),Inches(TW),Inches(0.3)); tbl=gf.table
     tbl.first_row=False; tbl.horz_banding=False
     tbl._tbl.tblPr.set('firstRow','0'); tbl._tbl.tblPr.set('bandRow','0')
     fr=[0.07,0.085,0.085,0.17,0.09,0.17,0.15,0.18]
     for i,f in enumerate(fr): tbl.columns[i].width=Inches(TW*f)
     tbl.rows[0].height=Inches(0.26)
-    for r in range(1,13): tbl.rows[r].height=Inches(0.265)
-    tbl.rows[13].height=Inches(0.28)
+    for r in range(1,NR+1): tbl.rows[r].height=Inches(RH)
+    tbl.rows[NR+1].height=Inches(0.28)
     def setb(c,color=BORDER,w=9525):
         tcPr=c._tc.get_or_add_tcPr()
         for tag in ('a:lnB','a:lnT','a:lnR','a:lnL'):
@@ -151,11 +153,11 @@ def build(sc):
             col=(GREEN_DEEP if (on and strong[j]) else (INK if on else EXC))
             cell(tbl.cell(r,j+1),v,sz=8.4,b=(on and strong[j]),col=col,fill=rowfill)
     # total
-    cell(tbl.cell(13,0),f"Incluidos ({len(inc)})",sz=8.4,b=True,col=TOTINK,fill=TOTBG,align=PP_ALIGN.LEFT)
+    cell(tbl.cell(NR+1,0),f"Incluidos ({len(inc)})",sz=8.4,b=True,col=TOTINK,fill=TOTBG,align=PP_ALIGN.LEFT)
     tvals=[f"{probA:.1f}%",f"{tasaA:.1f}%",fmt(leads),f"{leads/BT*100:.1f}%",fmt(fuera),fmt(camp),f"{scoreA:.0f}"]
-    for j,v in enumerate(tvals): cell(tbl.cell(13,j+1),v,sz=8.4,b=True,col=TOTINK,fill=TOTBG)
+    for j,v in enumerate(tvals): cell(tbl.cell(NR+1,j+1),v,sz=8.4,b=True,col=TOTINK,fill=TOTBG)
     # línea de corte punteada (bajo el último incluido)
-    ycut=TY+0.26+(last+1)*0.265
+    ycut=TY+0.26+(last+1)*RH
     dline(TX,TX+TW,ycut)
 
     # botón hipervínculo
