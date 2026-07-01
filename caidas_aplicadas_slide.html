@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Rebank · Caídas aplicadas · slide</title>
+<style>
+  :root{
+    --green-deep:#1f5130; --green-deep2:#26603a; --green:#1aa44c; --green-bright:#22b24c;
+    --green-teal:#2f7d70; --teal:#007a72; --green-soft:#e8f5ee;
+    --gray-title:#9aa6a0; --gray-txt:#5b6f66; --ink:#14271d; --shadow:0 6px 20px rgba(20,60,40,.08);
+    --amber:#e79a1e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Roboto,Arial,sans-serif}
+  body{background:#dfe6e2;display:flex;justify-content:center;padding:26px}
+  .slide{width:1280px;height:720px;background:#fff;position:relative;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);padding:22px 38px 14px}
+  h1{font-size:25px;font-weight:800;color:var(--green-deep);letter-spacing:-.3px;line-height:1.05}
+  h1 .sec{color:var(--green-bright)}
+  .subt{font-size:12.5px;color:var(--gray-txt);margin-top:3px}
+  .subt b{color:var(--green-deep)}
+  .badge{position:absolute;top:23px;right:38px;display:flex;gap:8px}
+  .badge .b{display:inline-flex;align-items:center;gap:7px;background:var(--green-soft);color:var(--green-deep);font-weight:800;font-size:12px;padding:7px 13px;border-radius:30px}
+  .badge .b.amb{background:#fdf3e0;color:#9a6a12}
+  .badge .b .n{font-size:14px}
+
+  .cols{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-top:18px}
+  .col{border:1px solid #e7eee9;border-radius:12px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:392px}
+  .col .ch{color:#fff;padding:11px 13px;display:flex;align-items:center;gap:9px;min-height:54px}
+  .col .ch .ic{width:24px;height:24px;border-radius:6px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex:0 0 24px}
+  .col .ch .tt{font-weight:800;font-size:13px;line-height:1.12}
+  .col .ch .cnt{margin-left:auto;font-size:15px;font-weight:800;background:rgba(255,255,255,.2);border-radius:7px;padding:2px 9px}
+  .col.c1 .ch{background:var(--green-deep)} .col.c2 .ch{background:var(--green-teal)}
+  .col.c3 .ch{background:var(--green-bright)} .col.c4 .ch{background:var(--green-deep2)}
+  .col ul{list-style:none;padding:14px 13px 14px;display:flex;flex-direction:column;gap:16.5px;flex:1}
+  .col li{position:relative;padding-left:15px;font-size:12px;line-height:1.3;color:var(--ink)}
+  .col li:before{content:"";position:absolute;left:0;top:6px;width:5.5px;height:5.5px;border-radius:50%;background:var(--green)}
+  .col li .mut{color:var(--gray-txt);font-size:10px}
+  .col.c1 li:before{background:var(--green-deep)} .col.c2 li:before{background:var(--green-teal)}
+  .col.c3 li:before{background:var(--green-bright)} .col.c4 li:before{background:var(--green-deep2)}
+
+  .bottom{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;margin-top:18px}
+  .pane{border:1px solid #e7eee9;border-radius:11px;box-shadow:var(--shadow);overflow:hidden}
+  .pane .ph{color:#fff;font-weight:800;font-size:12.5px;padding:9px 14px}
+  .pane.lg .ph{background:var(--green-deep)} .pane.am .ph{background:var(--amber)}
+  .pane .pb{padding:15px 15px;font-size:12.5px;color:var(--ink);line-height:1.55;min-height:132px}
+  .pane .pb code{font-family:Consolas,monospace;background:#eef4f1;color:var(--green-deep2);border-radius:4px;padding:1px 5px;font-size:11px}
+  .pane .pb b{color:var(--green-deep)}
+  .off{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px}
+  .off span{font-size:11px;font-weight:700;background:#fdf3e0;color:#9a6a12;border:1px solid #f2e0bd;border-radius:20px;padding:3px 11px}
+  .off span:before{content:"— ";opacity:.6}
+
+  .foot{position:absolute;left:38px;right:38px;bottom:9px;border-top:1px solid #e3ece7;padding-top:6px;font-size:9.4px;color:#8a9b93;line-height:1.4;display:flex;flex-wrap:wrap;gap:3px 18px}
+  .foot b{color:var(--green-deep2)}
+  @media print{ body{background:#fff;padding:0} .slide{box-shadow:none;border-radius:0} }
+</style>
+</head>
+<body>
+<div class="slide">
+  <h1>Rebank <span class="sec">| Caídas (exclusiones) aplicadas a la base</span></h1>
+  <div class="subt">Marcas que <b>sacan al cliente de la base elegible</b> — se conserva a quien <b>no tiene ninguna</b> de estas caídas (regla <code style="font-family:Consolas,monospace">COALESCE(flg,0) &lt;&gt; 1</code>)</div>
+  <div class="badge">
+    <span class="b"><span class="n">28</span> caídas activas + fallecido</span>
+    <span class="b amb"><span class="n">2</span> desactivadas</span>
+  </div>
+
+  <div class="cols">
+    <div class="col c1">
+      <div class="ch"><span class="ic">⚠</span><span class="tt">Fraude, listas y<br>clientes no elegibles</span><span class="cnt">8</span></div>
+      <ul>
+        <li>En <b>base de fraude</b></li>
+        <li>Cliente con <b>marca FEVE</b></li>
+        <li>En lista de <b>clientes especiales</b></li>
+        <li>En base de <b>recovery / cobranza</b></li>
+        <li><b>Empresa empleadora mala</b> (dudoso / pérdida)</li>
+        <li><b>Empresa no deseada</b></li>
+        <li>Empresa con <b>marca FEVE</b></li>
+        <li><b>Fallecido</b> <span class="mut">(filtro aparte)</span></li>
+      </ul>
+    </div>
+
+    <div class="col c2">
+      <div class="ch"><span class="ic">◆</span><span class="tt">Riesgo y comportamiento<br>crediticio</span><span class="cnt">9</span></div>
+      <ul>
+        <li>Con <b>castigo en IBK</b> (últ. 24 meses)</li>
+        <li>Con <b>proceso judicial</b> en el SSFF (24 m)</li>
+        <li>Clasificación <b>mayor a CPP</b> (buró aprobado)</li>
+        <li>Clasificación <b>RCC mayor a Normal</b></li>
+        <li>Más de <b>8 días de mora</b> en IBK</li>
+        <li>Comportamiento en IBK <b>distinto de Normal</b></li>
+        <li><b>Refinanciado</b> en el RCC (últ. 6 meses)</li>
+        <li><b>Refinanciado</b> con buró</li>
+        <li>Buró <b>mayor a CPP</b> en los últ. 5 meses</li>
+      </ul>
+    </div>
+
+    <div class="col c3">
+      <div class="ch"><span class="ic">▼</span><span class="tt">Endeudamiento y<br>capacidad de pago</span><span class="cnt">5</span></div>
+      <ul>
+        <li><b>Sobreendeudado</b></li>
+        <li><b>7 o más entidades</b></li>
+        <li>Marca de <b>entidades con saldo</b></li>
+        <li><b>Sin deuda / ingreso disponible</b></li>
+        <li>Restricción de <b>venta cruzada</b> (PP)</li>
+      </ul>
+    </div>
+
+    <div class="col c4">
+      <div class="ch"><span class="ic">●</span><span class="tt">Perfil, política y<br>coyuntura</span><span class="cnt">7</span></div>
+      <ul>
+        <li><b>Edad</b> fuera de rango</li>
+        <li>Cliente <b>banca especial (BPE)</b></li>
+        <li>Cliente de <b>convenio</b></li>
+        <li><b>Ya tiene tarjeta de crédito</b></li>
+        <li>Cliente <b>ISR con buró</b></li>
+        <li>Cliente <b>ISR con saldo hipotecario</b> IBK</li>
+        <li>Caída por <b>coyuntura</b> (Fenómeno del Niño) – TC</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="pane lg">
+      <div class="ph">Cómo se lee la regla</div>
+      <div class="pb">Cada condición <code>COALESCE(flg_x, 0) &lt;&gt; 1</code> <b>mantiene</b> a los clientes cuya marca <b>no está prendida</b>: si el cliente tiene la caída, <b>se excluye</b>. Las marcas se arman pivoteando la tabla <code>caidas</code> (una fila por <code>descripcion</code>) con <code>MAX(CASE…)</code> por cliente.</div>
+    </div>
+    <div class="pane am">
+      <div class="ph">Desactivadas hoy (comentadas)</div>
+      <div class="pb">Estas dos caídas <b>no se están aplicando</b> en esta corrida:
+        <div class="off"><span>Buró bajo en Amazonas / Loreto</span><span>Oferta o línea menor al mínimo</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span><b>Base elegible:</b> resultado tras aplicar las 28 caídas activas y excluir fallecidos.</span>
+    <span><b>SSFF:</b> sistema financiero · <b>RCC:</b> reporte crediticio · <b>CPP:</b> con problemas potenciales · <b>FEVE:</b> marca de alerta comercial.</span>
+  </div>
+</div>
+</body>
+</html>
