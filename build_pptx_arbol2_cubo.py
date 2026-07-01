@@ -35,6 +35,9 @@ def hsl(h,s=0.60,l=0.78):
     return RGBColor(int((r+m)*255),int((g+m)*255),int((b+m)*255))
 HUE=[130,118,106,95,83,71,59,47,35,24,12,0]
 BUCK=[hsl(h) for h in HUE]
+NB=12
+def bcol(i):
+    return hsl(130-i/(NB-1)*130) if NB>1 else hsl(65)
 
 prs=Presentation(); prs.slide_width=Inches(13.333); prs.slide_height=Inches(7.5)
 BLANK=prs.slide_layouts[6]
@@ -123,7 +126,7 @@ def th_row(t,row,headers,size=9.5):
         if sp=='tot':fill=TOTC_BG;col=TOTC_INK
         cell(t.cell(row,j),htxt,size=size,color=col,bold=True,fill=fill,align=al,nowrap=True)
 def buckcell(c,label,hidx,size=10,mgn=0.02):
-    cell(c,label,size=size,color=INK,bold=True,fill=BUCK[hidx],align=PP_ALIGN.CENTER,mgn=mgn)
+    cell(c,label,size=size,color=INK,bold=True,fill=bcol(hidx),align=PP_ALIGN.CENTER,mgn=mgn)
 
 def P(d):   # decimal -> % (1 decimal, .0 sin decimal)
     v=round(float(d)*1000)/10
@@ -138,16 +141,17 @@ exec(open("/home/user/Controling/_cubo_data.py").read())
 
 # ===================== SLIDE RESUMEN =====================
 def slide_resumen(meses,scn,nestr,tasa,tasaT,v2,v2T,v3,v3T,tipos,tipoT):
+    global NB; NB=len(tasa); nb=NB
     s=add_slide()
     header(s,[(f"Buckets Árbol 2 · {meses} ",{'c':GREEN_DEEP,'b':True}),("| Tasa de riesgo y distribución V1 / V2 / V3",{'c':GRAY_TITLE,'b':True})],
-           [(f"Escenario {scn} · 12 buckets sobre {nestr} estrategias del Árbol 2 (3 variables) · verde = menor riesgo, rojo = mayor",{'c':GRAY_TXT})],scn)
+           [(f"Escenario {scn} · {nb} buckets sobre {nestr} estrategias del Árbol 2 (3 variables) · verde = menor riesgo, rojo = mayor",{'c':GRAY_TXT})],scn)
     C=PP_ALIGN.CENTER; L=PP_ALIGN.LEFT
     LX,LW,RX,RW=0.46,6.13,6.74,6.13
     TY,TH,BY=1.12,2.88,4.10
-    FS=7; HS=7.5; rh=0.165
+    FS=7 if nb<=12 else 6.2; HS=7.5 if nb<=12 else 6.6; rh=0.165 if nb<=12 else 0.143
     # --- Tasa (arriba-izq) ---
     ix,iy,iw=card(s,LX,TY,LW,TH,"Tasa de riesgo por bucket")
-    t=s.shapes.add_table(14,6,Inches(ix),Inches(iy),Inches(iw),Inches(0.19+rh*13)).table; t.first_row=False;t.horz_banding=False
+    t=s.shapes.add_table(nb+2,6,Inches(ix),Inches(iy),Inches(iw),Inches(0.19+rh*(nb+1))).table; t.first_row=False;t.horz_banding=False
     ws=[0.42,1.4,0.85,0.85,1.05,iw-0.42-1.4-0.85-0.85-1.05]
     for j,wd in enumerate(ws):t.columns[j].width=Inches(wd)
     th_row(t,0,[("Buck.",C,''),("Estrat.",L,''),("Tasa",C,''),("Prob.",C,''),("N",C,''),("% tot",C,'')],size=HS)
@@ -155,45 +159,46 @@ def slide_resumen(meses,scn,nestr,tasa,tasaT,v2,v2T,v3,v3T,tipos,tipoT):
         buckcell(t.cell(i,0),r[0],i-1,size=FS,mgn=0.012); cell(t.cell(i,1),[(r[1],{'sz':FS})],align=L,nowrap=True,mgn=0.012)
         cell(t.cell(i,2),[(r[2],{'sz':FS})],align=C,nowrap=True,mgn=0.012);cell(t.cell(i,3),[(P(r[5]),{'sz':FS})],align=C,nowrap=True,mgn=0.012)
         cell(t.cell(i,4),[(r[3],{'sz':FS})],align=C,nowrap=True,mgn=0.012);cell(t.cell(i,5),[(R(r[4]),{'sz':FS})],align=C,nowrap=True,mgn=0.012)
-    cell(t.cell(13,0),"Tot",size=HS,bold=True,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.012)
+    cell(t.cell(nb+1,0),"Tot",size=HS,bold=True,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.012)
     tvals=[(tasaT[0],L),(tasaT[1],C),(P(tasaT[4]),C),(tasaT[2],C),(R(tasaT[3]),C)]
-    for j,(v,al) in enumerate(tvals,1):cell(t.cell(13,j),[(v,{'b':True,'sz':FS})],align=al,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.012)
+    for j,(v,al) in enumerate(tvals,1):cell(t.cell(nb+1,j),[(v,{'b':True,'sz':FS})],align=al,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.012)
     t.rows[0].height=Inches(0.19)
-    for i in range(1,14):t.rows[i].height=Inches(rh)
+    for i in range(1,nb+2):t.rows[i].height=Inches(rh)
     # --- V2 (arriba-der) · V3 (abajo-izq) ---
     for (cx,cy,ttl,data,tot) in [(RX,TY,"· Base inicial",v2,v2T),(LX,BY,"· Fuera de campaña",v3,v3T)]:
         ix,iy,iw=card(s,cx,cy,LW,TH,ttl,hcolor=GREEN_BRIGHT)
-        tt=s.shapes.add_table(14,5,Inches(ix),Inches(iy),Inches(iw),Inches(0.19+rh*13)).table; tt.first_row=False;tt.horz_banding=False
+        tt=s.shapes.add_table(nb+2,5,Inches(ix),Inches(iy),Inches(iw),Inches(0.19+rh*(nb+1))).table; tt.first_row=False;tt.horz_banding=False
         ws2=[0.42,1.45,0.95,1.15,iw-0.42-1.45-0.95-1.15]
         for j,wd in enumerate(ws2):tt.columns[j].width=Inches(wd)
         th_row(tt,0,[("Buck.",C,''),("Cantidad",C,''),("%",C,''),("Prob.",C,''),("score",C,'')],size=HS)
         for i,r in enumerate(data,1):
             buckcell(tt.cell(i,0),f"B{i}",i-1,size=FS,mgn=0.012)
             for j,val in enumerate([r[0],R(r[1]),P(r[2]),S(r[3])]):cell(tt.cell(i,j+1),[(val,{'sz':FS})],align=C,nowrap=True,mgn=0.012)
-        cell(tt.cell(13,0),"Tot",size=HS,bold=True,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.012)
-        for j,val in enumerate([tot[0],R(tot[1]),P(tot[2]),S(tot[3])]):cell(tt.cell(13,j+1),[(val,{'b':True,'sz':FS})],align=C,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.012)
+        cell(tt.cell(nb+1,0),"Tot",size=HS,bold=True,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.012)
+        for j,val in enumerate([tot[0],R(tot[1]),P(tot[2]),S(tot[3])]):cell(tt.cell(nb+1,j+1),[(val,{'b':True,'sz':FS})],align=C,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.012)
         tt.rows[0].height=Inches(0.19)
-        for i in range(1,14):tt.rows[i].height=Inches(rh)
+        for i in range(1,nb+2):tt.rows[i].height=Inches(rh)
     # --- V1 pivote por BUCKET (abajo-der): Buck | tipo1..N | Total ---
-    nt=len(tipos); ncol=1+nt+1; VF=6.5
-    ix,iy,iw=card(s,RX,BY,RW,TH,"· Base de campañas",hcolor=GREEN_TEAL,sub="· 20260624 · tipo × bucket")
-    tv=s.shapes.add_table(14,ncol,Inches(ix),Inches(iy),Inches(iw),Inches(0.34+0.155*13)).table; tv.first_row=False;tv.horz_banding=False
+    nt=len(tipos); ncol=1+nt+1; VF=6.5 if nb<=12 else 5.7
+    ix,iy,iw=card(s,RX,BY,RW,TH,"· Base de campañas",hcolor=GREEN_TEAL,sub="· 20260617 · tipo × bucket")
+    pvh=0.155 if nb<=12 else 0.135
+    tv=s.shapes.add_table(nb+2,ncol,Inches(ix),Inches(iy),Inches(iw),Inches(0.30+pvh*(nb+1))).table; tv.first_row=False;tv.horz_banding=False
     bw=0.38; totw=0.85; tw=(iw-bw-totw)/nt
     for j,wd in enumerate([bw]+[tw]*nt+[totw]):tv.columns[j].width=Inches(wd)
     cell(tv.cell(0,0),[("Buck.",{'sz':HS})],color=WHITE,bold=True,fill=TH_BG,align=C)
     for j,tp in enumerate(tipos,1):cell(tv.cell(0,j),[(tp[0],{'sz':6})],color=WHITE,bold=True,fill=TH_BG,align=C)
     cell(tv.cell(0,ncol-1),[("Total",{'sz':HS})],color=TOTC_INK,bold=True,fill=TOTC_BG,align=C)
-    for k in range(1,13):
+    for k in range(1,nb+1):
         buckcell(tv.cell(k,0),f"B{k}",k-1,size=VF,mgn=0.01)
         for j in range(nt):cell(tv.cell(k,1+j),[(tipos[j][k],{'sz':VF})],align=C,nowrap=True,mgn=0.01)
         cell(tv.cell(k,ncol-1),[(tipoT[k-1],{'sz':VF,'b':True})],align=C,fill=TOTC_BG,color=TOTC_INK,nowrap=True,mgn=0.01)
-    cell(tv.cell(13,0),[("Tot",{'sz':VF})],bold=True,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.01)
-    for j in range(nt):cell(tv.cell(13,1+j),[(tipos[j][13],{'sz':VF,'b':True})],align=C,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.01)
-    cell(tv.cell(13,ncol-1),[(tipoT[12],{'sz':VF,'b':True})],align=C,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.01)
+    cell(tv.cell(nb+1,0),[("Tot",{'sz':VF})],bold=True,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.01)
+    for j in range(nt):cell(tv.cell(nb+1,1+j),[(tipos[j][nb+1],{'sz':VF,'b':True})],align=C,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.01)
+    cell(tv.cell(nb+1,ncol-1),[(tipoT[nb],{'sz':VF,'b':True})],align=C,fill=TOT_BG,color=TOT_INK,nowrap=True,mgn=0.01)
     tv.rows[0].height=Inches(0.34)
-    for k in range(1,14):tv.rows[k].height=Inches(0.155)
+    for k in range(1,nb+2):tv.rows[k].height=Inches(pvh)
     footer(s,[("Tasa malos:"," % de target_60_12m=1 en la base de modelamiento (RD, n=45,459)."),
-              ("V1:"," base de campañas por tipo (20260624) · V2: base de generación · V3: fuera de campaña."),
+              ("V1:"," base de campañas por tipo (20260617) · V2: base de generación · V3: fuera de campaña."),
               ("Prob. / score:"," promedios por bucket.")])
 
 # ===================== SLIDE REGLAS =====================
@@ -213,6 +218,7 @@ def reglas_tbl(s,x,y,w,rows,off,rowh=0.225):
     return n
 
 def slide_reglas(meses,scn,nreglas,rows,dos):
+    global NB; NB=max(r[0] for r in rows)
     s=add_slide()
     header(s,[(f"Buckets Árbol 2 · {meses} ",{'c':GREEN_DEEP,'b':True}),("| Reglas por bucket",{'c':GRAY_TITLE,'b':True})],
            [(f"Escenario {scn} · {nreglas} estrategias del Árbol 2 · cada regla = una hoja",{'c':GRAY_TXT})],scn)
@@ -230,6 +236,7 @@ def slide_reglas(meses,scn,nreglas,rows,dos):
 
 # ===================== SLIDE CUBO =====================
 def slide_cubo(meses,scn,nreglas,grid,rows,cols,umbral,desc,tasa,scats,ccats):
+    global NB; NB=len(tasa); nb=NB
     s=add_slide()
     header(s,[(f"Buckets Árbol 2 · {meses} ",{'c':GREEN_DEEP,'b':True}),("| Cubo de reglas (3 variables)",{'c':GRAY_TITLE,'b':True})],
            [(f"Las {nreglas} reglas en 3 variables: ",{'c':GRAY_TXT}),("Score Rebank × bucket Árbol 1 × Saldo Pasivo",{'c':GRAY_TXT,'b':True}),(" → color = bucket final",{'c':GRAY_TXT})],scn)
@@ -243,12 +250,12 @@ def slide_cubo(meses,scn,nreglas,grid,rows,cols,umbral,desc,tasa,scats,ccats):
         for c in range(nc):
             x=ox+c*cs;y=oy+r*cs;g=grid[r][c]
             if isinstance(g,tuple):
-                poly(s,[(x,y),(x+cs,y),(x+cs,y+cs)],BUCK[g[0]-1],line=WHITE,lw=1)
-                poly(s,[(x,y),(x,y+cs),(x+cs,y+cs)],BUCK[g[1]-1],line=WHITE,lw=1)
+                poly(s,[(x,y),(x+cs,y),(x+cs,y+cs)],bcol(g[0]-1),line=WHITE,lw=1)
+                poly(s,[(x,y),(x,y+cs),(x+cs,y+cs)],bcol(g[1]-1),line=WHITE,lw=1)
                 tb(s,x+cs*0.40,y+cs*0.04,cs*0.58,cs*0.34,f"B{g[0]}",size=8.5,bold=True,align=PP_ALIGN.CENTER,anchor=MSO_ANCHOR.MIDDLE)
                 tb(s,x+cs*0.02,y+cs*0.60,cs*0.58,cs*0.34,f"B{g[1]}",size=8.5,bold=True,align=PP_ALIGN.CENTER,anchor=MSO_ANCHOR.MIDDLE)
             else:
-                rect(s,x,y,cs,cs,BUCK[g-1],line=WHITE,lw=1)
+                rect(s,x,y,cs,cs,bcol(g-1),line=WHITE,lw=1)
                 tb(s,x,y,cs,cs,f"B{g}",size=11,bold=True,align=PP_ALIGN.CENTER,anchor=MSO_ANCHOR.MIDDLE)
             rect(s,x,y,cs,cs,None,line=CELLLINE,lw=0.5)
     # etiquetas filas (Score Rebank): categoría + umbral (corresponde con la tabla)
@@ -286,14 +293,15 @@ def slide_cubo(meses,scn,nreglas,grid,rows,cols,umbral,desc,tasa,scats,ccats):
         ("▼ Saldo Pasivo bajo",{'c':INK,'b':True,'sz':9.5}),(f" (≤ {umbral})",{'c':GRAY_TXT,'sz':9.5})],
        size=9.5,color=INK,anchor=MSO_ANCHOR.MIDDLE,ls=1.05)
     tb(s,px,iy+0.86,pw,0.22,"Bucket final → ¿qué cliente es?",size=12.5,color=GREEN_DEEP,bold=True)
-    lt=s.shapes.add_table(12,3,Inches(px),Inches(iy+1.10),Inches(pw),Inches(0.255*12)).table; lt.first_row=False;lt.horz_banding=False
+    lrh=min(0.255,3.05/nb)
+    lt=s.shapes.add_table(nb,3,Inches(px),Inches(iy+1.10),Inches(pw),Inches(lrh*nb)).table; lt.first_row=False;lt.horz_banding=False
     lt.columns[0].width=Inches(0.42);lt.columns[1].width=Inches(0.62);lt.columns[2].width=Inches(pw-0.42-0.62)
-    for i in range(12):
+    for i in range(nb):
         buckcell(lt.cell(i,0),f"B{i+1}",i,size=9.5,mgn=0.02)
         cell(lt.cell(i,1),[(tasa[i][2],{'sz':9.5})],align=PP_ALIGN.RIGHT,color=GRAY_TXT)
         cell(lt.cell(i,2),[(desc[i],{'sz':9.3,'c':MONO_INK})],align=PP_ALIGN.LEFT)
-    for i in range(12):lt.rows[i].height=Inches(0.255)
-    tb(s,px,iy+1.10+0.255*12+0.06,pw,0.4,
+    for i in range(nb):lt.rows[i].height=Inches(lrh)
+    tb(s,px,iy+1.10+lrh*nb+0.06,pw,0.4,
        [("Orden por riesgo: ",{'c':GREEN_DEEP,'b':True,'sz':10}),("domina el Score Rebank; dentro de cada tramo de score sube el segmento del Árbol 1.",{'c':GRAY_TXT,'sz':10})],
        size=10,color=GRAY_TXT,ls=1.1)
     footer(s,[("Score Rebank:"," puntuacion_cal_cat (1–6) · bucket Árbol 1: bucket (ordinal) · Saldo Pasivo: saldo_prom_tot_pasivo_u3m."),
@@ -303,9 +311,9 @@ def slide_cubo(meses,scn,nreglas,grid,rows,cols,umbral,desc,tasa,scats,ccats):
 slide_resumen("24 meses","24m_sinedad_6","30",TASA24,TASA24T,V224,V224T,V324,V324T,V1P24,V1P24T)
 slide_reglas("24 meses","24m_sinedad_6","30",REG24,True)
 slide_cubo("24 meses","24m_sinedad_6","30",CUBE24,ROWS24,COLS24,"349.07",DESC24,TASA24,SCATS24,CCATS24)
-slide_resumen("5 años","5años_sinedad_4","16",TASA5,TASA5T,V25,V25T,V35,V35T,V1P5,V1P5T)
-slide_reglas("5 años","5años_sinedad_4","16",REG5,False)
-slide_cubo("5 años","5años_sinedad_4","16",CUBE5,ROWS5,COLS5,"220.89",DESC5,TASA5,SCATS5,CCATS5)
+slide_resumen("5 años","5años_sinedad_4","17",TASA5,TASA5T,V25,V25T,V35,V35T,V1P5,V1P5T)
+slide_reglas("5 años","5años_sinedad_4","17",REG5,False)
+slide_cubo("5 años","5años_sinedad_4","17",CUBE5,ROWS5,COLS5,"220.89",DESC5,TASA5,SCATS5,CCATS5)
 
 prs.save("/home/user/Controling/presentacion_buckets_arbol2_cubo.pptx")
 print("OK pptx cubo guardado")
