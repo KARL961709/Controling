@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Propuesta de seguimiento · slide</title>
+<style>
+  :root{
+    --green-deep:#1f5130; --green-deep2:#26603a; --green:#1aa44c; --green-bright:#1a9850;
+    --green-teal:#2f7d70; --teal:#007a72; --green-soft:#e8f5ee;
+    --gray-title:#9aa6a0; --gray-txt:#5b6f66; --ink:#14271d; --shadow:0 6px 20px rgba(20,60,40,.08);
+    --amber:#e79a1e; --red:#d24b3e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Roboto,Arial,sans-serif}
+  body{background:#dfe6e2;display:flex;justify-content:center;padding:26px}
+  .slide{width:1280px;height:720px;background:#fff;position:relative;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);padding:24px 40px 14px}
+  h1{font-size:25px;font-weight:800;color:var(--green-deep);letter-spacing:-.3px;line-height:1.1}
+  h1 .sec{color:var(--gray-title)}
+  .subt{font-size:12.5px;color:var(--gray-txt);margin-top:4px}
+  .badge{position:absolute;top:24px;right:40px;display:inline-flex;align-items:center;gap:8px;background:var(--green-soft);color:var(--green-deep);font-weight:700;font-size:12px;padding:7px 14px;border-radius:30px}
+  .badge .dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
+
+  /* ciclo de vida */
+  .cycle{display:flex;align-items:center;gap:0;margin-top:13px}
+  .cy{flex:1;display:flex;align-items:center}
+  .cy .node{flex:1;border-radius:10px;padding:8px 11px;color:#fff;box-shadow:var(--shadow)}
+  .cy .node .t{font-size:12px;font-weight:800;line-height:1.05}
+  .cy .node .d{font-size:9.7px;opacity:.93;margin-top:2px;line-height:1.15}
+  .cy .node.c1{background:var(--green-deep)} .cy .node.c2{background:var(--green-teal)}
+  .cy .node.c3{background:var(--green-bright)} .cy .node.c4{background:var(--green-deep2)}
+  .cy .arw{flex:0 0 26px;text-align:center;color:#8fb3a3;font-size:19px;font-weight:800}
+  .cyback{font-size:10px;color:var(--gray-txt);text-align:center;margin-top:5px}
+  .cyback b{color:var(--green-deep)}
+
+  /* matriz */
+  table.mx{width:100%;border-collapse:collapse;margin-top:12px;table-layout:fixed}
+  table.mx th{background:var(--green-deep);color:#fff;font-size:10.5px;font-weight:800;text-align:left;padding:7px 10px}
+  table.mx td{border-bottom:1px solid #eaf1ed;padding:7px 10px;font-size:10.4px;color:var(--ink);vertical-align:middle;line-height:1.24}
+  table.mx tr:nth-child(even) td{background:#f7fbf9}
+  table.mx td .dim{font-weight:800;color:var(--green-deep);font-size:10.7px}
+  table.mx td.metric{font-weight:700;color:var(--green-deep2)}
+  .thr{display:flex;flex-direction:column;gap:2px}
+  .thr span{font-size:9.5px;font-weight:700;border-radius:5px;padding:1px 6px;width:max-content}
+  .thr .a{background:#fdf1dc;color:var(--amber)} .thr .r{background:#fbe4e1;color:var(--red)}
+  table.mx td.act{color:var(--green-deep2);font-weight:600}
+
+  /* franja inferior */
+  .bottom{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;margin-top:13px}
+  .pane{border:1px solid #e7eee9;border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+  .pane .ph{background:var(--green-deep);color:#fff;font-weight:800;font-size:11.5px;padding:7px 13px}
+  .pane .pb{padding:10px 13px}
+  .cad{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .cad .c{border:1px solid #eef3f0;border-radius:9px;padding:8px 10px;background:#f9fcfb}
+  .cad .c .k{font-size:10px;font-weight:800;color:#fff;background:var(--green-teal);border-radius:20px;padding:2px 9px;display:inline-block}
+  .cad .c.q .k{background:var(--green-bright)} .cad .c.y .k{background:var(--green-deep2)}
+  .cad .c ul{list-style:none;margin-top:6px;display:flex;flex-direction:column;gap:4px}
+  .cad .c li{font-size:9.8px;color:var(--ink);line-height:1.2;padding-left:11px;position:relative}
+  .cad .c li:before{content:"";position:absolute;left:0;top:5px;width:4px;height:4px;border-radius:50%;background:var(--green)}
+  .sem{display:flex;flex-direction:column;gap:7px}
+  .sem .s{display:flex;align-items:center;gap:9px;font-size:10.3px;color:var(--ink)}
+  .sem .s .lt{width:12px;height:12px;border-radius:50%;flex:0 0 12px}
+  .sem .s b{color:var(--green-deep)}
+  .gov{margin-top:9px;padding-top:8px;border-top:1px solid #eef3f0;font-size:9.8px;color:var(--gray-txt);line-height:1.35}
+  .gov b{color:var(--green-deep)}
+
+  .foot{position:absolute;left:40px;right:40px;bottom:9px;border-top:1px solid #e3ece7;padding-top:6px;font-size:9.6px;color:#8a9b93;line-height:1.4;display:flex;flex-wrap:wrap;gap:3px 20px}
+  .foot b{color:var(--green-deep2)}
+  @media print{ body{background:#fff;padding:0} .slide{box-shadow:none;border-radius:0} }
+</style>
+</head>
+<body>
+<div class="slide">
+  <h1>Propuesta de seguimiento del proceso <span class="sec">| Score Rebank</span></h1>
+  <div class="subt">Cómo vigilar en el tiempo que los <b>árboles</b> y las <b>campañas de rebancarización</b> siguen funcionando, y cuándo actuar</div>
+  <span class="badge"><span class="dot"></span>monitoreo continuo</span>
+
+  <!-- ciclo de vida -->
+  <div class="cycle">
+    <div class="cy"><div class="node c1"><div class="t">1 · Construcción</div><div class="d">Árbol 1 → Árbol 2 → buckets finales</div></div><div class="arw">→</div></div>
+    <div class="cy"><div class="node c2"><div class="t">2 · Despliegue</div><div class="d">buckets aplicados a las campañas / pilotos</div></div><div class="arw">→</div></div>
+    <div class="cy"><div class="node c3"><div class="t">3 · Seguimiento</div><div class="d">estabilidad · poder · negocio</div></div><div class="arw">→</div></div>
+    <div class="cy"><div class="node c4"><div class="t">4 · Decisión</div><div class="d">mantener · recalibrar · reentrenar</div></div></div>
+  </div>
+  <div class="cyback"><b>Ciclo cerrado:</b> la Decisión realimenta la Construcción — el seguimiento es lo que dispara recalibrar o reentrenar.</div>
+
+  <!-- matriz de seguimiento -->
+  <table class="mx">
+    <colgroup><col style="width:17%"><col style="width:27%"><col style="width:20%"><col style="width:16%"><col style="width:20%"></colgroup>
+    <thead><tr><th>Dimensión</th><th>Qué vigila</th><th>Métrica</th><th>Umbral de alerta</th><th>Acción</th></tr></thead>
+    <tbody>
+      <tr><td><span class="dim">Estabilidad de la población</span></td>
+          <td>Que la mezcla de clientes por bucket no se desvíe de la base de construcción.</td>
+          <td class="metric">PSI de la distribución de buckets</td>
+          <td><div class="thr"><span class="a">ámbar &gt; 0.10</span><span class="r">rojo &gt; 0.25</span></div></td>
+          <td class="act">Revisar la mezcla y recalibrar los cortes.</td></tr>
+      <tr><td><span class="dim">Estabilidad de las variables</span></td>
+          <td>Que cada variable de entrada mantenga su distribución en el tiempo.</td>
+          <td class="metric">PSI por variable</td>
+          <td><div class="thr"><span class="a">ámbar &gt; 0.10</span><span class="r">rojo &gt; 0.25</span></div></td>
+          <td class="act">Re-agrupar los tramos de la variable.</td></tr>
+      <tr><td><span class="dim">Orden y poder del modelo</span></td>
+          <td>Que los buckets sigan ordenados por riesgo y separando bien.</td>
+          <td class="metric">Monotonía de la tasa de malos · KS / Gini</td>
+          <td><div class="thr"><span class="a">se rompe el orden</span><span class="r">caída de KS / Gini</span></div></td>
+          <td class="act">Reentrenar el árbol.</td></tr>
+      <tr><td><span class="dim">Calibración del riesgo</span></td>
+          <td>Que la tasa de malos observada coincida con la esperada por bucket.</td>
+          <td class="metric">Observado vs. esperado</td>
+          <td><div class="thr"><span class="a">desvío moderado</span><span class="r">desvío alto sostenido</span></div></td>
+          <td class="act">Recalibrar los puntos de corte.</td></tr>
+      <tr><td><span class="dim">Desempeño de negocio</span></td>
+          <td>Que la rebancarización genere valor frente a un grupo de control.</td>
+          <td class="metric">Activación · mora temprana · recupero</td>
+          <td><div class="thr"><span class="a">bajo el objetivo</span><span class="r">mora sobre lo tolerado</span></div></td>
+          <td class="act">Ajustar la estrategia comercial.</td></tr>
+      <tr><td><span class="dim">Cobertura y rechazo</span></td>
+          <td>Cuántos clientes objetivo capturan las reglas y cuántos quedan fuera.</td>
+          <td class="metric">% capturado · % de rechazo</td>
+          <td><div class="thr"><span class="a">cae la cobertura</span><span class="r">rechazo creciente</span></div></td>
+          <td class="act">Revisar o ampliar las reglas.</td></tr>
+    </tbody>
+  </table>
+
+  <!-- franja inferior -->
+  <div class="bottom">
+    <div class="pane">
+      <div class="ph">Cadencia propuesta</div>
+      <div class="pb"><div class="cad">
+        <div class="c"><span class="k">Mensual</span><ul>
+          <li>Estabilidad (PSI población y variables)</li>
+          <li>Cobertura y rechazo</li>
+          <li>Desempeño de campañas</li></ul></div>
+        <div class="c q"><span class="k">Trimestral</span><ul>
+          <li>Orden y poder (KS / Gini)</li>
+          <li>Calibración del riesgo</li>
+          <li>Monotonía por bucket</li></ul></div>
+        <div class="c y"><span class="k">Anual / por alerta</span><ul>
+          <li>Reentrenamiento completo de los árboles</li>
+          <li>Revisión del universo de variables</li></ul></div>
+      </div></div>
+    </div>
+    <div class="pane">
+      <div class="ph">Semáforo y gobierno</div>
+      <div class="pb">
+        <div class="sem">
+          <div class="s"><span class="lt" style="background:#2fa863"></span><b>Verde</b> · dentro de rango — sin acción.</div>
+          <div class="s"><span class="lt" style="background:var(--amber)"></span><b>Ámbar</b> · vigilar y documentar.</div>
+          <div class="s"><span class="lt" style="background:var(--red)"></span><b>Rojo</b> · recalibrar o reentrenar.</div>
+        </div>
+        <div class="gov"><b>Roles:</b> Riesgos define umbrales · Modelos ejecuta el monitoreo · Negocio actúa en campañas · toda decisión queda en bitácora.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span><b>PSI:</b> mide cuánto se desplaza una distribución respecto a la base de construcción.</span>
+    <span><b>KS / Gini:</b> miden qué tan bien el modelo separa a los clientes buenos de los malos.</span>
+    <span><b>Control:</b> grupo comparable que no recibe la campaña, para aislar el efecto real.</span>
+  </div>
+</div>
+</body>
+</html>
