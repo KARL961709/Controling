@@ -104,12 +104,11 @@
 <div class="tip" id="tip"></div>
 
 <script>
-const HUE=[130,118,106,95,83,71,59,47,35,24,12,0];
-const colB=n=>`hsl(${HUE[n-1]},60%,78%)`;
+const colB=(n,tot)=>{tot=tot||12; return `hsl(${130-(n-1)/(tot-1)*130},60%,78%)`;};
 const TASA24=[["B1","4.55%"],["B2","5.55%"],["B3","6.69%"],["B4","10.13%"],["B5","11.51%"],["B6","13.40%"],["B7","12.67%"],["B8","17.13%"],["B9","17.69%"],["B10","19.63%"],["B11","36.96%"],["B12","40.82%"]];
-const TASA5=[["B1","7.15%"],["B2","8.14%"],["B3","8.70%"],["B4","9.42%"],["B5","13.36%"],["B6","13.53%"],["B7","13.17%"],["B8","17.07%"],["B9","18.13%"],["B10","19.10%"],["B11","36.89%"],["B12","39.68%"]];
+const TASA5=[["B1","7.15%"],["B2","8.14%"],["B3","6.84%"],["B4","10.12%"],["B5","9.42%"],["B6","13.36%"],["B7","13.53%"],["B8","13.17%"],["B9","17.07%"],["B10","18.13%"],["B11","19.10%"],["B12","36.89%"],["B13","39.68%"]];
 const DESC24=["Mejor score · Saldo alto · mejor segmento → riesgo mínimo","Mejor score · Saldo alto · segmento alto","Mejor score · Saldo bajo","Score muy bueno · segmento bajo–medio","Score muy bueno · segmento alto","Score medio · segmento bajo–medio","Score medio · segmento alto","Score medio–bajo · segmento bajo","Score medio–bajo · segmento medio","Score medio–bajo · segmento alto","Score bajo · segmento bajo–medio → riesgo alto","Score bajo · segmento alto → riesgo máximo"];
-const DESC5=["Mejor score · Saldo alto · segmento bajo–medio","Mejor score · Saldo alto · segmento alto","Mejor score · Saldo bajo · segmento bajo–medio","Mejor score · Saldo bajo · segmento alto","Score medio · segmento bajo","Score medio · segmento medio","Score medio · segmento alto","Score medio–bajo · segmento bajo","Score medio–bajo · segmento medio","Score medio–bajo · segmento alto","Score bajo · segmento bajo–medio → riesgo alto","Score bajo · segmento alto → riesgo máximo"];
+const DESC5=["Mejor score · Saldo alto · segmento bajo–medio","Mejor score · Saldo alto · segmento alto","Score cat 1 · Saldo bajo · segmento bajo–medio","Score cat 2 · Saldo bajo · segmento bajo–medio","Mejor score · Saldo bajo · segmento alto","Score medio · segmento bajo","Score medio · segmento medio","Score medio · segmento alto","Score medio–bajo · segmento bajo","Score medio–bajo · segmento medio","Score medio–bajo · segmento alto","Score bajo · segmento bajo–medio → riesgo alto","Score bajo · segmento alto → riesgo máximo"];
 
 const SC=[
  {meses:"24 meses", scn:"24m_sinedad_6", umbral:"349.07",
@@ -123,13 +122,14 @@ const SC=[
         [11,11,11,11,12,12,12]],
   tasa:TASA24, desc:DESC24},
  {meses:"5 años", scn:"5años_sinedad_4", umbral:"220.89",
-  rows:["≤ 2.5","(2.5, 3.5]","(3.5, 4.5]","> 4.5"],
-  scoreCats:["Mejor score","Score medio","Score medio–bajo","Score bajo"],
+  rows:["≤ 1","(1, 2.5]","(2.5, 3.5]","(3.5, 4.5]","> 4.5"],
+  scoreCats:["Mejor score","Score bueno","Score medio","Score medio–bajo","Score bajo"],
   cols:["≤3","4","5","6","7+"], colCats:["bajo","bajo","medio","alto","alto"],
-  grid:[[{f:1,b:3},{f:1,b:3},{f:2,b:4},{f:2,b:4},{f:2,b:4}],
-        [5,6,6,7,8],
-        [8,9,9,10,11],
-        [11,11,12,12,12]],
+  grid:[[{f:1,b:3},{f:1,b:3},{f:2,b:5},{f:2,b:5},{f:2,b:5}],
+        [{f:1,b:4},{f:1,b:4},{f:2,b:5},{f:2,b:5},{f:2,b:5}],
+        [6,7,7,8,9],
+        [9,10,10,11,12],
+        [12,12,13,13,13]],
   tasa:TASA5, desc:DESC5}
 ];
 
@@ -141,7 +141,7 @@ function cubie(cell,cx,cy,r,c,spec,mode){
   const obj=typeof cell==="object";
   const a=obj?cell.f:cell, b=obj?cell.b:cell;
   const v = mode==='bajo'? b : a;
-  const cv=colB(v);
+  const cv=colB(v, spec.tasa.length);
   const info = `<span class="bk">Score: ${spec.scoreCats[r]} <span class="mut2">${spec.rows[r]}</span></span>`
     +`<small class="mut2">segmento ${spec.colCats[c]} · bucket Árbol 1 = ${spec.cols[c]}</small>`
     +`<small>▲ Saldo alto <span class="mut2">(&gt; ${spec.umbral})</span> → <b>B${a}</b> · tasa ${spec.tasa[a-1][1]}</small>`
@@ -190,7 +190,7 @@ function buildScene(spec,mode){
 
 function panel(spec){
   let leg="";
-  spec.tasa.forEach((r,i)=>{ leg+=`<tr><td class="sw" style="background:${colB(i+1)}"></td><td class="bn">B${i+1}</td><td class="ta">${r[1]}</td><td class="ds">${spec.desc[i]}</td></tr>`; });
+  spec.tasa.forEach((r,i)=>{ leg+=`<tr><td class="sw" style="background:${colB(i+1, spec.tasa.length)}"></td><td class="bn">B${i+1}</td><td class="ta">${r[1]}</td><td class="ds">${spec.desc[i]}</td></tr>`; });
   return `<div class="card"><div class="ch">Bucket final → ¿qué cliente es?</div>
     <div style="padding:10px 12px">
       <div class="skeyrow">
