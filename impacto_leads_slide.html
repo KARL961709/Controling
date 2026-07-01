@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Impacto · Nuevos leads · dinámico</title>
+<style>
+  :root{
+    --green-deep:#1f5130; --green-deep2:#26603a; --green:#1aa44c; --green-bright:#22b24c;
+    --green-teal:#2f7d70; --teal:#007a72; --green-soft:#e8f5ee;
+    --gray-title:#9aa6a0; --gray-txt:#5b6f66; --ink:#14271d; --shadow:0 6px 20px rgba(20,60,40,.08);
+    --amber:#e79a1e; --red:#d24b3e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Roboto,Arial,sans-serif}
+  body{background:#dfe6e2;display:flex;justify-content:center;padding:26px}
+  .slide{width:1280px;height:720px;background:#fff;position:relative;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);padding:22px 38px 12px}
+  h1{font-size:24px;font-weight:800;color:var(--green-deep);letter-spacing:-.3px;line-height:1.05}
+  h1 .sec{color:var(--gray-title)}
+  .subt{font-size:12px;color:var(--gray-txt);margin-top:3px;max-width:815px}
+  .subt b{color:var(--green-deep)}
+
+  .ctrl{position:absolute;top:20px;right:38px;display:flex;gap:12px;align-items:stretch}
+  .ctl{background:#f5faf7;border:1px solid #dcebe3;border-radius:11px;padding:7px 12px;display:flex;flex-direction:column;gap:3px;min-width:150px}
+  .ctl .lb{font-size:9.5px;font-weight:800;color:var(--green-deep);text-transform:uppercase;letter-spacing:.3px}
+  .ctl .rowc{display:flex;align-items:center;gap:8px}
+  .ctl input[type=range]{width:118px;accent-color:var(--green)}
+  .ctl input[type=number]{width:52px;border:1px solid #cdddd5;border-radius:6px;padding:2px 5px;font-size:12px;font-weight:800;color:var(--green-deep);text-align:center}
+  .ctl .big{font-size:15px;font-weight:800;color:var(--green-deep)}
+  .ctl .ap{font-size:11px;color:var(--gray-txt)} .ctl .ap b{color:var(--green-bright);font-size:13px}
+
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:13px;margin-top:20px}
+  .kpi{border-radius:12px;padding:14px 15px;box-shadow:var(--shadow);color:#fff;position:relative;overflow:hidden;min-height:120px}
+  .kpi.k1{background:linear-gradient(135deg,#1f5130,#2f7d70)}
+  .kpi.k2{background:linear-gradient(135deg,#159c47,#22b24c)}
+  .kpi.k3{background:#eef4f1;color:var(--ink);border:1px solid #e0ebe4;box-shadow:var(--shadow)}
+  .kpi.k4{background:#eef4f1;color:var(--ink);border:1px solid #e0ebe4}
+  .kpi.k5{background:linear-gradient(135deg,#0a5a44,#137a4a)}
+  .kpi .t{font-size:11px;font-weight:700;opacity:.92;line-height:1.18;min-height:28px}
+  .kpi.k3 .t,.kpi.k4 .t{color:var(--gray-txt);opacity:1}
+  .kpi .v{font-size:31px;font-weight:800;line-height:1;margin-top:7px}
+  .kpi .s{font-size:10.5px;margin-top:6px;opacity:.92}
+  .kpi.k3 .v,.kpi.k4 .v{color:var(--green-deep)}
+  .kpi .risk{display:flex;gap:12px;margin-top:9px}
+  .kpi .risk div{font-size:10px;color:var(--gray-txt)}
+  .kpi .risk b{display:block;font-size:17px;color:var(--green-deep);font-weight:800}
+
+  .main{display:grid;grid-template-columns:1fr;gap:0;margin-top:18px}
+  table.bk{width:100%;border-collapse:collapse;table-layout:fixed}
+  table.bk th{background:var(--green-deep);color:#fff;font-size:11px;font-weight:800;padding:8px 9px;text-align:right}
+  table.bk th.l{text-align:left}
+  table.bk td{padding:6.6px 9px;font-size:11.7px;text-align:right;border-bottom:1px solid #eef3f0;color:var(--ink)}
+  table.bk td.bk{text-align:center;font-weight:800;color:#123;border-radius:0}
+  table.bk td.l{text-align:left}
+  table.bk tr.inc td{background:#eafaef}
+  table.bk tr.inc td.strong{font-weight:800;color:var(--green-deep)}
+  table.bk tr.exc td{color:#9fb0a8}
+  table.bk tr.cut td{border-bottom:2px dashed var(--red)}
+  table.bk tfoot td{font-weight:800;background:#dff0ea;color:#0a4b44;font-size:11.7px;border-top:2px solid #cfe6de;padding:7px 9px}
+  .tag-in{display:inline-block;font-size:8px;font-weight:800;color:#fff;background:var(--green);border-radius:10px;padding:1px 6px;margin-left:5px}
+
+  .foot{position:absolute;left:38px;right:38px;bottom:8px;border-top:1px solid #e3ece7;padding-top:5px;font-size:9.2px;color:#8a9b93;line-height:1.4;display:flex;flex-wrap:wrap;gap:2px 16px}
+  .foot b{color:var(--green-deep2)}
+  @media print{ body{background:#fff;padding:0} .slide{box-shadow:none;border-radius:0} .ctrl{opacity:1} }
+</style>
+</head>
+<body>
+<div class="slide">
+  <h1>Impacto <span class="sec">| Nuevos leads · 5 años</span></h1>
+  <div class="subt">Simulador de <b>apetito de riesgo</b>: define la <b>Prob. máxima</b> y cuenta los leads elegibles de la <b>base inicial</b>, el <b>incremento</b> vs. la campaña actual y el <b>riesgo del pool</b></div>
+
+  <div class="ctrl">
+    <div class="ctl">
+      <span class="lb">Prob. máxima ≤</span>
+      <div class="rowc"><input id="rng" type="range" min="26" max="53" step="0.1" value="35"><input id="num" type="number" min="26" max="53" step="0.1" value="35"><span style="font-weight:800;color:var(--green-deep)">%</span></div>
+    </div>
+    <div class="ctl">
+      <span class="lb">Apetito resultante</span>
+      <div class="ap">hasta <b id="apbk">B3</b> · <span id="apn">3</span> buckets</div>
+      <div class="rowc"><span class="lb" style="text-transform:none;color:var(--gray-txt)">repartir en</span><input id="meses" type="number" min="1" max="24" step="1" value="6"><span style="font-size:10px;color:var(--gray-txt)">meses</span></div>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi k1"><div class="t">Leads elegibles<br>(base inicial)</div><div class="v" id="kLeads">—</div><div class="s"><span id="kPct">—</span> de la base inicial</div></div>
+    <div class="kpi k2"><div class="t">Nuevos leads<br>(incremento vs. campaña)</div><div class="v" id="kNew">—</div><div class="s">× <span id="kMult">—</span> vs. campaña actual</div></div>
+    <div class="kpi k3"><div class="t">Hoy en campaña<br>(en estos buckets)</div><div class="v" id="kCamp">—</div><div class="s">base de campañas · 20260624</div></div>
+    <div class="kpi k4"><div class="t">Riesgo del pool seleccionado</div><div class="risk"><div>Prob. prom<b id="kProb">—</b></div><div>Tasa malos<b id="kTasa">—</b></div><div>Score<b id="kScore">—</b></div></div></div>
+    <div class="kpi k5"><div class="t">Nuevos leads<br>por mes</div><div class="v" id="kMes">—</div><div class="s"><span id="kMesTot">—</span> elegibles / mes</div></div>
+  </div>
+
+  <div class="main">
+    <table class="bk">
+      <colgroup><col style="width:8%"><col style="width:10%"><col style="width:19%"><col style="width:10%"><col style="width:18%"><col style="width:17%"><col style="width:18%"></colgroup>
+      <thead><tr>
+        <th class="l">Buck.</th><th>Prob.</th><th>Base inicial</th><th>% base</th><th>Nuevos (fuera camp.)</th><th>Hoy en campaña</th><th>Score</th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+      <tfoot><tr>
+        <td class="l" id="fB">Incluidos</td><td id="fProb">—</td><td id="fCant">—</td><td id="fPct">—</td><td id="fFuera">—</td><td id="fCamp">—</td><td id="fScore">—</td>
+      </tr></tfoot>
+    </table>
+  </div>
+
+  <div class="foot">
+    <span><b>Leads elegibles:</b> Σ de la Cantidad de la base inicial en los buckets con Prob. ≤ umbral.</span>
+    <span><b>Nuevos leads:</b> elegibles − los que hoy ya están en campaña (≈ los que están fuera de campaña).</span>
+    <span><b>Riesgo:</b> promedios ponderados por cantidad · <b>Tasa</b> = tasa de malos observada.</span>
+    <span style="color:#b98600"><b>Interactivo:</b> mueve la barra de Prob. máxima (en PPT se entrega la foto del corte elegido).</span>
+  </div>
+</div>
+
+<script>
+const B=[
+ {b:'B1', prob:28.2, cant:20304, camp:2358, fuera:17656, tasa:7.15, score:718},
+ {b:'B2', prob:31.5, cant:28500, camp:642,  fuera:27642, tasa:8.14, score:685},
+ {b:'B3', prob:33.5, cant:140065,camp:13937,fuera:117373,tasa:8.70, score:664},
+ {b:'B4', prob:35.2, cant:187958,camp:5434, fuera:177463,tasa:9.42, score:647},
+ {b:'B5', prob:39.6, cant:114041,camp:4018, fuera:110285,tasa:13.36,score:603},
+ {b:'B6', prob:39.8, cant:289713,camp:3483, fuera:285437,tasa:13.53,score:602},
+ {b:'B7', prob:40.1, cant:278690,camp:1306, fuera:276720,tasa:13.17,score:598},
+ {b:'B8', prob:42.1, cant:86512, camp:1798, fuera:85882, tasa:17.07,score:579},
+ {b:'B9', prob:44.9, cant:111032,camp:1049, fuera:110728,tasa:18.13,score:550},
+ {b:'B10',prob:45.0, cant:147087,camp:420,  fuera:146876,tasa:19.10,score:549},
+ {b:'B11',prob:47.8, cant:70579, camp:3300, fuera:70510, tasa:36.89,score:522},
+ {b:'B12',prob:52.2, cant:223194,camp:3642, fuera:223102,tasa:39.68,score:478},
+];
+const BASE_TOT=1697675;
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const hsl=i=>`hsl(${130-i/11*130},60%,80%)`;
+
+function render(){
+  const thr=parseFloat(document.getElementById('num').value);
+  const meses=Math.max(1,parseInt(document.getElementById('meses').value)||1);
+  let leads=0,camp=0,fuera=0,wp=0,wt=0,ws=0,inc=0,lastInc=-1;
+  B.forEach((x,i)=>{ if(x.prob<=thr+1e-9){leads+=x.cant;camp+=x.camp;fuera+=x.fuera;wp+=x.cant*x.prob;wt+=x.cant*x.tasa;ws+=x.cant*x.score;inc++;lastInc=i;} });
+  const nuevos=leads-camp, mult=camp>0?leads/camp:0;
+  // KPIs
+  document.getElementById('kLeads').textContent=fmt(leads);
+  document.getElementById('kPct').textContent=(leads/BASE_TOT*100).toFixed(1)+'%';
+  document.getElementById('kNew').textContent='+'+fmt(nuevos);
+  document.getElementById('kMult').textContent=mult.toFixed(1);
+  document.getElementById('kCamp').textContent=fmt(camp);
+  document.getElementById('kProb').textContent=leads? (wp/leads).toFixed(1)+'%':'—';
+  document.getElementById('kTasa').textContent=leads? (wt/leads).toFixed(1)+'%':'—';
+  document.getElementById('kScore').textContent=leads? Math.round(ws/leads):'—';
+  document.getElementById('kMes').textContent='+'+fmt(nuevos/meses);
+  document.getElementById('kMesTot').textContent=fmt(leads/meses);
+  document.getElementById('apbk').textContent=lastInc>=0?B[lastInc].b:'—';
+  document.getElementById('apn').textContent=inc;
+  // tabla
+  const tb=document.getElementById('tb'); tb.innerHTML='';
+  B.forEach((x,i)=>{
+    const on=x.prob<=thr+1e-9;
+    const tr=document.createElement('tr');
+    tr.className=(on?'inc':'exc')+(i===lastInc?' cut':'');
+    tr.innerHTML=`<td class="bk" style="background:${hsl(i)}">${x.b}${on?'<span class="tag-in">✓</span>':''}</td>
+      <td class="${on?'strong':''}">${x.prob.toFixed(1)}%</td>
+      <td class="${on?'strong':''}">${fmt(x.cant)}</td>
+      <td>${(x.cant/BASE_TOT*100).toFixed(1)}%</td>
+      <td>${fmt(x.fuera)}</td>
+      <td>${fmt(x.camp)}</td>
+      <td>${x.score}</td>`;
+    tb.appendChild(tr);
+  });
+  document.getElementById('fB').textContent=`Incluidos (${inc})`;
+  document.getElementById('fProb').textContent=leads?(wp/leads).toFixed(1)+'%':'—';
+  document.getElementById('fCant').textContent=fmt(leads);
+  document.getElementById('fPct').textContent=(leads/BASE_TOT*100).toFixed(1)+'%';
+  document.getElementById('fFuera').textContent=fmt(fuera);
+  document.getElementById('fCamp').textContent=fmt(camp);
+  document.getElementById('fScore').textContent=leads?Math.round(ws/leads):'—';
+}
+const rng=document.getElementById('rng'),num=document.getElementById('num');
+rng.addEventListener('input',()=>{num.value=rng.value;render();});
+num.addEventListener('input',()=>{rng.value=num.value;render();});
+document.getElementById('meses').addEventListener('input',render);
+render();
+</script>
+</body>
+</html>
