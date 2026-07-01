@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Construcción de los Árboles · Score Rebank</title>
+<style>
+  :root{
+    --green-deep:#1f5130; --green-deep2:#26603a; --green:#1aa44c; --green-bright:#1a9850;
+    --green-teal:#3a7d5c; --green-soft:#e8f5ee; --green-line:#cfe6d8;
+    --gray-title:#9aa6a0; --gray-txt:#5b6f66; --ink:#14271d; --shadow:0 6px 20px rgba(20,60,40,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Roboto,Arial,sans-serif}
+  body{background:#dfe6e2;display:flex;flex-direction:column;align-items:center;gap:26px;padding:26px}
+  .slide{width:1280px;height:720px;background:#fff;position:relative;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);padding:28px 40px 20px}
+  .head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
+  h1{font-size:26px;font-weight:800;color:var(--green-deep);letter-spacing:-.3px;line-height:1.1}
+  h1 .sec{color:var(--gray-title);font-weight:800}
+  .subt{font-size:12.5px;color:var(--gray-txt);margin-top:4px}
+  .badge{display:inline-flex;align-items:center;gap:8px;background:var(--green-soft);color:var(--green-deep);font-weight:700;font-size:12px;padding:7px 14px;border-radius:30px;white-space:nowrap}
+  .badge .dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
+
+  .card{background:#fff;border:1px solid #e7eee9;border-radius:12px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
+  .card .ch{background:var(--green-deep);color:#fff;font-weight:700;font-size:13px;padding:9px 14px;display:flex;align-items:center;gap:8px}
+  .card .ch .n{background:rgba(255,255,255,.2);min-width:20px;height:20px;padding:0 5px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px}
+  .card .ch small{font-weight:400;opacity:.85;font-size:11px}
+  .card.alt .ch{background:var(--green-bright)}
+  .card.teal .ch{background:var(--green-teal)}
+  .card .bd{padding:12px 14px;flex:1}
+
+  .grid{display:grid;grid-template-columns:1.06fr .94fr;gap:16px}
+
+  .steps{display:flex;flex-direction:column;gap:8px}
+  .step{display:flex;gap:10px;align-items:flex-start}
+  .step .num{flex:0 0 23px;height:23px;border-radius:7px;background:var(--green);color:#fff;font-weight:800;font-size:11.5px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+  .step .num.pre{background:var(--green-deep)}
+  .step .tx{font-size:11.9px;color:var(--ink);line-height:1.4}
+  .step .tx b{color:var(--green-deep)}
+  code{font-family:Consolas,monospace;font-size:10.3px;background:#f0f5f2;padding:1px 5px;border-radius:5px;color:#23433c}
+
+  .stats{display:grid;gap:10px;margin-top:12px}
+  .stat{background:#f5faf7;border:1px solid #e3efe8;border-radius:10px;padding:9px 11px}
+  .stat .l{font-size:10.3px;color:var(--gray-txt);font-weight:600;margin-bottom:3px}
+  .stat .v{font-size:20px;font-weight:800;color:var(--green-deep);line-height:1}
+  .stat ul{list-style:none;display:flex;flex-direction:column;gap:3px;margin-top:4px}
+  .stat ul li{position:relative;padding-left:12px;font-size:10.4px;color:var(--ink);line-height:1.3}
+  .stat ul li:before{content:"";position:absolute;left:0;top:5px;width:4px;height:4px;border-radius:50%;background:var(--green)}
+  .stat code{font-size:9.7px}
+
+  .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+  .chip{display:inline-block;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap}
+  .chip.inc{background:var(--green-soft);color:var(--green-deep)}
+  .chip.pos{background:#fdeceb;color:#c0392b}
+  .chip.neg{background:#e8f5ee;color:#1a7a45}
+  .chip.ord{background:#e9eefb;color:#34529c}
+
+  /* sub-tarjetas por escenario */
+  .scn{border:1px solid #e7eee9;border-radius:11px;overflow:hidden;margin-bottom:11px;box-shadow:var(--shadow)}
+  .scn:last-child{margin-bottom:0}
+  .scn .sh{padding:6px 12px;color:#fff;display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:12px}
+  .scn.s24 .sh{background:var(--green-deep2)} .scn.s5 .sh{background:var(--green-teal)}
+  .scn .sh .tag{background:rgba(255,255,255,.22);font-weight:800;font-size:10.5px;padding:2px 8px;border-radius:6px}
+  .scn .sb{padding:7px 11px}
+  table.v{width:100%;border-collapse:collapse;font-size:11px}
+  table.v td{padding:3.6px 7px;border-bottom:1px solid #eef3f0;vertical-align:middle}
+  table.v tr:last-child td{border-bottom:none}
+  table.v td.var{font-family:Consolas,monospace;font-size:10.3px;color:#23433c}
+  table.v td.fam{font-weight:700;color:var(--green-deep2);white-space:nowrap;font-size:10.3px}
+  table.v td.dir{text-align:right;white-space:nowrap}
+
+  .note{font-size:10.5px;color:var(--gray-txt);line-height:1.45;margin-top:9px;background:#f7faf8;border:1px solid #e7eee9;border-radius:9px;padding:8px 10px}
+  .note b{color:var(--green-deep)}
+
+  .foot{position:absolute;left:40px;right:40px;bottom:12px;border-top:1px solid #e3ece7;padding-top:7px;font-size:9.5px;color:#8a9b93;line-height:1.45;display:flex;flex-wrap:wrap;gap:3px 18px}
+  .foot b{color:var(--green-deep2)}
+  @media print{ body{background:#fff;padding:0;gap:0} .slide{box-shadow:none;border-radius:0;page-break-after:always;margin:0} }
+</style>
+</head>
+<body>
+
+<!-- ================= SLIDE 1 · ÁRBOL 1 ================= -->
+<section class="slide">
+  <div class="head">
+    <div>
+      <h1>Construcción · Árbol 1 <span class="sec">| Score Rebank</span></h1>
+      <div class="subt">Desde la base RD para binear el score hasta las estrategias del primer árbol · <b>mismo procedimiento en ambos escenarios</b></div>
+    </div>
+    <span class="badge"><span class="dot"></span>Árbol 1 · 24m y 5 años</span>
+  </div>
+
+  <div class="grid">
+    <!-- proceso -->
+    <div class="card">
+      <div class="ch"><span class="n">B</span>Cómo se construye el Árbol 1</div>
+      <div class="bd">
+        <div class="steps">
+          <div class="step"><div class="num pre">0</div><div class="tx"><b>Base RD (desarrollo).</b> Sobre la base de entrenamiento del modelo Rebank se aplica <code>OptBinning</code> al <code>score</code> vs <code>target</code> → <b>Score Rebank 1 (mejor) … 6 (peor)</b>.</div></div>
+          <div class="step"><div class="num">1</div><div class="tx"><b>OptBinning por variable</b> (WoE) con tendencia monótona según <code>DIRECCION_NEGOCIO</code>.</div></div>
+          <div class="step"><div class="num">2</div><div class="tx"><b>Imputación de missing</b> con el WoE del <b>peor bin</b> (sin dato → mayor riesgo).</div></div>
+          <div class="step"><div class="num">3</div><div class="tx"><b>Árbol monótono</b> <code>DecisionTreeRegressor</code> con <code>monotonic_cst</code> y <code>min_samples_leaf</code>.</div></div>
+          <div class="step"><div class="num">4</div><div class="tx"><b>Poda automática:</b> re-entrena solo con variables de <b>importancia &gt; 0</b>.</div></div>
+          <div class="step"><div class="num">5</div><div class="tx"><b>Salida:</b> cada <b>hoja = estrategia</b> rankeada por riesgo → se agrupan en <b>buckets del Árbol 1</b>.</div></div>
+        </div>
+        <div class="stats" style="grid-template-columns:1fr 1fr">
+          <div class="stat"><div class="l">Dos universos de variables</div>
+            <ul><li>Con todas las variables</li><li>Sin <code>edad_num</code> (<code>*_sinedad</code>)</li></ul></div>
+          <div class="stat"><div class="l">Estrategias (prof. 4–6)</div><div class="v">15 – 21</div>
+            <ul><li>según escenario y profundidad</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- variables por escenario -->
+    <div class="card alt">
+      <div class="ch"><span class="n">A</span>Variables que entran al Árbol 1 <small>· por escenario</small></div>
+      <div class="bd">
+        <div class="scn s24">
+          <div class="sh"><span>24 meses</span><span class="tag">24m_sinedad_6</span></div>
+          <div class="sb"><table class="v">
+            <tr><td class="fam">Ordinal</td><td class="var">segmentacion_gdp_v2 (G1…G8)</td><td class="dir"><span class="chip ord">ordinal</span></td></tr>
+            <tr><td class="fam">Ingreso</td><td class="var">rk_ing_num</td><td class="dir"><span class="chip neg">− menos riesgo</span></td></tr>
+            <tr><td class="fam">Castigo</td><td class="var">meses_desde_primer_castigo</td><td class="dir"><span class="chip neg">− menos riesgo</span></td></tr>
+          </table></div>
+        </div>
+        <div class="scn s5">
+          <div class="sh"><span>5 años</span><span class="tag">5años_sinedad_4</span></div>
+          <div class="sb"><table class="v">
+            <tr><td class="fam">Ordinal</td><td class="var">segmentacion_gdp_v2 (G1…G8)</td><td class="dir"><span class="chip ord">ordinal</span></td></tr>
+            <tr><td class="fam">Ingreso</td><td class="var">rk_ing_num</td><td class="dir"><span class="chip neg">− menos riesgo</span></td></tr>
+            <tr><td class="fam">Castigo</td><td class="var">nro_entidades_castigo</td><td class="dir"><span class="chip pos">+ más riesgo</span></td></tr>
+            <tr><td class="fam">Castigo</td><td class="var">deuda_cas</td><td class="dir"><span class="chip pos">+ más riesgo</span></td></tr>
+          </table></div>
+        </div>
+        <div class="note"><b>Candidatas:</b> castigo (deuda, montos, nº entidades, meses/mora), ingreso/edad (rk_ing_num, edad_num), demográficas y <code>segmentacion_gdp_v2</code>. Cada árbol <b>conserva solo las de importancia &gt; 0</b>; arriba, las que quedaron en las reglas finales.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span><b>Base RD:</b> base de desarrollo/entrenamiento del modelo Rebank (define los cortes del Score).</span>
+    <span><b>DIRECCION_NEGOCIO / monotonic_cst:</b> dirección esperada de cada variable y su restricción monótona en el árbol.</span>
+    <span><b>+</b> mayor valor → más riesgo · <b>−</b> mayor valor → menos riesgo · <b>ordinal:</b> orden preservado.</span>
+  </div>
+</section>
+
+<!-- ================= SLIDE 2 · ÁRBOL 2 ================= -->
+<section class="slide">
+  <div class="head">
+    <div>
+      <h1>Construcción · Árbol 2 <span class="sec">| Score Rebank</span></h1>
+      <div class="subt">El segundo árbol re-segmenta usando el <b>resultado del Árbol 1</b> + saldo + score · <b>mismo procedimiento</b>, distinto umbral por escenario</div>
+    </div>
+    <span class="badge"><span class="dot"></span>Árbol 2 · 24m y 5 años</span>
+  </div>
+
+  <div class="grid">
+    <!-- proceso -->
+    <div class="card">
+      <div class="ch"><span class="n">C</span>Cómo se construye el Árbol 2 <small>· qué cambia</small></div>
+      <div class="bd">
+        <div class="steps">
+          <div class="step"><div class="num pre">↺</div><div class="tx"><b>Mismo motor que el Árbol 1</b> (OptBinning + árbol monótono + poda por importancia), pero sobre <b>nuevas variables de entrada</b>.</div></div>
+          <div class="step"><div class="num">1</div><div class="tx"><b>Entra el resultado del Árbol 1</b> (<code>bucket</code>) como variable <b>ordinal</b>, junto al saldo pasivo y el Score Rebank.</div></div>
+          <div class="step"><div class="num">2</div><div class="tx"><b>FAMILIAS_UNICAS:</b> conserva <b>una sola</b> variable por familia (p. ej. la de "saldo" de mayor importancia).</div></div>
+          <div class="step"><div class="num">3</div><div class="tx"><b>Nuevas hojas = estrategias finas</b> → se agrupan en <b>~12 buckets finales monótonos</b>.</div></div>
+        </div>
+        <div class="chips">
+          <span class="chip inc">Cascada</span><span class="chip inc">ChiMerge</span>
+          <span class="chip inc">OptBin</span><span class="chip inc">Shrinkage</span><span class="chip inc">MDLP</span>
+        </div>
+        <div class="stats" style="grid-template-columns:1fr 1fr">
+          <div class="stat"><div class="l">≤ 24 meses</div><div class="v">30 → 12</div><ul><li>estrategias → buckets</li></ul></div>
+          <div class="stat"><div class="l">≥ 5 años</div><div class="v">16 → 12</div><ul><li>estrategias → buckets</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- variables por escenario -->
+    <div class="card teal">
+      <div class="ch"><span class="n">A</span>Variables que entran al Árbol 2 <small>· por escenario</small></div>
+      <div class="bd">
+        <div class="scn s24">
+          <div class="sh"><span>24 meses</span><span class="tag">24m_sinedad_6</span></div>
+          <div class="sb"><table class="v">
+            <tr><td class="fam">Árbol 1</td><td class="var">bucket (B1…B8)</td><td class="dir"><span class="chip ord">ordinal</span></td></tr>
+            <tr><td class="fam">Saldo</td><td class="var">saldo_prom_tot_pasivo_u3m</td><td class="dir"><span class="chip neg">umbral 349.07</span></td></tr>
+            <tr><td class="fam">Score</td><td class="var">Score Rebank (puntuacion_cal_cat)</td><td class="dir"><span class="chip ord">1–6</span></td></tr>
+          </table></div>
+        </div>
+        <div class="scn s5">
+          <div class="sh"><span>5 años</span><span class="tag">5años_sinedad_4</span></div>
+          <div class="sb"><table class="v">
+            <tr><td class="fam">Árbol 1</td><td class="var">bucket (B1…B8)</td><td class="dir"><span class="chip ord">ordinal</span></td></tr>
+            <tr><td class="fam">Saldo</td><td class="var">saldo_prom_tot_pasivo_u3m</td><td class="dir"><span class="chip neg">umbral 220.89</span></td></tr>
+            <tr><td class="fam">Score</td><td class="var">Score Rebank (puntuacion_cal_cat)</td><td class="dir"><span class="chip ord">1–6</span></td></tr>
+          </table></div>
+        </div>
+        <div class="note"><b>Igual en ambos escenarios</b> (bucket · saldo pasivo · Score Rebank); lo único que cambia es el <b>umbral del saldo</b> (349.07 vs 220.89) y el nº de estrategias de partida. El binning del saldo va de <b>2 a 7 bins</b>.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span><b>bucket:</b> resultado agrupado del Árbol 1, entra como ordinal · <b>saldo_prom_tot_pasivo_u3m:</b> saldo pasivo promedio últimos 3 meses.</span>
+    <span><b>FAMILIAS_UNICAS:</b> deja una sola variable por familia · <b>Rechazo:</b> clientes no capturados por ninguna regla.</span>
+  </div>
+</section>
+
+</body>
+</html>
