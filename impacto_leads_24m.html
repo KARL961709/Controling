@@ -65,12 +65,12 @@
 <body>
 <div class="slide">
   <h1>Impacto <span class="sec">| Nuevos leads · 24 meses</span></h1>
-  <div class="subt">Simulador de <b>apetito de riesgo</b>: define la <b>Prob. máxima</b> y cuenta los leads elegibles de la <b>base inicial</b>, el <b>incremento</b> vs. la campaña actual y el <b>riesgo del pool</b></div>
+  <div class="subt">Simulador de <b>apetito de riesgo</b>: define la <b>RD máxima</b> (tasa de riesgo) y cuenta los leads elegibles de la <b>base inicial</b>, el <b>incremento</b> vs. la campaña actual y el <b>riesgo del pool</b></div>
 
   <div class="ctrl">
     <div class="ctl">
-      <span class="lb">Prob. máxima ≤</span>
-      <div class="rowc"><input id="rng" type="range" min="26" max="53" step="0.1" value="35"><input id="num" type="number" min="26" max="53" step="0.1" value="35"><span style="font-weight:800;color:var(--green-deep)">%</span></div>
+      <span class="lb">RD máxima ≤</span>
+      <div class="rowc"><input id="rng" type="range" min="4" max="42" step="0.1" value="11"><input id="num" type="number" min="4" max="42" step="0.1" value="11"><span style="font-weight:800;color:var(--green-deep)">%</span></div>
     </div>
     <div class="ctl">
       <span class="lb">Apetito resultante</span>
@@ -83,28 +83,28 @@
     <div class="kpi k1"><div class="t">Leads elegibles<br>(base inicial)</div><div class="v" id="kLeads">—</div><div class="s"><span id="kPct">—</span> de la base inicial</div></div>
     <div class="kpi k2"><div class="t">Nuevos leads<br>(incremento vs. campaña)</div><div class="v" id="kNew">—</div><div class="s">× <span id="kMult">—</span> vs. campaña actual</div></div>
     <div class="kpi k3"><div class="t">Hoy en campaña<br>(en estos buckets)</div><div class="v" id="kCamp">—</div><div class="s">base de campañas · 20260624</div></div>
-    <div class="kpi k4"><div class="t">Riesgo del pool seleccionado</div><div class="risk"><div>Prob. prom<b id="kProb">—</b></div><div>Tasa malos<b id="kTasa">—</b></div><div>Score<b id="kScore">—</b></div></div></div>
+    <div class="kpi k4"><div class="t">Riesgo del pool seleccionado</div><div class="risk"><div>Prob. prom<b id="kProb">—</b></div><div>RD prom<b id="kTasa">—</b></div><div>Score<b id="kScore">—</b></div></div></div>
     <div class="kpi k5"><div class="t">Nuevos leads<br>por mes</div><div class="v" id="kMes">—</div><div class="s"><span id="kMesTot">—</span> elegibles / mes</div></div>
   </div>
 
   <div class="main">
     <table class="bk">
-      <colgroup><col style="width:8%"><col style="width:10%"><col style="width:19%"><col style="width:10%"><col style="width:18%"><col style="width:17%"><col style="width:18%"></colgroup>
+      <colgroup><col style="width:8%"><col style="width:8.5%"><col style="width:8.5%"><col style="width:17%"><col style="width:9%"><col style="width:17%"><col style="width:15%"><col style="width:17%"></colgroup>
       <thead><tr>
-        <th class="l">Buck.</th><th>Prob.</th><th>Base inicial</th><th>% base</th><th>Nuevos (fuera camp.)</th><th>Hoy en campaña</th><th>Score</th>
+        <th class="l">Buck.</th><th>Prob.</th><th>RD</th><th>Base inicial</th><th>% base</th><th>Nuevos (fuera camp.)</th><th>Hoy en campaña</th><th>Score</th>
       </tr></thead>
       <tbody id="tb"></tbody>
       <tfoot><tr>
-        <td class="l" id="fB">Incluidos</td><td id="fProb">—</td><td id="fCant">—</td><td id="fPct">—</td><td id="fFuera">—</td><td id="fCamp">—</td><td id="fScore">—</td>
+        <td class="l" id="fB">Incluidos</td><td id="fProb">—</td><td id="fRD">—</td><td id="fCant">—</td><td id="fPct">—</td><td id="fFuera">—</td><td id="fCamp">—</td><td id="fScore">—</td>
       </tr></tfoot>
     </table>
   </div>
 
   <div class="foot">
-    <span><b>Leads elegibles:</b> Σ de la Cantidad de la base inicial en los buckets con Prob. ≤ umbral.</span>
+    <span><b>Leads elegibles:</b> Σ Cantidad de la base inicial en los buckets con <b>RD ≤ umbral</b>.</span>
     <span><b>Nuevos leads:</b> elegibles − los que hoy ya están en campaña (≈ los que están fuera de campaña).</span>
-    <span><b>Riesgo:</b> promedios ponderados por cantidad · <b>Tasa</b> = tasa de malos observada.</span>
-    <span style="color:#b98600"><b>Interactivo:</b> mueve la barra de Prob. máxima (en PPT se entrega la foto del corte elegido).</span>
+    <span><b>RD</b> = tasa de riesgo / default observado (columna RD). Promedios ponderados por cantidad.</span>
+    <span style="color:#b98600"><b>Interactivo:</b> mueve la barra de RD máxima (en PPT se entrega la foto del corte elegido).</span>
   </div>
 </div>
 
@@ -131,7 +131,7 @@ function render(){
   const thr=parseFloat(document.getElementById('num').value);
   const meses=Math.max(1,parseInt(document.getElementById('meses').value)||1);
   let leads=0,camp=0,fuera=0,wp=0,wt=0,ws=0,inc=0,lastInc=-1;
-  B.forEach((x,i)=>{ if(x.prob<=thr+1e-9){leads+=x.cant;camp+=x.camp;fuera+=x.fuera;wp+=x.cant*x.prob;wt+=x.cant*x.tasa;ws+=x.cant*x.score;inc++;lastInc=i;} });
+  B.forEach((x,i)=>{ if(x.tasa<=thr+1e-9){leads+=x.cant;camp+=x.camp;fuera+=x.fuera;wp+=x.cant*x.prob;wt+=x.cant*x.tasa;ws+=x.cant*x.score;inc++;lastInc=i;} });
   const nuevos=leads-camp, mult=camp>0?leads/camp:0;
   // KPIs
   document.getElementById('kLeads').textContent=fmt(leads);
@@ -149,11 +149,12 @@ function render(){
   // tabla
   const tb=document.getElementById('tb'); tb.innerHTML='';
   B.forEach((x,i)=>{
-    const on=x.prob<=thr+1e-9;
+    const on=x.tasa<=thr+1e-9;
     const tr=document.createElement('tr');
     tr.className=(on?'inc':'exc')+(i===lastInc?' cut':'');
     tr.innerHTML=`<td class="bk" style="background:${hsl(i)}">${x.b}${on?'<span class="tag-in">✓</span>':''}</td>
-      <td class="${on?'strong':''}">${x.prob.toFixed(1)}%</td>
+      <td>${x.prob.toFixed(1)}%</td>
+      <td class="${on?'strong':''}">${x.tasa.toFixed(1)}%</td>
       <td class="${on?'strong':''}">${fmt(x.cant)}</td>
       <td>${(x.cant/BASE_TOT*100).toFixed(1)}%</td>
       <td>${fmt(x.fuera)}</td>
@@ -163,6 +164,7 @@ function render(){
   });
   document.getElementById('fB').textContent=`Incluidos (${inc})`;
   document.getElementById('fProb').textContent=leads?(wp/leads).toFixed(1)+'%':'—';
+  document.getElementById('fRD').textContent=leads?(wt/leads).toFixed(1)+'%':'—';
   document.getElementById('fCant').textContent=fmt(leads);
   document.getElementById('fPct').textContent=(leads/BASE_TOT*100).toFixed(1)+'%';
   document.getElementById('fFuera').textContent=fmt(fuera);

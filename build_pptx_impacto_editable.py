@@ -40,10 +40,9 @@ D5=[('B1',28.2,20304,2358,17656,7.15,718),('B2',31.5,28500,642,27642,8.14,685),
     ('B11',47.8,70579,3300,70510,36.89,522),('B12',52.2,223194,3642,223102,39.68,478)]
 
 SCEN=[
- dict(rows=D24, base_tot=582927, name="24 meses", link="impacto_leads_24m.html", out="presentacion_impacto_24m_editable.pptx"),
- dict(rows=D5,  base_tot=1697675,name="5 años",  link="impacto_leads_slide.html",out="presentacion_impacto_5a_editable.pptx"),
+ dict(rows=D24, base_tot=582927, name="24 meses", thr=11.0, link="impacto_leads_24m.html", out="presentacion_impacto_24m_editable.pptx"),
+ dict(rows=D5,  base_tot=1697675,name="5 años",  thr=9.0,  link="impacto_leads_slide.html",out="presentacion_impacto_5a_editable.pptx"),
 ]
-THR=35.0
 fmt=lambda n:f"{int(round(n)):,}"
 
 def build(sc):
@@ -73,8 +72,8 @@ def build(sc):
         ln=cn.line._get_or_add_ln(); d=ln.makeelement(qn('a:prstDash'),{'val':'dash'}); ln.append(d)
         return cn
 
-    rows=sc['rows']; BT=sc['base_tot']
-    inc=[i for i,r in enumerate(rows) if r[1]<=THR+1e-9]; last=inc[-1]
+    rows=sc['rows']; BT=sc['base_tot']; THR=sc['thr']
+    inc=[i for i,r in enumerate(rows) if r[5]<=THR+1e-9]; last=inc[-1]   # corte por RD (=tasa, col 5)
     leads=sum(rows[i][2] for i in inc); camp=sum(rows[i][3] for i in inc); fuera=sum(rows[i][4] for i in inc)
     wp=sum(rows[i][2]*rows[i][1] for i in inc); wt=sum(rows[i][2]*rows[i][5] for i in inc); ws=sum(rows[i][2]*rows[i][6] for i in inc)
     nuevos=leads-camp; mult=leads/camp if camp else 0; meses=6
@@ -86,7 +85,7 @@ def build(sc):
        (", incremento vs. campaña actual y riesgo del pool",{'sz':10,'c':GRAY_TXT})])
     # chip de control estático
     rrect(8.85,0.30,1.95,0.62,LIGHT,line=CARD_LINE,radius=0.10)
-    tb(8.99,0.34,1.7,0.24,[("PROB. MÁXIMA ≤",{'sz':8.5,'b':True,'c':GREEN_DEEP})])
+    tb(8.99,0.34,1.7,0.24,[("RD MÁXIMA ≤",{'sz':8.5,'b':True,'c':GREEN_DEEP})])
     tb(8.99,0.55,1.7,0.30,[(f"{THR:.0f}%",{'sz':16,'b':True,'c':GREEN_DEEP})])
     rrect(10.92,0.30,1.99,0.62,LIGHT,line=CARD_LINE,radius=0.10)
     tb(11.05,0.34,1.8,0.24,[("APETITO RESULTANTE",{'sz':8,'b':True,'c':GREEN_DEEP})])
@@ -107,7 +106,7 @@ def build(sc):
     # tarjeta riesgo (3 mini)
     x=KX+3*(KW+KG); rrect(x,KY,KW,KH,LIGHT,line=CARD_LINE,radius=0.11)
     tb(x+0.14,KY+0.12,KW-0.24,0.3,[("Riesgo del pool seleccionado",{'sz':9.5,'b':True,'c':GRAY_TXT})],ls=1.05)
-    mini=[("Prob. prom",f"{probA:.1f}%"),("Tasa malos",f"{tasaA:.1f}%"),("Score",f"{scoreA:.0f}")]
+    mini=[("Prob. prom",f"{probA:.1f}%"),("RD prom",f"{tasaA:.1f}%"),("Score",f"{scoreA:.0f}")]
     mw=(KW-0.24)/3
     for j,(k,v) in enumerate(mini):
         mx=x+0.14+j*mw
@@ -117,10 +116,10 @@ def build(sc):
 
     # tabla nativa
     TX=0.42; TY=2.52; TW=12.49
-    gf=s.shapes.add_table(14,7,Inches(TX),Inches(TY),Inches(TW),Inches(0.3)); tbl=gf.table
+    gf=s.shapes.add_table(14,8,Inches(TX),Inches(TY),Inches(TW),Inches(0.3)); tbl=gf.table
     tbl.first_row=False; tbl.horz_banding=False
     tbl._tbl.tblPr.set('firstRow','0'); tbl._tbl.tblPr.set('bandRow','0')
-    fr=[0.075,0.10,0.175,0.09,0.19,0.175,0.195]
+    fr=[0.07,0.085,0.085,0.17,0.09,0.17,0.15,0.18]
     for i,f in enumerate(fr): tbl.columns[i].width=Inches(TW*f)
     tbl.rows[0].height=Inches(0.26)
     for r in range(1,13): tbl.rows[r].height=Inches(0.265)
@@ -139,22 +138,22 @@ def build(sc):
         tf=c.text_frame; tf.word_wrap=False; p=tf.paragraphs[0]; p.alignment=align
         r=p.add_run(); r.text=txt; r.font.size=Pt(sz); r.font.bold=b; r.font.name=FONT; r.font.color.rgb=col
         setb(c)
-    heads=["Buck.","Prob.","Base inicial","% base","Nuevos (fuera camp.)","Hoy en campaña","Score"]
+    heads=["Buck.","Prob.","RD","Base inicial","% base","Nuevos (fuera camp.)","Hoy en campaña","Score"]
     for j,h in enumerate(heads):
-        cell(tbl.cell(0,j),h,sz=8.6,b=True,col=WHITE,fill=GREEN_DEEP,align=(PP_ALIGN.LEFT if j==0 else PP_ALIGN.RIGHT))
+        cell(tbl.cell(0,j),h,sz=8.4,b=True,col=WHITE,fill=GREEN_DEEP,align=(PP_ALIGN.LEFT if j==0 else PP_ALIGN.RIGHT))
     for i,(bk,prob,cant,cmp,fu,ta,sc_) in enumerate(rows):
         r=i+1; on=i in inc
         rowfill=INCBG if on else WHITE
-        cell(tbl.cell(r,0),bk+("  ✓" if on else ""),sz=8.6,b=True,col=RGBColor(0x11,0x22,0x33),fill=hsl(i),align=PP_ALIGN.CENTER)
-        vals=[f"{prob:.1f}%",fmt(cant),f"{cant/BT*100:.1f}%",fmt(fu),fmt(cmp),f"{sc_}"]
-        strong=[True,True,False,False,False,False]
+        cell(tbl.cell(r,0),bk+("  ✓" if on else ""),sz=8.4,b=True,col=RGBColor(0x11,0x22,0x33),fill=hsl(i),align=PP_ALIGN.CENTER)
+        vals=[f"{prob:.1f}%",f"{ta:.1f}%",fmt(cant),f"{cant/BT*100:.1f}%",fmt(fu),fmt(cmp),f"{sc_}"]
+        strong=[False,True,True,False,False,False,False]   # RD y Base inicial resaltados
         for j,v in enumerate(vals):
             col=(GREEN_DEEP if (on and strong[j]) else (INK if on else EXC))
-            cell(tbl.cell(r,j+1),v,sz=8.6,b=(on and strong[j]),col=col,fill=rowfill)
+            cell(tbl.cell(r,j+1),v,sz=8.4,b=(on and strong[j]),col=col,fill=rowfill)
     # total
-    cell(tbl.cell(13,0),f"Incluidos ({len(inc)})",sz=8.6,b=True,col=TOTINK,fill=TOTBG,align=PP_ALIGN.LEFT)
-    tvals=[f"{probA:.1f}%",fmt(leads),f"{leads/BT*100:.1f}%",fmt(fuera),fmt(camp),f"{scoreA:.0f}"]
-    for j,v in enumerate(tvals): cell(tbl.cell(13,j+1),v,sz=8.6,b=True,col=TOTINK,fill=TOTBG)
+    cell(tbl.cell(13,0),f"Incluidos ({len(inc)})",sz=8.4,b=True,col=TOTINK,fill=TOTBG,align=PP_ALIGN.LEFT)
+    tvals=[f"{probA:.1f}%",f"{tasaA:.1f}%",fmt(leads),f"{leads/BT*100:.1f}%",fmt(fuera),fmt(camp),f"{scoreA:.0f}"]
+    for j,v in enumerate(tvals): cell(tbl.cell(13,j+1),v,sz=8.4,b=True,col=TOTINK,fill=TOTBG)
     # línea de corte punteada (bajo el último incluido)
     ycut=TY+0.26+(last+1)*0.265
     dline(TX,TX+TW,ycut)
@@ -173,8 +172,9 @@ def build(sc):
     # pie
     cn=s.shapes.add_connector(MSO_CONNECTOR.STRAIGHT,Inches(0.42),Inches(7.06),Inches(12.91),Inches(7.06))
     cn.line.color.rgb=FOOT_LINE; cn.line.width=Pt(1.0); cn.shadow.inherit=False
-    tb(0.42,7.13,8.6,0.3,[("Leads elegibles:",{'sz':7.6,'b':True,'c':GREEN_DEEP2}),(" Σ Cantidad de la base inicial con Prob. ≤ "+f"{THR:.0f}%",{'sz':7.6,'c':FOOT_INK}),
-       ("  ·  Nuevos:",{'sz':7.6,'b':True,'c':GREEN_DEEP2}),(" elegibles − los que hoy están en campaña.",{'sz':7.6,'c':FOOT_INK})])
+    tb(0.42,7.13,8.9,0.3,[("Leads elegibles:",{'sz':7.6,'b':True,'c':GREEN_DEEP2}),(" Σ Cantidad de la base inicial con RD ≤ "+f"{THR:.0f}%",{'sz':7.6,'c':FOOT_INK}),
+       ("  ·  RD",{'sz':7.6,'b':True,'c':GREEN_DEEP2}),(" = tasa de riesgo / default observado  ·  ",{'sz':7.6,'c':FOOT_INK}),
+       ("Nuevos:",{'sz':7.6,'b':True,'c':GREEN_DEEP2}),(" elegibles − los de campaña.",{'sz':7.6,'c':FOOT_INK})])
     tb(9.3,7.13,3.6,0.3,[("Enlace:",{'sz':7.6,'b':True,'c':GREEN_DEEP2}),(" mantén el HTML junto a este PPT.",{'sz':7.6,'c':FOOT_INK})])
 
     prs.save(sc['out']); print("OK",sc['out'],"→",sc['link'])
