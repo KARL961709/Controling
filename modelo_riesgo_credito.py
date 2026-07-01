@@ -109,6 +109,12 @@ class Config:
     # --- escenarios de nº de variables (cada uno optimiza sus hiperparametros) ---
     feature_scenarios: Tuple = (10, 15, 20, "half", "all")
     gbm_input_variants: Tuple[str, ...] = ("woe", "catnat", "raw")
+    # usar_todas=True: el pool usa TODAS las elegibles (salta IV-min/correlacion/VIF;
+    # mantiene PSI de estabilidad y el tope max_iv anti-leakage). 'all' ~ 60 vars.
+    use_all_features: bool = False
+    # refit_full=True: re-entrena el GANADOR con TODA la data (train+test+OOT) para
+    # DESPLIEGUE. NO uses sus metricas como validacion.
+    refit_full: bool = False
 
     # --- filtros de elegibilidad de variables (in-sample) ---
     max_missing_rate: float = 0.95              # descarta var con >95% nulos
@@ -1159,19 +1165,34 @@ def run(cfg: Config):
         au = woe.trend_table["monotonic_trend"].str.startswith("auto").sum()
         log.info("Direccion por Kendall Tau: %d ascending, %d descending, %d auto", asc, desc, au)
 
+    # usar_todas=True: el pool = TODAS las variables (salvo leakage max_iv), sin filtrar
+    # por IV-minimo. Se mantiene PSI (estabilidad) y se saltan correlacion/VIF.
+    if cfg.use_all_features:
+        woe.selected = woe.iv_table.loc[woe.iv_table["iv"] <= cfg.max_iv, "variable"].tolist()
+        log.info("usar_todas=True: pool inicial = %d variables (bypass IV-min/corr/VIF; "
+                 "se mantiene PSI y max_iv)", len(woe.selected))
+
     woe_tr = woe.transform(train)
     woe_te = woe.transform(test)
     woe_oo = woe.transform(oot)
+    n0 = woe_tr.shape[1]
 
     # --- 4. estabilidad + redundancia (medidas DENTRO de train; sin tocar test/OOT) ---
     # PSI sobre los BINS WOE, referencia = mes MINIMO del train (peor mes vs ref)
     keep = filter_psi_woe_over_time(cfg, woe_tr, train[cfg.time_col], cfg.out_dir)
     woe_tr, woe_te, woe_oo = woe_tr[keep], woe_te[keep], woe_oo[keep]
-    iv_woe = {f"woe_{k}": v for k, v in iv_map.items()}
-    keep = filter_correlation(cfg, woe_tr, iv_woe)
-    woe_tr, woe_te, woe_oo = woe_tr[keep], woe_te[keep], woe_oo[keep]
-    keep = filter_vif(cfg, woe_tr)
-    woe_tr, woe_te, woe_oo = woe_tr[keep], woe_te[keep], woe_oo[keep]
+    n1 = len(keep)
+    if cfg.use_all_features:
+        n2 = n3 = n1                                 # se saltan correlacion y VIF
+    else:
+        iv_woe = {f"woe_{k}": v for k, v in iv_map.items()}
+        keep = filter_correlation(cfg, woe_tr, iv_woe)
+        woe_tr, woe_te, woe_oo = woe_tr[keep], woe_te[keep], woe_oo[keep]
+        n2 = len(keep)
+        keep = filter_vif(cfg, woe_tr)
+        woe_tr, woe_te, woe_oo = woe_tr[keep], woe_te[keep], woe_oo[keep]
+        n3 = len(keep)
+    log.info("EMBUDO de variables: IV/binning=%d -> PSI=%d -> corr=%d -> VIF=%d", n0, n1, n2, n3)
 
     # --- 5. RANKING del pool + ESCENARIOS de nº de variables ---
     # Pool = lo que paso IV+PSI+correlacion+VIF; se ordena por Gini univariado.
@@ -1310,6 +1331,39 @@ def run(cfg: Config):
                   open(os.path.join(cfg.out_dir, "ganador_best_params.json"), "w"),
                   indent=2, default=str)
 
+    # --- 7c. RE-FIT del ganador con TODA la data (solo para DESPLIEGUE) ---
+    if cfg.refit_full:
+        import pickle
+        feats = scen_feats[winner]
+        yall = pd.concat([train[cfg.target], test[cfg.target], oot[cfg.target]])
+        if winner in lr_meta:
+            from sklearn.linear_model import LogisticRegression
+            Xall = pd.concat([woe_tr[feats], woe_te[feats], woe_oo[feats]]).fillna(0.0)
+            final = LogisticRegression(penalty="l2", C=1.0, max_iter=1000,
+                                       random_state=cfg.random_state).fit(Xall, yall)
+        else:
+            vname = winner.split("_")[1]                      # {mt}_{vname}_n{N}
+            mt, vcat = gbm_meta[winner]["mt"], gbm_meta[winner]["cat"]
+            v = build_variants(feats)[vname]
+            Xall = prepare_gbm_frame(mt, pd.concat([v["Xtr"], v["Xte"], v["Xoo"]]), vcat)
+            base = gbm_models[winner]
+            params = base.get_params()
+            best_it = getattr(base, "best_iteration_", None)  # nro de arboles del early stopping
+            if best_it is None:
+                try:
+                    best_it = base.get_booster().best_iteration
+                except Exception:
+                    best_it = None
+            if best_it:
+                params["n_estimators"] = int(best_it) + 1
+            params.pop("early_stopping_rounds", None)
+            final = base.__class__(**params).fit(Xall, yall)
+        pickle.dump({"winner": winner, "features": feats, "model": final},
+                    open(os.path.join(cfg.out_dir, "modelo_final_full.pkl"), "wb"))
+        log.warning("REFIT FULL: '%s' re-entrenado con TODA la data (train+test+OOT) -> "
+                    "modelo_final_full.pkl. SOLO para despliegue; NO reportes sus metricas.",
+                    winner)
+
     # comparacion del ganador contra el champion (prob_malo) en las 3 particiones
     if cfg.champion_prob in df.columns:
         comp = bench[bench["modelo"].isin([winner, "CHAMPION (prob_malo)"])]
@@ -1392,7 +1446,9 @@ def modelar(csv: str,
             n_estimators_max: int = 8000,
             escenarios: Tuple = (10, 15, 20, "half", "all"),
             variantes: Tuple[str, ...] = ("woe", "catnat", "raw"),
-            test_size: Optional[float] = None):   # 0.30=70/30, 0.20=80/20 (OOT intacto)
+            test_size: Optional[float] = None,    # 0.30=70/30, 0.20=80/20, 0.10=90/10 (OOT intacto)
+            usar_todas: bool = False,             # pool = todas las elegibles (bypass IV-min/corr/VIF)
+            refit_full: bool = False):            # re-entrena el ganador con TODA la data (despliegue)
     """Ejecuta TODO el pipeline a partir de un CSV. Solo necesitas la ruta.
 
     Hace, de punta a punta y sin que configures nada:
@@ -1422,6 +1478,7 @@ def modelar(csv: str,
         lr_min=lr_min, lr_max=lr_max, n_estimators_max=n_estimators_max,
         feature_scenarios=tuple(escenarios), gbm_input_variants=tuple(variantes),
         repartition_test_size=test_size,
+        use_all_features=usar_todas, refit_full=refit_full,
     )
     return run(cfg)
 
