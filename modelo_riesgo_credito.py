@@ -1338,6 +1338,26 @@ def run(cfg: Config):
                   open(os.path.join(cfg.out_dir, "ganador_best_params.json"), "w"),
                   indent=2, default=str)
 
+    # --- 7b'. guarda los TOP-5 modelos como OBJETOS INDEPENDIENTES (.pkl) ---
+    import pickle
+    top_dir = os.path.join(cfg.out_dir, "top5_modelos")
+    os.makedirs(top_dir, exist_ok=True)
+    top5 = win_tab.head(5)["modelo"].tolist()
+    for rank, name in enumerate(top5, 1):
+        safe = name.replace("/", "_")
+        if name in gbm_models:
+            obj = {"nombre": name, "rank": rank, "tipo": gbm_meta[name]["mt"],
+                   "variante": name.split("_")[1], "is_woe": gbm_meta[name]["is_woe"],
+                   "features": scen_feats[name], "cat_features": gbm_meta[name]["cat"],
+                   "model": gbm_models[name], "best_params": best_params_all.get(name, {})}
+        else:  # scorecard LR
+            obj = {"nombre": name, "rank": rank, "tipo": "LR/WOE",
+                   "variante": "woe", "is_woe": True,
+                   "features": scen_feats[name], "cat_features": [],
+                   "model": lr_meta[name]["model"], "best_params": {}}
+        pickle.dump(obj, open(os.path.join(top_dir, f"top{rank}_{safe}.pkl"), "wb"))
+    log.info("TOP-5 modelos guardados como objetos en %s: %s", top_dir, top5)
+
     # --- 7c. RE-FIT del ganador con TODA la data (solo para DESPLIEGUE) ---
     if cfg.refit_full:
         import pickle
